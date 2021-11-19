@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2020 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package tx_pool
 
 import (
@@ -16,7 +34,7 @@ const (
 
 	// txChanSize is the size of channel listening to NewTxsEvent.
 	// The number is referenced from the size of tx pool.
-	txChanSize = 8192
+	txChanSize = 4096
 
 	// softResponseLimit is the target maximum size of replies to data retrievals.
 	softResponseLimit = 2 * 1024 * 1024
@@ -62,20 +80,23 @@ func (txR *Reactor) OnStart() error {
 		txR.Logger.Info("Tx broadcasting is disabled")
 		return nil
 	}
+	txR.txsCh = make(chan events.NewTxsEvent, txChanSize)
+	txR.txsSub = txR.txpool.SubscribeNewTxsEvent(txR.txsCh)
+
 	txR.txFetcher.Start()
-	go txR.broadcastTxRoutine()
+	go txR.broadcastTransactionsRoutine()
 	return nil
 }
 
 // GetChannels implements Reactor by returning the list of channels for this
 // reactor.
 func (txR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
-	maxMsgSize := txR.config.MaxBatchBytes
 	return []*p2p.ChannelDescriptor{
 		{
 			ID:                  TxpoolChannel,
-			Priority:            10,
-			RecvMessageCapacity: maxMsgSize,
+			Priority:            5,
+			RecvMessageCapacity: DefaultTxPoolConfig.MaxTxsBatchSize,
+			RecvBufferCapacity:  DefaultTxPoolConfig.RecvBufferCapacity,
 		},
 	}
 }
@@ -91,7 +112,6 @@ func (txR *Reactor) AddPeer(peer p2p.Peer) {
 	// Propagate existing transactions. new transactions appearing
 	// after this will be sent via broadcasts.
 	txR.syncTransactions(peer)
-
 }
 
 // syncTransactions starts sending all currently pending transactions to the given peer.
@@ -100,8 +120,6 @@ func (txR *Reactor) syncTransactions(peer p2p.Peer) {
 	// peer. Fun fact, this is quite an expensive operation as it needs to sort
 	// the transactions if the sorting is not cached yet. However, with a random
 	// order, insertions could overflow the non-executable queues and get dropped.
-	//
-	// TODO(karalabe): Figure out if we could get away with random order somehow
 	var txs types.Transactions
 	pending, _ := txR.txpool.Pending()
 	for _, batch := range pending {
@@ -202,7 +220,7 @@ func (txR *Reactor) handleRequestPooledTransactions(src p2p.Peer, msg RequestPoo
 	}
 
 	if len(txs) > 0 {
-		src.Send(TxpoolChannel, MustEncode(PooledTransactions(txs)))
+		src.TrySend(TxpoolChannel, MustEncode(PooledTransactions(txs)))
 	}
 }
 
@@ -211,11 +229,51 @@ type PeerState interface {
 	GetHeight() int64
 }
 
-// Send new txpool txs to peer.
-func (txR *Reactor) broadcastTxRoutine() {
-	txset := make(map[*peer][]common.Hash)
-	txR.txsCh = make(chan events.NewTxsEvent, txChanSize)
-	txR.txsSub = txR.txpool.SubscribeNewTxsEvent(txR.txsCh)
+// BroadcastTransactions will propagate a batch of transactions
+// - To a square root of all peers
+// - And, separately, as announcements to all peers which are not known to
+// already have the given transaction.
+func (txR *Reactor) BroadcastTransactions(txs types.Transactions) {
+	var (
+		annoCount   int // Count of announcements made
+		annoPeers   int
+		directCount int // Count of the txs sent directly to peers
+		directPeers int // Count of the peers that were sent transactions directly
+
+		txset = make(map[*peer][]common.Hash) // Set peer->hash to transfer directly
+		annos = make(map[*peer][]common.Hash) // Set peer->hash to announce
+
+	)
+	// Broadcast transactions to a batch of peers not knowing about it
+	for _, tx := range txs {
+		peers := txR.peers.peersWithoutTx(tx.Hash())
+		// Send the tx unconditionally to a subset of our peers
+		numDirect := int(math.Sqrt(float64(len(peers))))
+		for _, peer := range peers[:numDirect] {
+			txset[peer] = append(txset[peer], tx.Hash())
+		}
+		// For the remaining peers, send announcement only
+		for _, peer := range peers[numDirect:] {
+			annos[peer] = append(annos[peer], tx.Hash())
+		}
+	}
+	for peer, hashes := range txset {
+		directPeers++
+		directCount += len(hashes)
+		peer.AsyncSendTransactions(hashes)
+	}
+	for peer, hashes := range annos {
+		annoPeers++
+		annoCount += len(hashes)
+		peer.AsyncSendPooledTransactionHashes(hashes)
+	}
+	txR.Logger.Info("Broadcast transaction", "txs", len(txs),
+		"announce packs", annoPeers, "announced hashes", annoCount,
+		"tx packs", directPeers, "broadcast txs", directCount)
+}
+
+// broadcastTransactionsRoutine broadcast new txs to peer.
+func (txR *Reactor) broadcastTransactionsRoutine() {
 	for {
 		// In case of both next.NextWaitChan() and peer.Quit() are variable at the same time
 		if !txR.IsRunning() {
@@ -224,25 +282,11 @@ func (txR *Reactor) broadcastTxRoutine() {
 
 		select {
 		case txEvent := <-txR.txsCh:
-			for _, tx := range txEvent.Txs {
-				peers := txR.peers.PeersWithoutTx(tx.Hash())
-				// Send the txset to a subset of our peers
-				subset := peers[:int(math.Sqrt(float64(len(peers))))]
-				for _, peer := range subset {
-					txset[peer] = append(txset[peer], tx.Hash())
-				}
-				txR.Logger.Trace("Broadcast transaction", "hash", tx.Hash(), "recipients", len(peers))
-			}
-
-			for peer, hashes := range txset {
-				// only send to validators
-				peer.AsyncSendTransactions(hashes)
-			}
+			txR.BroadcastTransactions(txEvent.Txs)
 		case <-txR.txsSub.Err():
 			return
 		}
 	}
-
 }
 
 func (txR *Reactor) OnStop() {

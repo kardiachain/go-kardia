@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2020 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package tx_pool
 
 import (
@@ -237,7 +255,7 @@ func (p *peer) broadcastTransactions() {
 
 // PeersWithoutTx retrieves a list of peers that do not have a given transaction
 // in their set of known hashes.
-func (ps *peerSet) PeersWithoutTx(hash common.Hash) []*peer {
+func (ps *peerSet) peersWithoutTx(hash common.Hash) []*peer {
 	ps.lock.RLock()
 	defer ps.lock.RUnlock()
 
@@ -295,6 +313,10 @@ func (p *peer) sendTransactions(txs types.Transactions) error {
 // not be managed directly.
 func (p *peer) sendPooledTransactionHashes(hashes []common.Hash) error {
 	// Mark all the transactions as known, but ensure we don't overflow our limits
+	for p.knownTxs.Cardinality() > max(0, maxKnownTxs-len(hashes)) {
+		p.knownTxs.Pop()
+	}
+	// Mark all the transactions as known, but ensure we don't overflow our limits
 	for _, hash := range hashes {
 		p.knownTxs.Add(hash)
 	}
@@ -309,6 +331,9 @@ func (p *peer) sendPooledTransactionHashes(hashes []common.Hash) error {
 // will never be propagated to this particular peer.
 func (p *peer) markTransaction(hash common.Hash) {
 	// If we reached the memory allowance, drop a previously known transaction hash
+	for p.knownTxs.Cardinality() >= maxKnownTxs {
+		p.knownTxs.Pop()
+	}
 	p.knownTxs.Add(hash)
 }
 
@@ -337,10 +362,13 @@ func (p *peer) AsyncSendPooledTransactionHashes(hashes []common.Hash) {
 	select {
 	case p.txAnnounce <- hashes:
 		// Mark all the transactions as known, but ensure we don't overflow our limits
+		for p.knownTxs.Cardinality() > max(0, maxKnownTxs-len(hashes)) {
+			p.knownTxs.Pop()
+		}
+		// Mark all the transactions as known, but ensure we don't overflow our limits
 		for _, hash := range hashes {
 			p.knownTxs.Add(hash)
 		}
-
 	case <-p.terminated:
 		p.logger.Debug("Dropping transaction announcement", "count", len(hashes))
 	}
