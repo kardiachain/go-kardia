@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"io"
 	"math/big"
-	"sync/atomic"
 	"unsafe"
 
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -215,8 +214,6 @@ type BlockInfo struct {
 	Rewards  *big.Int // block reward
 	Receipts Receipts
 	Bloom    *Bloom `rlp:"nil"`
-
-	size atomic.Value
 }
 
 // EncodeRLP implements rlp.Encoder, and flattens all content fields of a block info
@@ -247,20 +244,6 @@ func (bi *BlockInfo) DecodeRLP(s *rlp.Stream) error {
 		bi.Receipts[i] = (*Receipt)(receipt)
 	}
 	return nil
-}
-
-// Size returns the true RLP encoded storage size of the block info, either by
-// encoding and returning it, or returning a previously cached value.
-func (bi *BlockInfo) Size() common.StorageSize {
-	if size := bi.size.Load(); size != nil {
-		return size.(common.StorageSize)
-	}
-	c := writeCounter(0)
-	if err := rlp.Encode(&c, bi); err != nil {
-		return 0
-	}
-	bi.size.Store(common.StorageSize(c))
-	return common.StorageSize(c)
 }
 
 type storageBlockInfo struct {

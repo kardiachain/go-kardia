@@ -30,9 +30,6 @@ import (
 
 // UnmarshalLogsBloom encodes bloom as a hex string with 0x prefix.
 func UnmarshalLogsBloom(b *types.Bloom) (string, error) {
-	if b == nil {
-		return common.Bytes2Hex(types.Bloom{}.Bytes()), nil
-	}
 	return "0x" + common.Bytes2Hex(b[:]), nil
 }
 
@@ -67,7 +64,7 @@ func RPCMarshalHeader(head *types.Header) map[string]interface{} {
 		"miner":            head.ProposerAddress.Hex(),
 		"difficulty":       "0x000000",
 		"extraData":        common.NewZeroHash(),
-		"size":             common.Uint64(head.Size()),
+		"size":             "0x000000",
 		"gasLimit":         common.Uint64(head.GasLimit),
 		"timestamp":        common.Uint64(head.Time.Unix()),
 		"transactionsRoot": head.TxHash,
@@ -82,7 +79,7 @@ func RPCMarshalHeader(head *types.Header) map[string]interface{} {
 	}
 }
 
-// rpcMarshalBlock uses the generalized output filler, then adds additional fields, which requires
+// rpcMarshalBlock uses the generalized output filler, then adds adds additional fields, which requires
 // a `blockInfo`.
 func (s *PublicWeb3API) rpcMarshalBlock(ctx context.Context, b *types.Block, inclTx bool, fullTx bool) (map[string]interface{}, error) {
 	fields, err := RPCMarshalBlock(b, inclTx, fullTx)
@@ -90,7 +87,6 @@ func (s *PublicWeb3API) rpcMarshalBlock(ctx context.Context, b *types.Block, inc
 		return nil, err
 	}
 	fields["gasUsed"] = "0x0"
-	fields["size"] = common.Uint64(b.Size())
 	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, b.Hash())
 	if blockInfo != nil {
 		bloom, err := UnmarshalLogsBloom(blockInfo.Bloom)
@@ -99,7 +95,6 @@ func (s *PublicWeb3API) rpcMarshalBlock(ctx context.Context, b *types.Block, inc
 		}
 		fields["gasUsed"] = common.Uint64(blockInfo.GasUsed)
 		fields["rewards"] = (*common.Big)(blockInfo.Rewards)
-		fields["size"] = common.Uint64(blockInfo.Size() + b.Size())
 	}
 	return fields, nil
 }

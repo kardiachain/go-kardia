@@ -23,12 +23,12 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"reflect"
 	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -92,7 +92,7 @@ func (h *Header) Hash() common.Hash {
 // Size returns the approximate memory used by all internal contents. It is used
 // to approximate and limit the memory consumption of various caches.
 func (h *Header) Size() common.StorageSize {
-	return common.StorageSize(reflect.TypeOf(Header{}).Size())
+	return common.StorageSize(unsafe.Sizeof(*h))
 }
 
 // StringLong returns a long string representing full info about Header
