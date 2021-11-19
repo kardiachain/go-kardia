@@ -61,6 +61,7 @@ func RPCMarshalHeader(head *types.Header) map[string]interface{} {
 		"miner":            head.ProposerAddress,
 		"difficulty":       "0x000000",
 		"extraData":        common.NewZeroHash(),
+		"size":             common.Uint64(head.Size()),
 		"gasLimit":         common.Uint64(head.GasLimit),
 		"timestamp":        common.Uint64(head.Time.Unix()),
 		"transactionsRoot": head.TxHash,
