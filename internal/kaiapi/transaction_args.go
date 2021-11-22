@@ -286,7 +286,7 @@ func (args *TransactionArgs) ToMessage(globalGasCap uint64) types.Message {
 		value = args.Value.ToInt()
 	}
 	data := args.data()
-	msg := types.NewMessage(addr, args.To, 0, value, gas, gasPrice, data, true)
+	msg := types.NewMessage(addr, args.To, 0, value, gas, gasPrice, data, false)
 	return msg
 }
 
