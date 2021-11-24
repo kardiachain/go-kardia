@@ -158,9 +158,8 @@ func (bo *BlockOperations) sortAndValidateTxs(proposalTxs []*types.Transaction, 
 		from, _ := types.Sender(signer, tx)
 
 		state.Prepare(tx.Hash(), header.Hash(), tcount)
-		_, _, err := ApplyTransaction(bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvmConfig)
-
 		snap := state.Snapshot()
+		_, _, err := ApplyTransaction(bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvmConfig)
 		if err != nil {
 			state.RevertToSnapshot(snap)
 		} else {
