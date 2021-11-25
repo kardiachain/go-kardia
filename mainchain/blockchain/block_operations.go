@@ -88,6 +88,7 @@ func (bo *BlockOperations) Height() uint64 {
 func (bo *BlockOperations) CreateProposalBlock(
 	height uint64, lastState cstate.LatestBlockState,
 	proposerAddr common.Address, commit *types.Commit) (block *types.Block, blockParts *types.PartSet) {
+
 	// Gets all transactions in pending pools and execute them to get new account states.
 	// Tx execution can happen in parallel with voting or precommitted.
 	// For simplicity, this code executes & commits txs before sending proposal,
@@ -113,7 +114,9 @@ func (bo *BlockOperations) CreateProposalBlock(
 	header.GasLimit = lastState.ConsensusParams.Block.MaxGas
 	bo.logger.Info("Creates new header", "header", header)
 	if len(txs) != 0 {
+		start := time.Now()
 		txs = bo.sortAndValidateTxs(txs, header)
+		bo.logger.Info("sortAndValidateTxs", "duration", time.Since(start), "txs", len(txs))
 	}
 
 	block = bo.newBlock(header, txs, commit, evidence)
@@ -134,7 +137,10 @@ func (bo *BlockOperations) sortAndValidateTxs(proposalTxs []*types.Transaction, 
 
 	txset := types.NewTransactionsByPriceAndNonce(signer, txs)
 
-	state, _ := bo.blockchain.State()
+	state, err := bo.blockchain.State()
+	if err != nil {
+		panic(err)
+	}
 	tcount := 0
 	var usedGas = new(uint64)
 	kvmConfig := kvm.Config{}
