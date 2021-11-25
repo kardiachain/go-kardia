@@ -19,7 +19,6 @@
 package blockchain
 
 import (
-	"errors"
 	"sync"
 	"time"
 
@@ -56,6 +55,7 @@ type BlockOperations struct {
 	base       uint64
 	height     uint64
 	staking    *staking.StakingSmcUtil
+	worker     *worker
 }
 
 // NewBlockOperations returns a new BlockOperations with reference to the latest state of blockchain.
@@ -67,6 +67,7 @@ func NewBlockOperations(logger log.Logger, blockchain *BlockChain, txPool *tx_po
 		height:     blockchain.CurrentBlock().Height(),
 		evPool:     evpool,
 		staking:    staking,
+		worker:     newWorker(blockchain, txPool, &params.ChainConfig{}),
 	}
 }
 
@@ -88,7 +89,6 @@ func (bo *BlockOperations) Height() uint64 {
 func (bo *BlockOperations) CreateProposalBlock(
 	height uint64, lastState cstate.LatestBlockState,
 	proposerAddr common.Address, commit *types.Commit) (block *types.Block, blockParts *types.PartSet) {
-
 	// Gets all transactions in pending pools and execute them to get new account states.
 	// Tx execution can happen in parallel with voting or precommitted.
 	// For simplicity, this code executes & commits txs before sending proposal,
@@ -98,7 +98,10 @@ func (bo *BlockOperations) CreateProposalBlock(
 	maxNumEvidence, _ := types.MaxEvidencePerBlock(lastState.ConsensusParams.Evidence.MaxBytes)
 	evidence, _ := bo.evPool.PendingEvidence(maxNumEvidence)
 
-	txs := bo.txPool.ProposeTransactions()
+	txs := make([]*types.Transaction, 0)
+	if bo.worker.current != nil {
+		txs = bo.worker.current.txs
+	}
 	bo.logger.Debug("Collected transactions", "txs count", len(txs))
 
 	// Set time.
@@ -113,94 +116,10 @@ func (bo *BlockOperations) CreateProposalBlock(
 		lastState.NextValidators.Hash(), lastState.AppHash)
 	header.GasLimit = lastState.ConsensusParams.Block.MaxGas
 	bo.logger.Info("Creates new header", "header", header)
-	if len(txs) != 0 {
-		start := time.Now()
-		txs = bo.sortAndValidateTxs(txs, header)
-		bo.logger.Info("sortAndValidateTxs", "duration", time.Since(start), "txs", len(txs))
-	}
 
 	block = bo.newBlock(header, txs, commit, evidence)
 	bo.logger.Trace("Make block to propose", "block", block)
 	return block, block.MakePartSet(types.BlockPartSizeBytes)
-}
-
-func (bo *BlockOperations) sortAndValidateTxs(proposalTxs []*types.Transaction, header *types.Header) []*types.Transaction {
-	newTxs := make([]*types.Transaction, 0)
-	txs := make(map[common.Address]types.Transactions)
-	signer := types.HomesteadSigner{}
-	gasPool := new(types.GasPool).AddGas(header.GasLimit)
-
-	for _, tx := range proposalTxs {
-		acc, _ := types.Sender(signer, tx)
-		txs[acc] = append(txs[acc], tx)
-	}
-
-	txset := types.NewTransactionsByPriceAndNonce(signer, txs)
-
-	state, err := bo.blockchain.State()
-	if err != nil {
-		panic(err)
-	}
-	tcount := 0
-	var usedGas = new(uint64)
-	kvmConfig := kvm.Config{}
-	for {
-		// If we don't have enough gas for any further transactions then we're done
-		if gasPool.Gas() < params.TxGas {
-			log.Trace("Not enough gas for further transactions", "have", gasPool, "want", params.TxGas)
-			break
-		}
-
-		// Retrieve the next transaction and abort if all done
-		tx := txset.Peek()
-		if tx == nil {
-			break
-		}
-
-		// Error may be ignored here. The error has already been checked
-		// during transaction acceptance is the transaction pool.
-		//
-		// We use the eip155 signer regardless of the current hf.
-		from, _ := types.Sender(signer, tx)
-
-		state.Prepare(tx.Hash(), header.Hash(), tcount)
-		snap := state.Snapshot()
-		_, _, err := ApplyTransaction(bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvmConfig)
-		if err != nil {
-			state.RevertToSnapshot(snap)
-		} else {
-			newTxs = append(newTxs, tx)
-		}
-
-		switch {
-		case errors.Is(err, tx_pool.ErrGasLimitReached):
-			// Pop the current out-of-gas transaction without shifting in the next from the account
-			log.Trace("Gas limit exceeded for current block", "sender", from)
-			txset.Pop()
-
-		case errors.Is(err, tx_pool.ErrNonceTooLow):
-			// New head notification data race between the transaction pool and miner, shift
-			log.Trace("Skipping transaction with low nonce", "sender", from, "nonce", tx.Nonce())
-			txset.Shift()
-
-		case errors.Is(err, tx_pool.ErrNonceTooHigh):
-			// Reorg notification data race between the transaction pool and miner, skip account =
-			log.Trace("Skipping account with hight nonce", "sender", from, "nonce", tx.Nonce())
-			txset.Pop()
-
-		case errors.Is(err, nil):
-			tcount++
-			txset.Shift()
-
-		default:
-			// Strange error, discard the transaction and get the next in line (note, the
-			// nonce-too-high clause will prevent us from executing in vain).
-			log.Debug("Transaction failed, account skipped", "hash", tx.Hash(), "err", err)
-			txset.Shift()
-		}
-
-	}
-	return newTxs
 }
 
 // CommitAndValidateBlockTxs executes and commits the transactions in the given block.
