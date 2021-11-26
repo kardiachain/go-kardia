@@ -147,6 +147,7 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 func (w *worker) renew() {
 	parent := w.chain.CurrentBlock()
 	currentState, _ := w.chain.State()
+	w.logger.Info("Txs", "total", len(w.current.txs))
 	w.current = &environment{
 		signer: types.HomesteadSigner{},
 		state:  currentState.Copy(),
@@ -160,10 +161,8 @@ func (w *worker) renew() {
 	}
 
 	pendingTxs, _ := w.txpool.Pending()
-	if len(pendingTxs) > 0 {
-		txs := types.NewTransactionsByPriceAndNonce(w.current.signer, pendingTxs)
-		w.commitTransactions(txs, common.Address{}, nil)
-	}
+	txs := types.NewTransactionsByPriceAndNonce(w.current.signer, pendingTxs)
+	w.commitTransactions(txs, common.Address{}, nil)
 }
 
 // mainLoop is a standalone goroutine to regenerate the sealing task based on the received event.

@@ -98,10 +98,7 @@ func (bo *BlockOperations) CreateProposalBlock(
 	maxNumEvidence, _ := types.MaxEvidencePerBlock(lastState.ConsensusParams.Evidence.MaxBytes)
 	evidence, _ := bo.evPool.PendingEvidence(maxNumEvidence)
 
-	txs := make([]*types.Transaction, 0)
-	if bo.worker.current != nil {
-		txs = bo.worker.current.txs
-	}
+	txs := bo.txPool.ProposeTransactions()
 	bo.logger.Debug("Collected transactions", "txs count", len(txs))
 
 	// Set time.
