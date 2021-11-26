@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	defaultMaxPacketMsgPayloadSize = 1024
+	defaultMaxPacketMsgPayloadSize = 1400
 
 	numBatchPacketMsgs = 10
 	minReadBufferSize  = 1024
