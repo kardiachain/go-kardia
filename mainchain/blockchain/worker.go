@@ -149,7 +149,7 @@ func (w *worker) renew() {
 	currentState, _ := w.chain.State()
 	w.current = &environment{
 		signer: types.HomesteadSigner{},
-		state:  currentState,
+		state:  currentState.Copy(),
 		tcount: 0,
 		txs:    []*types.Transaction{},
 		header: &types.Header{
