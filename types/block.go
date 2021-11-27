@@ -290,6 +290,7 @@ func NewBlock(header *Header, txs []*Transaction, lastCommit *Commit, evidence [
 
 	if len(txs) == 0 {
 		b.header.TxHash = EmptyRootHash
+		b.header.NumTxs = 0
 	} else {
 		b.header.TxHash = DeriveSha(Transactions(txs))
 		b.header.NumTxs = uint64(len(txs))

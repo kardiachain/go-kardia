@@ -126,7 +126,7 @@ func DefaultP2PConfig() *P2PConfig {
 		// Some other Etherenet using Jumbo (8kb) frames and token ring (4kb)
 		// (https://en.wikipedia.org/wiki/Jumbo_frame, https://en.wikipedia.org/wiki/Token_Ring)
 		// Some other technicals can reduce the payload such as tunneling or via gateway
-		MaxPacketMsgPayloadSize: 1400,
+		MaxPacketMsgPayloadSize: 1024,
 		SendRate:                5120000, // 5 mB/s
 		RecvRate:                5120000, // 5 mB/s
 		PexReactor:              true,
