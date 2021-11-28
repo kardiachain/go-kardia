@@ -127,7 +127,7 @@ func DefaultP2PConfig() *P2PConfig {
 		// (https://en.wikipedia.org/wiki/Jumbo_frame, https://en.wikipedia.org/wiki/Token_Ring)
 		// Some other technicals can reduce the payload such as tunneling or via gateway
 		// So safe option should be around 1380 (correct me @lewtran)
-		MaxPacketMsgPayloadSize: 1380,
+		MaxPacketMsgPayloadSize: 1024,
 		SendRate:                5120000, // 5 mB/s
 		RecvRate:                5120000, // 5 mB/s
 		PexReactor:              true,
