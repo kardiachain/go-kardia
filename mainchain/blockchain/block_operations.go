@@ -20,6 +20,7 @@ package blockchain
 
 import (
 	"errors"
+	"github.com/kardiachain/go-kardia/lib/metrics"
 	"sync"
 	"time"
 
@@ -37,6 +38,11 @@ import (
 
 //-----------------------------------------------------------------------------
 // evidence pool
+
+var (
+	blockWriteTimer = metrics.NewRegisteredTimer("chain/block/write", nil)
+	blockHeightGauge = metrics.NewRegisteredGauge("chain/block/height", nil)
+)
 
 // EvidencePool defines the EvidencePool interface used by the ConsensusState.
 // Get/Set/Commit
@@ -56,6 +62,8 @@ type BlockOperations struct {
 	base       uint64
 	height     uint64
 	staking    *staking.StakingSmcUtil
+
+	metrics bool
 }
 
 // NewBlockOperations returns a new BlockOperations with reference to the latest state of blockchain.
@@ -205,11 +213,22 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCom
 	if err != nil {
 		return nil, common.Hash{}, err
 	}
+
+	opStart := time.Now()
+
 	bo.saveBlockInfo(blockInfo, block)
 	bo.blockchain.DB().WriteHeadBlockHash(block.Hash())
 	bo.blockchain.DB().WriteTxLookupEntries(block)
 	bo.blockchain.DB().WriteAppHash(block.Height(), root)
 	bo.blockchain.InsertHeadBlock(block)
+
+	if bo.metrics {
+		// time
+		blockWriteTimer.Update(time.Since(opStart))
+		// gauge: blockheight
+		blockHeightGauge.Update(int64(block.Height()))
+
+	}
 
 	// send logs of emitted events to logs feed for collecting
 	var logs []*types.Log
