@@ -23,7 +23,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/params"
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/mainchain/staking"
 	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
@@ -140,8 +140,8 @@ func (bo *BlockOperations) sortAndValidateTxs(proposalTxs []*types.Transaction, 
 	kvmConfig := kvm.Config{}
 	for {
 		// If we don't have enough gas for any further transactions then we're done
-		if gasPool.Gas() < params.TxGas {
-			log.Error("Not enough gas for further transactions", "have", gasPool, "want", params.TxGas)
+		if gasPool.Gas() < configs.TxGas {
+			log.Error("Not enough gas for further transactions", "have", gasPool, "want", configs.TxGas)
 			break
 		}
 
