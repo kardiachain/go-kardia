@@ -48,7 +48,6 @@ var (
 type Transaction struct {
 	data txdata
 	time time.Time // Time first seen locally (spam avoidance)
-
 	// caches
 	hash atomic.Value
 	size atomic.Value
@@ -102,7 +101,7 @@ func newTransaction(nonce uint64, to *common.Address, amount *big.Int, gasLimit 
 		d.Price.Set(gasPrice)
 	}
 
-	return &Transaction{data: d}
+	return &Transaction{data: d, time: time.Now()}
 }
 
 // EncodeRLP implements rlp.Encoder
