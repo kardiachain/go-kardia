@@ -308,12 +308,7 @@ func (pool *TxPool) PendingSize() int {
 	return pendingSize
 }
 
-// ProposeTransactions collects transactions from pending and remove them.
-func (pool *TxPool) ProposeTransactions() []*types.Transaction {
-	return pool.GetPendingData()
-}
-
-// ProposeTransactions collects transactions from pending and remove them.
+// GetPendingData collects transactions from pending and remove them.
 func (pool *TxPool) GetPendingData() []*types.Transaction {
 	txs := []*types.Transaction{}
 	pending, _ := pool.Pending()
