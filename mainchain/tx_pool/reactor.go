@@ -270,7 +270,7 @@ func (txR *Reactor) BroadcastTransactions(txs types.Transactions) {
 		annoCount += len(hashes)
 		peer.AsyncSendPooledTransactionHashes(hashes)
 	}
-	txR.Logger.Info("Broadcast transaction", "txs", len(txs),
+	txR.Logger.Debug("Broadcast transaction", "txs", len(txs),
 		"announce packs", annoPeers, "announced hashes", annoCount,
 		"tx packs", directPeers, "broadcast txs", directCount)
 }
