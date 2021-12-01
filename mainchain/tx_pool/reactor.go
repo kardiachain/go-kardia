@@ -143,15 +143,12 @@ func (txR *Reactor) syncTransactions(peer p2p.Peer) {
 
 // RemovePeer implements Reactor.
 func (txR *Reactor) RemovePeer(peer p2p.Peer, reason interface{}) {
-
-	if err := txR.txFetcher.Drop(string(peer.ID())); err != nil {
-		txR.Logger.Error("txFetcher drop err: %s", err)
-	}
-
 	if err := txR.peers.Unregister(peer.ID()); err != nil {
 		txR.Logger.Error("unregister peer err: %s", err)
 	}
-
+	if err := txR.txFetcher.Drop(string(peer.ID())); err != nil {
+		txR.Logger.Error("txFetcher drop err: %s", err)
+	}
 }
 
 // Receive implements Reactor.
@@ -268,7 +265,7 @@ func (txR *Reactor) BroadcastTransactions(txs types.Transactions) {
 		annoCount += len(hashes)
 		peer.AsyncSendPooledTransactionHashes(hashes)
 	}
-	txR.Logger.Info("Broadcast transaction", "txs", len(txs),
+	txR.Logger.Debug("Broadcast transaction", "txs", len(txs),
 		"announce packs", annoPeers, "announced hashes", annoCount,
 		"tx packs", directPeers, "broadcast txs", directCount)
 }
