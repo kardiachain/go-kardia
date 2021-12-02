@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -153,10 +154,15 @@ func (bo *BlockOperations) organizeTransactions(pendingTxs map[common.Address]ty
 		// during transaction acceptance is the transaction pool.
 		from, _ := types.Sender(signer, tx)
 		// Start executing the transaction
-		state, _ := bo.blockchain.State()
-		state.Prepare(tx.Hash(), common.Hash{}, tcount)
-		err := bo.tryApplyTransaction(tx, header, gasPool, usedGas)
+		state, err := bo.blockchain.State()
+		if err != nil {
+			bo.logger.Error("Failed to get blockchain head state", "err", err)
+			// @lewtran: panic here?
+			return nil
+		}
 
+		state.Prepare(tx.Hash(), common.Hash{}, tcount)
+		err = bo.tryApplyTransaction(state, tx, header, gasPool, usedGas)
 		switch {
 		case errors.Is(err, tx_pool.ErrGasLimitReached):
 			// Pop the current out-of-gas transaction without shifting in the next from the account
@@ -305,15 +311,10 @@ func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transacti
 }
 
 // tryApplyTransaction attempts to appply a single transaction. If the transaction fails, it's modifications are reverted.
-func (bo *BlockOperations) tryApplyTransaction(tx *types.Transaction, header *types.Header, gasPool *types.GasPool, usedGas *uint64) error {
-	state, err := bo.blockchain.State()
-	if err != nil {
-		bo.logger.Error("Failed to get blockchain head state", "err", err)
-		return err
-	}
+func (bo *BlockOperations) tryApplyTransaction(state *state.StateDB, tx *types.Transaction, header *types.Header, gasPool *types.GasPool, usedGas *uint64) error {
 	snap := state.Snapshot()
 	kvmConfig := kvm.Config{}
-	_, _, err = ApplyTransaction(bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvmConfig)
+	_, _, err := ApplyTransaction(bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvmConfig)
 	if err != nil {
 		bo.logger.Error("ApplyTransaction failed", "tx", tx.Hash().Hex(), "nonce", tx.Nonce(), "err", err)
 		state.RevertToSnapshot(snap)
