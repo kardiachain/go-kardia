@@ -21,6 +21,7 @@ package cstate
 import (
 	"fmt"
 	"math/big"
+	"time"
 
 	fail "github.com/ebuchman/fail-test"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -54,6 +55,8 @@ type BlockExecutor struct {
 	eventBus *types.EventBus
 
 	logger log.Logger
+
+	metrics bool
 }
 
 // NewBlockExecutor returns a new BlockExecutor with a NopEventBus.
@@ -109,7 +112,15 @@ func (blockExec *BlockExecutor) ApplyBlock(state LatestBlockState, blockID types
 		return state, block.Height(), fmt.Errorf("commit failed for application: %v", err)
 	}
 	state.AppHash = appHash
+	subStart := time.Now()
 	blockExec.store.Save(state)
+
+	if blockExec.metrics {
+		saveStateTimer.Update(time.Since(subStart))
+		stateBytesLength.Update(int64(len(state.Bytes())))
+		lastHeightValidatorsChangedGauge.Update(int64(state.LastHeightConsensusParamsChanged))
+		nextValidatorsGauge.Update(int64(len(state.NextValidators.Validators)))
+	}
 
 	// Update evpool with the block and state.
 	blockExec.evpool.Update(state, block.Evidence().Evidence)
