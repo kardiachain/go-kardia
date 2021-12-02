@@ -24,13 +24,12 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/kvm"
-	"github.com/kardiachain/go-kardia/mainchain/staking"
-	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
-
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
+	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/mainchain/staking"
+	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -47,15 +46,15 @@ type EvidencePool interface {
 // BlockOperations
 type BlockOperations struct {
 	logger log.Logger
-
-	mtx sync.RWMutex
+	mtx    sync.RWMutex
 
 	blockchain *BlockChain
-	txPool     *tx_pool.TxPool
 	evPool     EvidencePool
-	base       uint64
-	height     uint64
-	staking    *staking.StakingSmcUtil
+	txPool     *tx_pool.TxPool
+
+	base    uint64
+	height  uint64
+	staking *staking.StakingSmcUtil
 }
 
 // NewBlockOperations returns a new BlockOperations with reference to the latest state of blockchain.
@@ -134,10 +133,9 @@ func (bo *BlockOperations) organizeTransactions(pendingTxs map[common.Address]ty
 	txSet := types.NewTransactionsByPriceAndNonce(signer, pendingTxs)
 
 	gasPool := new(types.GasPool).AddGas(header.GasLimit)
-	state := bo.txPool.State().Copy()
 	tcount := 0
 	var usedGas = new(uint64)
-	kvmConfig := kvm.Config{}
+
 	for {
 		// If we don't have enough gas for any further transactions then we're done
 		if gasPool.Gas() < configs.TxGas {
@@ -154,15 +152,10 @@ func (bo *BlockOperations) organizeTransactions(pendingTxs map[common.Address]ty
 		// Error may be ignored here. The error has already been checked
 		// during transaction acceptance is the transaction pool.
 		from, _ := types.Sender(signer, tx)
-
-		state.Prepare(tx.Hash(), header.Hash(), tcount)
-		snap := state.Snapshot()
-		_, _, err := ApplyTransaction(bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvmConfig)
-		if err != nil {
-			state.RevertToSnapshot(snap)
-		} else {
-			proposeTxs = append(proposeTxs, tx)
-		}
+		// Start executing the transaction
+		state, _ := bo.blockchain.State()
+		state.Prepare(tx.Hash(), common.Hash{}, tcount)
+		err := bo.tryApplyTransaction(tx, header, gasPool, usedGas)
 
 		switch {
 		case errors.Is(err, tx_pool.ErrGasLimitReached):
@@ -183,6 +176,7 @@ func (bo *BlockOperations) organizeTransactions(pendingTxs map[common.Address]ty
 		case errors.Is(err, nil):
 			tcount++
 			txSet.Shift()
+			proposeTxs = append(proposeTxs, tx)
 
 		default:
 			// Strange error, discard the transaction and get the next in line (note, the
@@ -190,7 +184,6 @@ func (bo *BlockOperations) organizeTransactions(pendingTxs map[common.Address]ty
 			log.Error("Transaction failed, account skipped", "hash", tx.Hash(), "err", err)
 			txSet.Shift()
 		}
-
 	}
 	return proposeTxs
 }
@@ -311,6 +304,24 @@ func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transacti
 	return block
 }
 
+// tryApplyTransaction attempts to appply a single transaction. If the transaction fails, it's modifications are reverted.
+func (bo *BlockOperations) tryApplyTransaction(tx *types.Transaction, header *types.Header, gasPool *types.GasPool, usedGas *uint64) error {
+	state, err := bo.blockchain.State()
+	if err != nil {
+		bo.logger.Error("Failed to get blockchain head state", "err", err)
+		return err
+	}
+	snap := state.Snapshot()
+	kvmConfig := kvm.Config{}
+	_, _, err = ApplyTransaction(bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvmConfig)
+	if err != nil {
+		bo.logger.Error("ApplyTransaction failed", "tx", tx.Hash().Hex(), "nonce", tx.Nonce(), "err", err)
+		state.RevertToSnapshot(snap)
+		return err
+	}
+	return nil
+}
+
 // commitTransactions executes the given transactions and commits the result stateDB to disk.
 func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *types.Header,
 	lastCommit stypes.LastCommitInfo, byzVals []stypes.Evidence) ([]*types.Validator, common.Hash, *types.BlockInfo,
@@ -324,7 +335,8 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 	// Blockchain state at head block.
 	state, err := bo.blockchain.State()
 	if err != nil {
-		bo.logger.Error("Fail to get blockchain head state", "err", err)
+		bo.logger.Error("Failed to get blockchain head state", "err", err)
+		// @lewtran: panic here?
 		return nil, common.Hash{}, nil, nil, err
 	}
 
