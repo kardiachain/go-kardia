@@ -128,14 +128,14 @@ func (bo *BlockOperations) CreateProposalBlock(
 
 // organizeTransactions sort and validate transactions in block to propose
 func (bo *BlockOperations) organizeTransactions(pendingTxs map[common.Address]types.Transactions, header *types.Header) []*types.Transaction {
-	proposeTxs := make([]*types.Transaction, 0)
 	signer := types.HomesteadSigner{}
 	// @lewtran: should we split local and remote txs here?
 	txSet := types.NewTransactionsByPriceAndNonce(signer, pendingTxs)
-
 	gasPool := new(types.GasPool).AddGas(header.GasLimit)
-	tcount := 0
 	var usedGas = new(uint64)
+
+	tcount := 0
+	finalTxsList := types.Transactions{}
 
 	for {
 		// If we don't have enough gas for any further transactions then we're done
@@ -166,24 +166,23 @@ func (bo *BlockOperations) organizeTransactions(pendingTxs map[common.Address]ty
 		switch {
 		case errors.Is(err, tx_pool.ErrGasLimitReached):
 			// Pop the current out-of-gas transaction without shifting in the next from the account
-			log.Error("Gas limit exceeded for current block", "sender", from)
+			log.Error("tryApplyTransaction Gas limit exceeded for current block", "sender", from)
 			txSet.Pop()
 
 		case errors.Is(err, tx_pool.ErrNonceTooLow):
 			// New head notification data race between the transaction pool and miner, shift
-			log.Error("Skipping transaction with low nonce", "sender", from, "nonce", tx.Nonce())
+			log.Error("tryApplyTransaction Skipping transaction with low nonce", "sender", from, "nonce", tx.Nonce())
 			txSet.Shift()
 
 		case errors.Is(err, tx_pool.ErrNonceTooHigh):
 			// Reorg notification data race between the transaction pool and miner, skip account =
-			log.Error("Skipping account with hight nonce", "sender", from, "nonce", tx.Nonce())
+			log.Error("tryApplyTransaction Skipping account with hight nonce", "sender", from, "nonce", tx.Nonce())
 			txSet.Pop()
 
 		case errors.Is(err, nil):
 			tcount++
 			txSet.Shift()
-			proposeTxs = append(proposeTxs, tx)
-
+			finalTxsList = append(finalTxsList, tx)
 		default:
 			// Strange error, discard the transaction and get the next in line (note, the
 			// nonce-too-high clause will prevent us from executing in vain).
@@ -191,7 +190,7 @@ func (bo *BlockOperations) organizeTransactions(pendingTxs map[common.Address]ty
 			txSet.Shift()
 		}
 	}
-	return proposeTxs
+	return finalTxsList
 }
 
 // CommitAndValidateBlockTxs executes and commits the transactions in the given block.
@@ -316,7 +315,6 @@ func (bo *BlockOperations) tryApplyTransaction(state *state.StateDB, tx *types.T
 	kvmConfig := kvm.Config{}
 	_, _, err := ApplyTransaction(bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvmConfig)
 	if err != nil {
-		bo.logger.Error("ApplyTransaction failed", "tx", tx.Hash().Hex(), "nonce", tx.Nonce(), "err", err)
 		state.RevertToSnapshot(snap)
 		return err
 	}
