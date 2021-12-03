@@ -217,11 +217,13 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCom
 
 	if bo.metrics {
 		// block write timer
-		blockWriteTimer.Update(time.Since(opStart))
+		blockWriteTimer.UpdateSince(opStart)
 		// block height
 		blockHeightGauge.Update(int64(block.Height()))
 		// block transactions gauge
 		blockTransactionsGauge.Update(int64(block.Transactions().Len()))
+		// block hash length gauge
+		blockHashGauge.Update(int64(len(block.Hash())))
 	}
 
 	// send logs of emitted events to logs feed for collecting
@@ -262,7 +264,12 @@ func (bo *BlockOperations) SaveBlock(block *types.Block, blockParts *types.PartS
 	if !blockParts.IsComplete() {
 		panic("BlockOperations can only save complete block part sets")
 	}
+	opStart := time.Now()
 	bo.blockchain.SaveBlock(block, blockParts, seenCommit)
+
+	if bo.metrics {
+		blockSaveTimer.UpdateSince(opStart)
+	}
 
 	bo.mtx.Lock()
 	bo.height = height
