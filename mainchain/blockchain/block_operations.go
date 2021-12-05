@@ -128,7 +128,7 @@ func (bo *BlockOperations) CreateProposalBlock(
 
 // organizeTransactions sort and validate transactions in block to propose
 func (bo *BlockOperations) organizeTransactions(pendingTxs map[common.Address]types.Transactions, header *types.Header) []*types.Transaction {
-	defer bo.timeMeasure(time.Now(), "Timer organize transactions")
+	defer bo.timeMeasure(time.Now(), "Organize transactions")
 	signer := types.HomesteadSigner{}
 	// @lewtran: should we split local and remote txs here?
 	txSet := types.NewTransactionsByPriceAndNonce(signer, pendingTxs)
@@ -411,5 +411,5 @@ func (bo *BlockOperations) saveBlockInfo(blockInfo *types.BlockInfo, block *type
 
 func (bo *BlockOperations) timeMeasure(start time.Time, name string) {
 	elapsed := time.Since(start)
-	bo.logger.Info("%s took %s", name, elapsed)
+	bo.logger.Info(name, "duration", elapsed)
 }
