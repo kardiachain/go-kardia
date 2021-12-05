@@ -91,7 +91,7 @@ func (bo *BlockOperations) newProposalBlockState(header *types.Header) (*proposa
 	bo.mtx.RLock()
 	defer bo.mtx.RUnlock()
 
-	state, err := bo.blockchain.StateAt(header.Height - 1) // current blockchain state
+	state, err := bo.blockchain.State()
 	if err != nil {
 		bo.logger.Error("Failed to get blockchain head state", "err", err)
 		return nil, err
@@ -105,6 +105,7 @@ func (bo *BlockOperations) newProposalBlockState(header *types.Header) (*proposa
 		gasLimit: header.GasLimit,
 		gasPool:  new(types.GasPool).AddGas(header.GasLimit),
 		header:   header,
+		txs:      []*types.Transaction{},
 	}, nil
 }
 
@@ -174,7 +175,7 @@ func (bo *BlockOperations) CreateProposalBlock(
 	}
 
 	bo.logger.Info("Creates new header", "header", header)
-	block = bo.newBlock(header, bs.txs, commit, evidence)
+	block = bo.newBlock(bs.header, bs.txs, commit, evidence)
 	bo.logger.Trace("Make block to propose", "block", block)
 	return block, block.MakePartSet(types.BlockPartSizeBytes)
 }
