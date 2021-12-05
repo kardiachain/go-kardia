@@ -91,7 +91,7 @@ func (bo *BlockOperations) newProposalBlockState(header *types.Header) (*proposa
 	bo.mtx.RLock()
 	defer bo.mtx.RUnlock()
 
-	state, err := bo.blockchain.StateAtBlockHash(header.LastBlockID.Hash)
+	state, err := bo.blockchain.StateAt(header.Height - 1) // current blockchain state
 	if err != nil {
 		bo.logger.Error("Failed to get blockchain head state", "err", err)
 		return nil, err
