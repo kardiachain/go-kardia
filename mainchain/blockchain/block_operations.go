@@ -58,6 +58,22 @@ type BlockOperations struct {
 	staking *staking.StakingSmcUtil
 }
 
+// proposalBlockState
+type proposalBlockState struct {
+	logger log.Logger
+
+	signer     types.Signer
+	blockchain *BlockChain
+
+	state    *state.StateDB // apply state changes here
+	tcount   int            // tx count in cycle
+	gasPool  *types.GasPool // available gas used to pack transactions
+	gasLimit uint64
+
+	header *types.Header
+	txs    []*types.Transaction
+}
+
 // NewBlockOperations returns a new BlockOperations with reference to the latest state of blockchain.
 func NewBlockOperations(logger log.Logger, blockchain *BlockChain, txPool *tx_pool.TxPool, evpool EvidencePool, staking *staking.StakingSmcUtil) *BlockOperations {
 	return &BlockOperations{
@@ -68,6 +84,28 @@ func NewBlockOperations(logger log.Logger, blockchain *BlockChain, txPool *tx_po
 		evPool:     evpool,
 		staking:    staking,
 	}
+}
+
+// newProposalBlockState prepare a new block state to propose
+func (bo *BlockOperations) newProposalBlockState(header *types.Header) (*proposalBlockState, error) {
+	bo.mtx.RLock()
+	defer bo.mtx.RUnlock()
+
+	state, err := bo.blockchain.StateAtBlockHash(header.LastBlockID.Hash)
+	if err != nil {
+		bo.logger.Error("Failed to get blockchain head state", "err", err)
+		return nil, err
+	}
+
+	return &proposalBlockState{
+		logger:   log.New(),
+		signer:   types.HomesteadSigner{},
+		state:    state,
+		tcount:   0,
+		gasLimit: header.GasLimit,
+		gasPool:  new(types.GasPool).AddGas(header.GasLimit),
+		header:   header,
+	}, nil
 }
 
 // Base returns the first known contiguous block height, or 0 for empty block stores.
@@ -97,8 +135,8 @@ func (bo *BlockOperations) CreateProposalBlock(
 	maxNumEvidence, _ := types.MaxEvidencePerBlock(lastState.ConsensusParams.Evidence.MaxBytes)
 	evidence, _ := bo.evPool.PendingEvidence(maxNumEvidence)
 	pending, err := bo.txPool.Pending()
-	// @lewtran: panic here?
 	if err != nil {
+		// @lewtran: panic here?
 		bo.logger.Error("Cannot fetch pending transactions", "err", err)
 	}
 
@@ -114,84 +152,91 @@ func (bo *BlockOperations) CreateProposalBlock(
 		lastState.NextValidators.Hash(), lastState.AppHash)
 	header.GasLimit = lastState.ConsensusParams.Block.MaxGas
 
-	var txs []*types.Transaction
-	if len(pending) > 0 {
-		bo.logger.Info("Organizing transactions", "pending txs", len(pending))
-		txs = bo.organizeTransactions(pending, header)
+	bs, err := bo.newProposalBlockState(header)
+	if err != nil {
+		bo.logger.Error("Cannot create new proposal block state", "err", err)
+	}
+	// Split pending transactions to local and remote
+	localTxs, remoteTxs := make(map[common.Address]types.Transactions), pending
+	for _, account := range bo.txPool.Locals() {
+		if txs := remoteTxs[account]; len(txs) > 0 {
+			delete(remoteTxs, account)
+			localTxs[account] = txs
+		}
+	}
+	if len(localTxs) > 0 {
+		txs := types.NewTransactionsByPriceAndNonce(bs.signer, localTxs)
+		bs.tryCommitTransactions(txs)
+	}
+	if len(remoteTxs) > 0 {
+		txs := types.NewTransactionsByPriceAndNonce(bs.signer, remoteTxs)
+		bs.tryCommitTransactions(txs)
 	}
 
-	bo.logger.Info("Creates new header", "txs", len(txs), "header", header)
-	block = bo.newBlock(header, txs, commit, evidence)
+	bo.logger.Info("Creates new header", "header", header)
+	block = bo.newBlock(header, bs.txs, commit, evidence)
 	bo.logger.Trace("Make block to propose", "block", block)
 	return block, block.MakePartSet(types.BlockPartSizeBytes)
 }
 
-// organizeTransactions sort and validate transactions in block to propose
-func (bo *BlockOperations) organizeTransactions(pendingTxs map[common.Address]types.Transactions, header *types.Header) []*types.Transaction {
-	defer bo.timeMeasure(time.Now(), "Organize transactions")
-	signer := types.HomesteadSigner{}
-	// @lewtran: should we split local and remote txs here?
-	txSet := types.NewTransactionsByPriceAndNonce(signer, pendingTxs)
-	gasPool := new(types.GasPool).AddGas(header.GasLimit)
+// tryCommitTransactions validate and try commit transactions into block to propose
+func (bs *proposalBlockState) tryCommitTransactions(txs *types.TransactionsByPriceAndNonce) {
+	defer bs.timeMeasure(time.Now(), "Organized transactions")
 	var usedGas = new(uint64)
-
-	tcount := 0
-	finalTxsList := types.Transactions{}
 
 	for {
 		// If we don't have enough gas for any further transactions then we're done
-		if gasPool.Gas() < configs.TxGas {
-			log.Error("Not enough gas for further transactions", "have", gasPool, "want", configs.TxGas)
+		if bs.gasPool.Gas() < configs.TxGas {
+			log.Error("tryApplyTransaction Not enough gas for further transactions", "have", bs.gasPool, "want", configs.TxGas)
 			break
 		}
 
 		// Retrieve the next transaction and abort if all done
-		tx := txSet.Peek()
+		tx := txs.Peek()
 		if tx == nil {
 			break
 		}
 
-		// Error may be ignored here. The error has already been checked
-		// during transaction acceptance is the transaction pool.
-		from, _ := types.Sender(signer, tx)
-		// Start executing the transaction
-		state, err := bo.blockchain.State()
-		if err != nil {
-			bo.logger.Error("Failed to get blockchain head state", "err", err)
-			// @lewtran: panic here?
-			return nil
+		if bs.gasPool.Gas() < tx.Gas() {
+			log.Trace("tryApplyTransaction Skipping transaction which requires more gas than is left in the block", "hash", tx.Hash(), "gas", bs.gasPool.Gas(), "txgas", tx.Gas())
+			txs.Pop()
+			continue
 		}
 
-		state.Prepare(tx.Hash(), common.Hash{}, tcount)
-		err = bo.tryApplyTransaction(state, tx, header, gasPool, usedGas)
+		// Error may be ignored here. The error has already been checked
+		// during transaction acceptance is the transaction pool.
+		//
+		// We use the eip155 signer regardless of the current hf.
+		from, _ := types.Sender(bs.signer, tx)
+
+		bs.state.Prepare(tx.Hash(), common.Hash{}, bs.tcount)
+		err := bs.tryApplyTransaction(tx, bs.header, bs.gasPool, usedGas)
 		switch {
 		case errors.Is(err, tx_pool.ErrGasLimitReached):
 			// Pop the current out-of-gas transaction without shifting in the next from the account
 			log.Error("tryApplyTransaction Gas limit exceeded for current block", "sender", from)
-			txSet.Pop()
+			txs.Pop()
 
 		case errors.Is(err, tx_pool.ErrNonceTooLow):
 			// New head notification data race between the transaction pool and miner, shift
 			log.Error("tryApplyTransaction Skipping transaction with low nonce", "sender", from, "nonce", tx.Nonce())
-			txSet.Shift()
+			txs.Shift()
 
 		case errors.Is(err, tx_pool.ErrNonceTooHigh):
 			// Reorg notification data race between the transaction pool and miner, skip account =
 			log.Error("tryApplyTransaction Skipping account with hight nonce", "sender", from, "nonce", tx.Nonce())
-			txSet.Pop()
+			txs.Pop()
 
 		case errors.Is(err, nil):
-			tcount++
-			txSet.Shift()
-			finalTxsList = append(finalTxsList, tx)
+			bs.tcount++
+			txs.Shift()
 		default:
 			// Strange error, discard the transaction and get the next in line (note, the
 			// nonce-too-high clause will prevent us from executing in vain).
 			log.Error("Transaction failed, account skipped", "hash", tx.Hash(), "err", err)
-			txSet.Shift()
+			txs.Shift()
 		}
 	}
-	return finalTxsList
 }
 
 // CommitAndValidateBlockTxs executes and commits the transactions in the given block.
@@ -311,14 +356,16 @@ func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transacti
 }
 
 // tryApplyTransaction attempts to appply a single transaction. If the transaction fails, it's modifications are reverted.
-func (bo *BlockOperations) tryApplyTransaction(state *state.StateDB, tx *types.Transaction, header *types.Header, gasPool *types.GasPool, usedGas *uint64) error {
-	snap := state.Snapshot()
+func (bs *proposalBlockState) tryApplyTransaction(tx *types.Transaction, header *types.Header, gasPool *types.GasPool, usedGas *uint64) error {
+	snap := bs.state.Snapshot()
 	kvmConfig := kvm.Config{}
-	_, _, err := ApplyTransaction(bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvmConfig)
+
+	_, _, err := ApplyTransaction(bs.logger, bs.blockchain, gasPool, bs.state, header, tx, usedGas, kvmConfig)
 	if err != nil {
-		state.RevertToSnapshot(snap)
+		bs.state.RevertToSnapshot(snap)
 		return err
 	}
+	bs.txs = append(bs.txs, tx)
 	return nil
 }
 
@@ -409,7 +456,7 @@ func (bo *BlockOperations) saveBlockInfo(blockInfo *types.BlockInfo, block *type
 	bo.blockchain.WriteBlockInfo(block, blockInfo)
 }
 
-func (bo *BlockOperations) timeMeasure(start time.Time, name string) {
+func (bs *proposalBlockState) timeMeasure(start time.Time, name string) {
 	elapsed := time.Since(start)
-	bo.logger.Info(name, "duration", elapsed)
+	bs.logger.Info(name, "duration", elapsed)
 }

@@ -212,6 +212,11 @@ func (bc *BlockChain) StateAt(height uint64) (*state.StateDB, error) {
 	return state.New(bc.logger, root, bc.stateCache)
 }
 
+// StateAtBlockHash returns a new mutable state based on a particular point in time.
+func (bc *BlockChain) StateAtBlockHash(root common.Hash) (*state.StateDB, error) {
+	return state.New(bc.logger, root, bc.stateCache)
+}
+
 // CheckCommittedStateRoot returns true if the given state root is already committed and existed on trie database.
 func (bc *BlockChain) CheckCommittedStateRoot(root common.Hash) bool {
 	// TODO(thientn): Adds check trie function instead of using error handler as expected logic path.
