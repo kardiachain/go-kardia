@@ -21,6 +21,7 @@ package blockchain
 import (
 	"errors"
 	"github.com/gogo/protobuf/proto"
+	"github.com/kardiachain/go-kardia/lib/rlp"
 	"sync"
 	"time"
 
@@ -224,7 +225,10 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCom
 		// block transactions gauge
 		blockTransactionsGauge.Update(int64(block.Transactions().Len()))
 		// block hash length gauge
-		blockHashGauge.Update(int64(len(block.Hash())))
+		blockHashGauge.Update(int64(len(block.Hash().Bytes())))
+		// block info gauge
+		bytes, _ := rlp.EncodeToBytes(blockInfo)
+		blockInfoSave.Update(int64(len(bytes)))
 	}
 
 	// send logs of emitted events to logs feed for collecting
