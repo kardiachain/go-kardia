@@ -11,6 +11,8 @@ var (
 	MetricBlockTransactions = metricName("block", "transactions")
 	MetricBlockHash			= metricName("block", "hash")
 	MetricBlockSave			= metricName("block", "save")
+	MetricBlockCommit 		= metricName("block", "commit")
+	MetricBlockSeenCommit	= metricName("block", "seen-commit")
 )
 
 // Setup metrics
@@ -20,6 +22,9 @@ var (
 	blockTransactionsGauge 	= metrics.NewRegisteredGauge(MetricBlockTransactions, metrics.BlockchainRegistry)
 	blockHashGauge			= metrics.NewRegisteredGauge(MetricBlockHash, metrics.BlockchainRegistry)
 	blockSaveTimer			= metrics.NewRegisteredTimer(MetricBlockSave, metrics.BlockchainRegistry)
+	blockCommitSave			= metrics.NewRegisteredGauge(MetricBlockCommit, metrics.BlockchainRegistry)
+	blockSeenCommitSave		= metrics.NewRegisteredGauge(MetricBlockSeenCommit, metrics.BlockchainRegistry)
+
 )
 
 func metricName(group, name string) string {

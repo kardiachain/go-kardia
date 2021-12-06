@@ -20,6 +20,7 @@ package blockchain
 
 import (
 	"errors"
+	"github.com/gogo/protobuf/proto"
 	"sync"
 	"time"
 
@@ -269,6 +270,12 @@ func (bo *BlockOperations) SaveBlock(block *types.Block, blockParts *types.PartS
 
 	if bo.metrics {
 		blockSaveTimer.UpdateSince(opStart)
+
+		bc, _ := proto.Marshal(block.LastCommit().ToProto())
+		blockCommitSave.Update(int64(len(bc)))
+
+		bsc, _ := proto.Marshal(seenCommit.ToProto())
+		blockSeenCommitSave.Update(int64(len(bsc)))
 	}
 
 	bo.mtx.Lock()
