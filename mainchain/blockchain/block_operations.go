@@ -69,6 +69,7 @@ type proposalBlockState struct {
 	tcount   int            // tx count in cycle
 	gasPool  *types.GasPool // available gas used to pack transactions
 	gasLimit uint64
+	usedGas  *uint64
 
 	header *types.Header
 	txs    []*types.Transaction
@@ -103,6 +104,7 @@ func (bo *BlockOperations) newProposalBlockState(header *types.Header) (*proposa
 		state:    state,
 		tcount:   0,
 		gasLimit: configs.BlockGasLimit,
+		usedGas:  new(uint64),
 		header:   header,
 		txs:      []*types.Transaction{},
 	}
@@ -183,8 +185,6 @@ func (bo *BlockOperations) CreateProposalBlock(
 // tryCommitTransactions validate and try commit transactions into block to propose
 func (bs *proposalBlockState) tryCommitTransactions(txs *types.TransactionsByPriceAndNonce) {
 	defer bs.timeMeasure(time.Now(), "Organized transactions")
-	var usedGas = new(uint64)
-
 	for {
 		// If we don't have enough gas for any further transactions then we're done
 		if bs.gasPool.Gas() < configs.TxGas {
@@ -211,7 +211,7 @@ func (bs *proposalBlockState) tryCommitTransactions(txs *types.TransactionsByPri
 		from, _ := types.Sender(bs.signer, tx)
 
 		bs.state.Prepare(tx.Hash(), common.Hash{}, bs.tcount)
-		err := bs.tryApplyTransaction(tx, bs.header, bs.gasPool, usedGas)
+		err := bs.tryApplyTransaction(tx)
 		switch {
 		case errors.Is(err, tx_pool.ErrGasLimitReached):
 			// Pop the current out-of-gas transaction without shifting in the next from the account
@@ -357,11 +357,11 @@ func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transacti
 }
 
 // tryApplyTransaction attempts to appply a single transaction. If the transaction fails, it's modifications are reverted.
-func (bs *proposalBlockState) tryApplyTransaction(tx *types.Transaction, header *types.Header, gasPool *types.GasPool, usedGas *uint64) error {
+func (bs *proposalBlockState) tryApplyTransaction(tx *types.Transaction) error {
 	snap := bs.state.Snapshot()
 	kvmConfig := kvm.Config{}
 
-	_, _, err := ApplyTransaction(bs.logger, bs.blockchain, gasPool, bs.state, header, tx, usedGas, kvmConfig)
+	_, _, err := ApplyTransaction(bs.logger, bs.blockchain, bs.gasPool, bs.state, bs.header, tx, bs.usedGas, kvmConfig)
 	if err != nil {
 		bs.state.RevertToSnapshot(snap)
 		return err
