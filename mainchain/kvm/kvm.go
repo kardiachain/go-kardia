@@ -70,7 +70,7 @@ func GetHashFn(ref *types.Header, chain ChainContext) func(n uint64) common.Hash
 	return func(n uint64) common.Hash {
 		// If there's no hash cache yet, make one
 		if len(cache) == 0 {
-			cache = append(cache, ref.LastCommitHash)
+			cache = append(cache, ref.LastBlockID.Hash)
 		}
 		if idx := ref.Height - n - 1; idx < uint64(len(cache)) {
 			return cache[idx]
@@ -85,8 +85,8 @@ func GetHashFn(ref *types.Header, chain ChainContext) func(n uint64) common.Hash
 			if header == nil {
 				break
 			}
-			cache = append(cache, header.LastCommitHash)
-			lastKnownHash = header.LastCommitHash
+			cache = append(cache, header.LastBlockID.Hash)
+			lastKnownHash = header.LastBlockID.Hash
 			lastKnownHeight = header.Height - 1
 			if n == lastKnownHeight {
 				return lastKnownHash
