@@ -97,16 +97,17 @@ func (bo *BlockOperations) newProposalBlockState(header *types.Header) (*proposa
 		return nil, err
 	}
 
-	return &proposalBlockState{
+	bs := &proposalBlockState{
 		logger:   log.New(),
 		signer:   types.HomesteadSigner{},
 		state:    state,
 		tcount:   0,
-		gasLimit: header.GasLimit,
-		gasPool:  new(types.GasPool).AddGas(header.GasLimit),
+		gasLimit: configs.BlockGasLimit,
 		header:   header,
 		txs:      []*types.Transaction{},
-	}, nil
+	}
+	bs.gasPool = new(types.GasPool).AddGas(bs.gasLimit)
+	return bs, nil
 }
 
 // Base returns the first known contiguous block height, or 0 for empty block stores.
@@ -151,7 +152,6 @@ func (bo *BlockOperations) CreateProposalBlock(
 
 	header := bo.newHeader(timestamp, height, 0, lastState.LastBlockID, proposerAddr, lastState.Validators.Hash(),
 		lastState.NextValidators.Hash(), lastState.AppHash)
-	header.GasLimit = lastState.ConsensusParams.Block.MaxGas
 
 	bs, err := bo.newProposalBlockState(header)
 	if err != nil {
@@ -174,7 +174,7 @@ func (bo *BlockOperations) CreateProposalBlock(
 		bs.tryCommitTransactions(txs)
 	}
 
-	bo.logger.Info("Creates new header", "header", header)
+	bo.logger.Info("Create new header", "header", header)
 	block = bo.newBlock(bs.header, bs.txs, commit, evidence)
 	bo.logger.Trace("Make block to propose", "block", block)
 	return block, block.MakePartSet(types.BlockPartSizeBytes)
