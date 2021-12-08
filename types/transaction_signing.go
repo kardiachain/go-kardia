@@ -50,7 +50,7 @@ func MakeSigner(config *configs.ChainConfig, blockNumber *big.Int) Signer {
 	switch {
 	case config.IsV2(blockNumber):
 	default:
-		signer = FrontierSigner{}
+		signer = HomesteadSigner{}
 	}
 	return signer
 }

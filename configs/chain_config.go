@@ -38,7 +38,6 @@ type ChainConfig struct {
 
 // KaiconConfig is the consensus engine configs for Kardia BFT DPoS.
 type KaiconConfig struct {
-	// TODO(huny): implement this
 	Period uint64 `json:"period" yaml:"Period"` // Number of seconds between blocks to enforce
 	Epoch  uint64 `json:"epoch" yaml:"Epoch"`   // Epoch length to reset votes and checkpoint
 }

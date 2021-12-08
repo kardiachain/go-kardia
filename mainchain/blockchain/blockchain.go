@@ -37,7 +37,6 @@ import (
 
 const (
 	blockCacheLimit = 256
-
 	maxFutureBlocks = 256
 )
 
@@ -45,7 +44,6 @@ var (
 	ErrNoGenesis = errors.New("Genesis not found in chain")
 )
 
-// TODO(huny@): Add detailed description for Kardia blockchain
 type BlockChain struct {
 	logger log.Logger
 

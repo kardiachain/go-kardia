@@ -56,7 +56,7 @@ func DefaultOracleConfig() *Config {
 type OracleBackend interface {
 	HeaderByHeight(ctx context.Context, height rpc.BlockHeight) *types.Header
 	BlockByHeight(ctx context.Context, height rpc.BlockHeight) *types.Block
-	ChainConfig() *configs.ChainConfig
+	Config() *configs.ChainConfig
 }
 
 // Oracle recommends gas prices based on the content of recent
@@ -135,7 +135,7 @@ func (gpo *Oracle) SuggestPrice(ctx context.Context) (*big.Int, error) {
 		txPrices  []*big.Int
 	)
 	for sent < gpo.checkBlocks && height > 0 {
-		go gpo.getBlockPrices(ctx, types.LatestSigner(gpo.backend.ChainConfig()), height, sampleNumber, result, quit)
+		go gpo.getBlockPrices(ctx, types.LatestSigner(gpo.backend.Config()), height, sampleNumber, result, quit)
 		sent++
 		exp++
 		height--

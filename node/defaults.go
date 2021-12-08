@@ -20,7 +20,6 @@ package node
 
 import (
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/rpc"
 )
 
@@ -36,7 +35,6 @@ const (
 	DefaultDbHandles = 32 // 32 file handlers allocated for leveldb, for each chains
 
 	MainChainDataDir = "chaindata" // directory of database storage for main chain data
-	DualChainDataDir = "dualdata"  // directory of database storage for dual chain data
 
 	DefaultNetworkID  = 100
 	MainChainID       = 1
@@ -59,8 +57,5 @@ var DefaultConfig = Config{
 		ChainId:     MainChainID,
 		NetworkId:   DefaultNetworkID,
 		AcceptTxs:   1, // 1 is to allow new transactions, 0 is not
-	},
-	DualChainConfig: DualChainConfig{
-		DBInfo: storage.NewLevelDbInfo(DualChainDataDir, DefaultDbCache, DefaultDbHandles),
 	},
 }

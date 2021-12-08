@@ -570,7 +570,7 @@ func (a *PublicTransactionAPI) PendingTransactions() ([]*PublicTransaction, erro
 	transactions := make([]*PublicTransaction, 0, len(pendingTxs))
 
 	for _, tx := range pendingTxs {
-		jsonData := NewPublicTransaction(a.s.ChainConfig(), tx, common.Hash{}, 0, 0)
+		jsonData := NewPublicTransaction(a.s.Config(), tx, common.Hash{}, 0, 0)
 		transactions = append(transactions, jsonData)
 	}
 	return transactions, nil
@@ -585,7 +585,7 @@ func (a *PublicTransactionAPI) GetTransaction(hash string) (*PublicTransaction, 
 		return nil, errors.New("tx for hash not found")
 	}
 
-	publicTx := NewPublicTransaction(a.s.ChainConfig(), tx, blockHash, height, index)
+	publicTx := NewPublicTransaction(a.s.Config(), tx, blockHash, height, index)
 	// get block by block height
 	block := a.s.blockchain.GetBlockByHeight(height)
 	// get block time from block

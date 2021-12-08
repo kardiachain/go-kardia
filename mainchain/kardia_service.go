@@ -316,4 +316,4 @@ func (s *KardiaService) APIs() []rpc.API {
 func (s *KardiaService) TxPool() *tx_pool.TxPool            { return s.txPool }
 func (s *KardiaService) BlockChain() *blockchain.BlockChain { return s.blockchain }
 func (s *KardiaService) DB() types.StoreDB                  { return s.kaiDb }
-func (s *KardiaService) ChainConfig() *configs.ChainConfig  { return s.blockchain.Config() }
+func (s *KardiaService) Config() *configs.ChainConfig       { return s.blockchain.Config() }
