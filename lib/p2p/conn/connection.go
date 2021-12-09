@@ -715,11 +715,15 @@ func (c *MConnection) Status() ConnectionStatus {
 //-----------------------------------------------------------------------------
 
 type ChannelDescriptor struct {
-	ID                  byte
-	Priority            int
+	ID       byte
+	Priority int
+
 	SendQueueCapacity   int
-	RecvBufferCapacity  int
 	RecvMessageCapacity int
+
+	// RecvBufferCapacity defines the max buffer size of inbound messages for a
+	// given p2p Channel queue.
+	RecvBufferCapacity int
 }
 
 func (chDesc ChannelDescriptor) FillDefaults() (filled ChannelDescriptor) {
@@ -858,12 +862,7 @@ func (ch *Channel) recvPacketMsg(packet kp2p.PacketMsg) ([]byte, error) {
 	ch.recving = append(ch.recving, packet.Data...)
 	if packet.EOF {
 		msgBytes := ch.recving
-
-		// clear the slice without re-allocating.
-		// http://stackoverflow.com/questions/16971741/how-do-you-clear-a-slice-in-go
-		//   suggests this could be a memory leak, but we might as well keep the memory for the channel until it closes,
-		//	at which point the recving slice stops being used and should be garbage collected
-		ch.recving = ch.recving[:0] // make([]byte, 0, ch.desc.RecvBufferCapacity)
+		ch.recving = make([]byte, 0, ch.desc.RecvBufferCapacity)
 		return msgBytes, nil
 	}
 	return nil, nil

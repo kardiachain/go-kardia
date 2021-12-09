@@ -19,13 +19,17 @@
 package types
 
 import (
+	"container/heap"
 	"crypto/ecdsa"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"math"
 	"math/big"
+	"strconv"
 	"sync/atomic"
+	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -38,10 +42,12 @@ import (
 
 var (
 	ErrInvalidSig = errors.New("invalid transaction v, r, s values")
+	ErrParseError = errors.New("parse error")
 )
 
 type Transaction struct {
 	data txdata
+	time time.Time // Time first seen locally (spam avoidance)
 	// caches
 	hash atomic.Value
 	size atomic.Value
@@ -97,7 +103,7 @@ func newTransaction(nonce uint64, to *common.Address, amount *big.Int, gasLimit 
 		d.Price.Set(gasPrice)
 	}
 
-	return &Transaction{data: d}
+	return &Transaction{data: d, time: time.Now()}
 }
 
 // EncodeRLP implements rlp.Encoder
@@ -111,6 +117,7 @@ func (tx *Transaction) DecodeRLP(s *rlp.Stream) error {
 	err := s.Decode(&tx.data)
 	if err == nil {
 		tx.size.Store(common.StorageSize(rlp.ListSize(size)))
+		tx.time = time.Now()
 	}
 
 	return err
@@ -207,7 +214,10 @@ func (tx *Transaction) WithSignature(signer Signer, sig []byte) (*Transaction, e
 	if err != nil {
 		return nil, err
 	}
-	cpy := &Transaction{data: tx.data}
+	cpy := &Transaction{
+		data: tx.data,
+		time: tx.time,
+	}
 	cpy.data.R, cpy.data.S, cpy.data.V = r, s, v
 	return cpy, nil
 }
@@ -346,6 +356,96 @@ func (s TxByNonce) Len() int           { return len(s) }
 func (s TxByNonce) Less(i, j int) bool { return s[i].data.AccountNonce < s[j].data.AccountNonce }
 func (s TxByNonce) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
+// TxByPriceAndTime implements both the sort and the heap interface, making it useful
+// for all at once sorting as well as individually adding and removing elements.
+type TxByPriceAndTime Transactions
+
+func (s TxByPriceAndTime) Len() int { return len(s) }
+func (s TxByPriceAndTime) Less(i, j int) bool {
+	// If the prices are equal, use the time the transaction was first seen for
+	// deterministic sorting
+	cmp := s[i].GasPrice().Cmp(s[j].GasPrice())
+	if cmp == 0 {
+		return s[i].time.Before(s[j].time)
+	}
+	return cmp > 0
+}
+func (s TxByPriceAndTime) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+
+func (s *TxByPriceAndTime) Push(x interface{}) {
+	*s = append(*s, x.(*Transaction))
+}
+
+func (s *TxByPriceAndTime) Pop() interface{} {
+	old := *s
+	n := len(old)
+	x := old[n-1]
+	*s = old[0 : n-1]
+	return x
+}
+
+// TransactionsByPriceAndNonce represents a set of transactions that can return
+// transactions in a profit-maximizing sorted order, while supporting removing
+// entire batches of transactions for non-executable accounts.
+type TransactionsByPriceAndNonce struct {
+	txs    map[common.Address]Transactions // Per account nonce-sorted list of transactions
+	heads  TxByPriceAndTime                // Next transaction for each unique account (price heap)
+	signer Signer                          // Signer for the set of transactions
+}
+
+// NewTransactionsByPriceAndNonce creates a transaction set that can retrieve
+// price sorted transactions in a nonce-honouring way.
+//
+// Note, the input map is reowned so the caller should not interact any more with
+// if after providing it to the constructor.
+func NewTransactionsByPriceAndNonce(signer Signer, txs map[common.Address]Transactions) *TransactionsByPriceAndNonce {
+	// Initialize a price and received time based heap with the head transactions
+	heads := make(TxByPriceAndTime, 0, len(txs))
+	for from, accTxs := range txs {
+		// Ensure the sender address is from the signer
+		if acc, _ := Sender(signer, accTxs[0]); acc != from {
+			delete(txs, from)
+			continue
+		}
+		heads = append(heads, accTxs[0])
+		txs[from] = accTxs[1:]
+	}
+	heap.Init(&heads)
+
+	// Assemble and return the transaction set
+	return &TransactionsByPriceAndNonce{
+		txs:    txs,
+		heads:  heads,
+		signer: signer,
+	}
+}
+
+// Peek returns the next transaction by price.
+func (t *TransactionsByPriceAndNonce) Peek() *Transaction {
+	if len(t.heads) == 0 {
+		return nil
+	}
+	return t.heads[0]
+}
+
+// Shift replaces the current best head with the next one from the same account.
+func (t *TransactionsByPriceAndNonce) Shift() {
+	acc, _ := Sender(t.signer, t.heads[0])
+	if txs, ok := t.txs[acc]; ok && len(txs) > 0 {
+		t.heads[0], t.txs[acc] = txs[0], txs[1:]
+		heap.Fix(&t.heads, 0)
+	} else {
+		heap.Pop(&t.heads)
+	}
+}
+
+// Pop removes the best transaction, *not* replacing it with the next one from
+// the same account. This should be used when a transaction cannot be executed
+// and hence all subsequent ones should be discarded from the same account.
+func (t *TransactionsByPriceAndNonce) Pop() {
+	heap.Pop(&t.heads)
+}
+
 // TxDifference returns a new set t which is the difference between a to b.
 func TxDifference(a, b Transactions) (keep Transactions) {
 	keep = make(Transactions, 0, len(a))
@@ -475,6 +575,70 @@ type CallArgsJSON struct {
 	GasPrice *big.Int `json:"gasPrice"` // HYDRO <-> gas exchange ratio
 	Value    *big.Int `json:"value"`    // amount of HYDRO sent along with the call
 	Data     string   `json:"data"`     // input data, usually an ABI-encoded contract method invocation
+}
+
+// UnmarshalJSON parses request response to a CallArgsJSON
+func (args *CallArgsJSON) UnmarshalJSON(data []byte) error {
+	params := make(map[string]interface{})
+	err := json.Unmarshal(data, &params)
+	if err != nil {
+		return err
+	}
+
+	toAddress, ok := params["to"].(string)
+	if !ok {
+		return ErrParseError
+	}
+	args.To = &toAddress
+	args.From, ok = params["from"].(string)
+	if !ok {
+		args.From = configs.GenesisDeployerAddr.Hex() // default to Genesis Deployer address if nil
+	}
+	args.Data, ok = params["data"].(string)
+	if !ok {
+		return ErrParseError
+	}
+
+	if gas, ok := params["gas"].(float64); ok {
+		args.Gas = uint64(gas)
+	} else {
+		gasStr, ok := params["gas"].(string)
+		if !ok {
+			args.Gas = configs.GasLimitCap // default to gas limit cap of node
+		} else {
+			args.Gas, err = strconv.ParseUint(gasStr, 10, 64)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	if gasPrice, ok := params["gasPrice"].(float64); ok {
+		args.GasPrice = new(big.Int).SetUint64(uint64(gasPrice))
+	} else {
+		gasPriceStr, ok := params["gasPrice"].(string)
+		if !ok {
+			args.GasPrice = new(big.Int).SetUint64(0) // default to 0 OXY gas price
+		} else {
+			args.GasPrice, ok = new(big.Int).SetString(gasPriceStr, 10)
+			if !ok {
+				return ErrParseError
+			}
+		}
+	}
+	if value, ok := params["value"].(float64); ok {
+		args.Value = new(big.Int).SetUint64(uint64(value))
+	} else {
+		valueStr, ok := params["value"].(string)
+		if !ok {
+			args.Value = new(big.Int).SetUint64(0) // default to 0 KAI in value
+		} else {
+			args.Value, ok = new(big.Int).SetString(valueStr, 10)
+			if !ok {
+				return ErrParseError
+			}
+		}
+	}
+	return nil
 }
 
 // ToMessage converts CallArgs to the Message type used by the core evm

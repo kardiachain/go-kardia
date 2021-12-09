@@ -233,12 +233,13 @@ func saveValidatorsInfo(db kaidb.Database, height, lastHeightChanged uint64, val
 		LastHeightChanged: lastHeightChanged,
 	}
 
-	pv, err := valSet.ToProto()
-	if err != nil {
-		panic(err)
+	if height == lastHeightChanged || height%valSetCheckpointInterval == 0 {
+		pv, err := valSet.ToProto()
+		if err != nil {
+			panic(err)
+		}
+		valInfo.ValidatorSet = pv
 	}
-	valInfo.ValidatorSet = pv
-
 	bz, err := valInfo.Marshal()
 	if err != nil {
 		panic(err)
@@ -351,9 +352,9 @@ func MakeGenesisState(genDoc *genesis.Genesis) (LatestBlockState, error) {
 		NextValidators:              nextValidatorSet,
 		Validators:                  validatorSet,
 		LastValidators:              nil,
-		LastHeightValidatorsChanged: 0,
+		LastHeightValidatorsChanged: genDoc.InitialHeight,
 
 		ConsensusParams:                  *genDoc.ConsensusParams,
-		LastHeightConsensusParamsChanged: 1,
+		LastHeightConsensusParamsChanged: genDoc.InitialHeight,
 	}, nil
 }

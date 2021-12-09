@@ -64,11 +64,13 @@ func (c *Config) getP2PConfig() (*configs.P2PConfig, error) {
 		return nil, err
 	}
 	p2pConfig := configs.DefaultP2PConfig()
+	p2pConfig.PrivateKey = privKey
 	p2pConfig.Seeds = c.MainChain.Seeds
 	p2pConfig.ListenAddress = c.P2P.ListenAddress
+	p2pConfig.MaxNumInboundPeers = c.P2P.InboundPeers
+	p2pConfig.MaxNumOutboundPeers = c.P2P.OutboundPeers
 	p2pConfig.RootDir = c.DataDir
 	p2pConfig.AddrBook = filepath.Join(c.DataDir, "addrbook.json")
-	p2pConfig.PrivateKey = privKey
 	return p2pConfig, nil
 }
 
@@ -92,12 +94,11 @@ func (c *Config) getTxPoolConfig() tx_pool.TxPoolConfig {
 		return tx_pool.DefaultTxPoolConfig
 	}
 	return tx_pool.TxPoolConfig{
-		AccountSlots:  txPool.AccountSlots,
-		AccountQueue:  txPool.AccountQueue,
-		GlobalSlots:   txPool.GlobalSlots,
-		GlobalQueue:   txPool.GlobalQueue,
-		MaxBatchBytes: txPool.MaxBatchBytes,
-		Broadcast:     txPool.Broadcast,
+		AccountSlots: txPool.AccountSlots,
+		AccountQueue: txPool.AccountQueue,
+		GlobalSlots:  txPool.GlobalSlots,
+		GlobalQueue:  txPool.GlobalQueue,
+		Broadcast:    txPool.Broadcast,
 	}
 }
 
@@ -186,6 +187,7 @@ func (c *Config) getNodeConfig() (*node.Config, error) {
 	}
 	nodeConfig := node.Config{
 		Name:             n.Name,
+		Version:          configs.Version,
 		DataDir:          n.DataDir,
 		P2P:              p2pConfig,
 		HTTPHost:         n.HTTPHost,
