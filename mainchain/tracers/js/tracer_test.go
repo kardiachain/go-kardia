@@ -16,9 +16,11 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package tracers
+package js
 
 import (
+	"crypto/ecdsa"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"math/big"
@@ -26,9 +28,17 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/mainchain/blockchain"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
+	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
+	"github.com/kardiachain/go-kardia/mainchain/tracers"
+	"github.com/kardiachain/go-kardia/tests"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 type account struct{}
@@ -56,13 +66,17 @@ type vmContext struct {
 	txCtx    kvm.TxContext
 }
 
-func runTrace(tracer *Tracer, vmctx *vmContext, chaincfg *configs.ChainConfig) (json.RawMessage, error) {
-	env := kvm.NewKVM(vmctx.blockCtx, vmctx.txCtx, &dummyStatedb{}, chaincfg, kvm.Config{Debug: true, Tracer: tracer})
+func testCtx() *vmContext {
+	return &vmContext{blockCtx: kvm.BlockContext{BlockHeight: big.NewInt(1)}, txCtx: kvm.TxContext{GasPrice: big.NewInt(100000)}}
+}
+
+func runTrace(tracer tracers.Tracer, vmctx *vmContext, chaincfg *configs.ChainConfig) (json.RawMessage, error) {
 	var (
+		env             = kvm.NewKVM(vmctx.blockCtx, vmctx.txCtx, &dummyStatedb{}, chaincfg, kvm.Config{Debug: true, Tracer: tracer})
 		startGas uint64 = 10000
 		value           = big.NewInt(0)
+		contract        = kvm.NewContract(account{}, account{}, value, startGas)
 	)
-	contract := kvm.NewContract(account{}, account{}, value, startGas)
 	contract.Code = []byte{byte(kvm.PUSH1), 0x1, byte(kvm.PUSH1), 0x1, 0x0}
 
 	tracer.CaptureStart(env, contract.Caller(), contract.Address(), false, []byte{}, startGas, value)
@@ -77,14 +91,11 @@ func runTrace(tracer *Tracer, vmctx *vmContext, chaincfg *configs.ChainConfig) (
 func TestTracer(t *testing.T) {
 	execTracer := func(code string) ([]byte, string) {
 		t.Helper()
-		tracer, err := New(code, new(Context))
+		tracer, err := newJsTracer(code, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
-		ret, err := runTrace(tracer, &vmContext{
-			blockCtx: kvm.BlockContext{BlockHeight: big.NewInt(1)},
-			txCtx:    kvm.TxContext{GasPrice: big.NewInt(100000)},
-		}, configs.TestChainConfig)
+		ret, err := runTrace(tracer, testCtx(), configs.TestChainConfig)
 		if err != nil {
 			return nil, err.Error() // Stringify to allow comparison without nil checks
 		}
@@ -129,9 +140,8 @@ func TestTracer(t *testing.T) {
 
 func TestHalt(t *testing.T) {
 	t.Skip("duktape doesn't support abortion")
-
 	timeout := errors.New("stahp")
-	tracer, err := New("{step: function() { while(1); }, result: function() { return null; }}", new(Context))
+	tracer, err := newJsTracer("{step: function() { while(1); }, result: function() { return null; }, fault: function(){}}", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,25 +149,25 @@ func TestHalt(t *testing.T) {
 		time.Sleep(1 * time.Second)
 		tracer.Stop(timeout)
 	}()
-	vmTest := &vmContext{blockCtx: kvm.BlockContext{BlockHeight: big.NewInt(1)}, txCtx: kvm.TxContext{GasPrice: big.NewInt(100000)}}
-	if _, err = runTrace(tracer, vmTest, configs.TestChainConfig); err.Error() != "stahp    in server-side tracer function 'step'" {
+	if _, err = runTrace(tracer, testCtx(), configs.TestChainConfig); err.Error() != "stahp    in server-side tracer function 'step'" {
 		t.Errorf("Expected timeout error, got %v", err)
 	}
 }
 
 func TestHaltBetweenSteps(t *testing.T) {
-	tracer, err := New("{step: function() {}, fault: function() {}, result: function() { return null; }}", new(Context))
+	tracer, err := newJsTracer("{step: function() {}, fault: function() {}, result: function() { return null; }}", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	env := kvm.NewKVM(kvm.BlockContext{BlockHeight: big.NewInt(1)}, kvm.TxContext{}, &dummyStatedb{}, configs.TestChainConfig, kvm.Config{Debug: true, Tracer: tracer})
+	env := kvm.NewKVM(kvm.BlockContext{BlockHeight: big.NewInt(1)}, kvm.TxContext{GasPrice: big.NewInt(1)}, &dummyStatedb{}, configs.TestChainConfig, kvm.Config{Debug: true, Tracer: tracer})
 	scope := &kvm.ScopeContext{
 		Contract: kvm.NewContract(&account{}, &account{}, big.NewInt(0), 0),
 	}
-	tracer.CaptureState(env, 0, 0, 0, 0, scope, nil, 0, nil)
+	tracer.CaptureStart(env, common.Address{}, common.Address{}, false, []byte{}, 0, big.NewInt(0))
+	tracer.CaptureState(0, 0, 0, 0, scope, nil, 0, nil)
 	timeout := errors.New("stahp")
 	tracer.Stop(timeout)
-	tracer.CaptureState(env, 0, 0, 0, 0, scope, nil, 0, nil)
+	tracer.CaptureState(0, 0, 0, 0, scope, nil, 0, nil)
 
 	if _, err := tracer.GetResult(); err.Error() != timeout.Error() {
 		t.Errorf("Expected timeout error, got %v", err)
@@ -167,24 +177,16 @@ func TestHaltBetweenSteps(t *testing.T) {
 // TestNoStepExec tests a regular value transfer (no exec), and accessing the statedb
 // in 'result'
 func TestNoStepExec(t *testing.T) {
-	runEmptyTrace := func(tracer *Tracer, vmctx *vmContext) (json.RawMessage, error) {
-		env := kvm.NewKVM(vmctx.blockCtx, vmctx.txCtx, &dummyStatedb{}, configs.TestChainConfig, kvm.Config{Debug: true, Tracer: tracer})
-		startGas := uint64(10000)
-		contract := kvm.NewContract(account{}, account{}, big.NewInt(0), startGas)
-		tracer.CaptureStart(env, contract.Caller(), contract.Address(), false, []byte{}, startGas, big.NewInt(0))
-		tracer.CaptureEnd(nil, startGas-contract.Gas, 1, nil)
-		return tracer.GetResult()
-	}
 	execTracer := func(code string) []byte {
 		t.Helper()
-		tracer, err := New(code, new(Context))
+		tracer, err := newJsTracer(code, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
-		ret, err := runEmptyTrace(tracer, &vmContext{
-			blockCtx: kvm.BlockContext{BlockHeight: big.NewInt(1)},
-			txCtx:    kvm.TxContext{GasPrice: big.NewInt(100000)},
-		})
+		env := kvm.NewKVM(kvm.BlockContext{BlockHeight: big.NewInt(1)}, kvm.TxContext{GasPrice: big.NewInt(100)}, &dummyStatedb{}, configs.TestChainConfig, kvm.Config{Debug: true, Tracer: tracer})
+		tracer.CaptureStart(env, common.Address{}, common.Address{}, false, []byte{}, 1000, big.NewInt(0))
+		tracer.CaptureEnd(nil, 0, 1, nil)
+		ret, err := tracer.GetResult()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -206,45 +208,39 @@ func TestNoStepExec(t *testing.T) {
 }
 
 func TestIsPrecompile(t *testing.T) {
-	chaincfg := &configs.ChainConfig{
-		Kaicon:  configs.MainnetChainConfig.Kaicon,
-		ChainID: big.NewInt(0),
-	}
+	chaincfg := &configs.ChainConfig{ChainID: big.NewInt(1)}
 	txCtx := kvm.TxContext{GasPrice: big.NewInt(100000)}
-	tracer, err := New("{addr: toAddress('0000000000000000000000000000000000000009'), res: null, step: function() { this.res = isPrecompiled(this.addr); }, fault: function() {}, result: function() { return this.res; }}", new(Context))
+	tracer, err := newJsTracer("{addr: toAddress('0000000000000000000000000000000000000009'), res: null, step: function() { this.res = isPrecompiled(this.addr); }, fault: function() {}, result: function() { return this.res; }}", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	blockCtx := kvm.BlockContext{BlockHeight: big.NewInt(1)}
+	blockCtx := kvm.BlockContext{BlockHeight: big.NewInt(150)}
 	res, err := runTrace(tracer, &vmContext{blockCtx, txCtx}, chaincfg)
 	if err != nil {
 		t.Error(err)
 	}
 	if string(res) != "false" {
-		t.Errorf("Tracer should not consider as precompile")
+		t.Errorf("Tracer should not consider blake2f as precompile in Aris Mainnet")
 	}
 }
 
 func TestEnterExit(t *testing.T) {
 	// test that either both or none of enter() and exit() are defined
-	if _, err := New("{step: function() {}, fault: function() {}, result: function() { return null; }, enter: function() {}}", new(Context)); err == nil {
+	if _, err := newJsTracer("{step: function() {}, fault: function() {}, result: function() { return null; }, enter: function() {}}", new(tracers.Context)); err == nil {
 		t.Fatal("tracer creation should've failed without exit() definition")
 	}
-	if _, err := New("{step: function() {}, fault: function() {}, result: function() { return null; }, enter: function() {}, exit: function() {}}", new(Context)); err != nil {
+	if _, err := newJsTracer("{step: function() {}, fault: function() {}, result: function() { return null; }, enter: function() {}, exit: function() {}}", new(tracers.Context)); err != nil {
 		t.Fatal(err)
 	}
-
 	// test that the enter and exit method are correctly invoked and the values passed
-	tracer, err := New("{enters: 0, exits: 0, enterGas: 0, gasUsed: 0, step: function() {}, fault: function() {}, result: function() { return {enters: this.enters, exits: this.exits, enterGas: this.enterGas, gasUsed: this.gasUsed} }, enter: function(frame) { this.enters++; this.enterGas = frame.getGas(); }, exit: function(res) { this.exits++; this.gasUsed = res.getGasUsed(); }}", new(Context))
+	tracer, err := newJsTracer("{enters: 0, exits: 0, enterGas: 0, gasUsed: 0, step: function() {}, fault: function() {}, result: function() { return {enters: this.enters, exits: this.exits, enterGas: this.enterGas, gasUsed: this.gasUsed} }, enter: function(frame) { this.enters++; this.enterGas = frame.getGas(); }, exit: function(res) { this.exits++; this.gasUsed = res.getGasUsed(); }}", new(tracers.Context))
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	scope := &kvm.ScopeContext{
 		Contract: kvm.NewContract(&account{}, &account{}, big.NewInt(0), 0),
 	}
-
 	tracer.CaptureEnter(kvm.CALL, scope.Contract.Caller(), scope.Contract.Address(), []byte{}, 1000, new(big.Int))
 	tracer.CaptureExit([]byte{}, 400, nil)
 
@@ -255,5 +251,85 @@ func TestEnterExit(t *testing.T) {
 	want := `{"enters":1,"exits":1,"enterGas":1000,"gasUsed":400}`
 	if string(have) != want {
 		t.Errorf("Number of invocations of enter() and exit() is wrong. Have %s, want %s\n", have, want)
+	}
+}
+
+func TestPrestateTracerCreate2(t *testing.T) {
+	unsignedTx := types.NewTransaction(1, common.HexToAddress("0x00000000000000000000000000000000deadbeef"),
+		new(big.Int), 5000000, big.NewInt(1), []byte{})
+
+	privateKeyECDSA, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("err %v", err)
+	}
+	signer := types.HomesteadSigner{}
+	tx, err := types.SignTx(signer, unsignedTx, privateKeyECDSA)
+	if err != nil {
+		t.Fatalf("err %v", err)
+	}
+	/**
+		This comes from one of the test-vectors on the Skinny Create2 - EIP
+
+	    address 0x00000000000000000000000000000000deadbeef
+	    salt 0x00000000000000000000000000000000000000000000000000000000cafebabe
+	    init_code 0xdeadbeef
+	    gas (assuming no mem expansion): 32006
+	    result: 0x60f3f640a8508fC6a86d45DF051962668E1e8AC7
+	*/
+	origin, _ := signer.Sender(tx)
+	txContext := kvm.TxContext{
+		Origin:   origin,
+		GasPrice: big.NewInt(1),
+	}
+	context := kvm.BlockContext{
+		CanTransfer: vm.CanTransfer,
+		Transfer:    vm.Transfer,
+		Coinbase:    common.Address{},
+		BlockHeight: new(big.Int).SetUint64(8000000),
+		Time:        new(big.Int).SetUint64(5),
+		GasLimit:    uint64(6000000),
+	}
+	alloc := genesis.GenesisAlloc{}
+
+	// The code pushes 'deadbeef' into memory, then the other params, and calls CREATE2, then returns
+	// the address
+	alloc[common.HexToAddress("0x00000000000000000000000000000000deadbeef")] = genesis.GenesisAccount{
+		Nonce:   1,
+		Code:    common.MustDecode("0x63deadbeef60005263cafebabe6004601c6000F560005260206000F3"),
+		Balance: big.NewInt(1),
+	}
+	alloc[origin] = genesis.GenesisAccount{
+		Nonce:   1,
+		Code:    []byte{},
+		Balance: big.NewInt(500000000000000),
+	}
+	statedb := tests.MakePreState(memorydb.New(), alloc)
+
+	// Create the tracer, the KVM environment and run it
+	tracer, err := newJsTracer("prestateTracer", new(tracers.Context))
+	if err != nil {
+		t.Fatalf("failed to create call tracer: %v", err)
+	}
+	kvm := kvm.NewKVM(context, txContext, statedb, configs.TestChainConfig, kvm.Config{Debug: true, Tracer: tracer})
+
+	msg, err := tx.AsMessage(signer)
+	if err != nil {
+		t.Fatalf("failed to prepare transaction for tracing: %v", err)
+	}
+	st := blockchain.NewStateTransition(kvm, msg, new(types.GasPool).AddGas(tx.Gas()))
+	if _, err = st.TransitionDb(); err != nil {
+		t.Fatalf("failed to execute transaction: %v", err)
+	}
+	// Retrieve the trace result and compare against the etalon
+	res, err := tracer.GetResult()
+	if err != nil {
+		t.Fatalf("failed to retrieve trace result: %v", err)
+	}
+	ret := make(map[string]interface{})
+	if err := json.Unmarshal(res, &ret); err != nil {
+		t.Fatalf("failed to unmarshal trace result: %v", err)
+	}
+	if _, has := ret["0x60f3f640a8508fc6a86d45df051962668e1e8ac7"]; !has {
+		t.Fatalf("Expected 0x60f3f640a8508fc6a86d45df051962668e1e8ac7 in result")
 	}
 }

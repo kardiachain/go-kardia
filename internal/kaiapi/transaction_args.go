@@ -29,10 +29,10 @@ import (
 	"strings"
 
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/math"
+	"github.com/kardiachain/go-kardia/mainchain/tracers/logger"
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -316,7 +316,7 @@ type StructLogRes struct {
 }
 
 // FormatLogs formats KVM returned structured logs for json output
-func FormatLogs(logs []kvm.StructLog) []StructLogRes {
+func FormatLogs(logs []logger.StructLog) []StructLogRes {
 	formatted := make([]StructLogRes, len(logs))
 	for index, trace := range logs {
 		formatted[index] = StructLogRes{
@@ -330,7 +330,7 @@ func FormatLogs(logs []kvm.StructLog) []StructLogRes {
 		if trace.Stack != nil {
 			stack := make([]string, len(trace.Stack))
 			for i, stackValue := range trace.Stack {
-				stack[i] = stackValue.Text(16)
+				stack[i] = stackValue.Hex()
 			}
 			formatted[index].Stack = &stack
 		}

@@ -31,6 +31,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
+	"github.com/kardiachain/go-kardia/mainchain/tracers/logger"
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -73,7 +74,7 @@ func (t *TracerAPI) blockByHash(ctx context.Context, hash common.Hash) (*types.B
 
 // TraceConfig holds extra parameters to trace functions.
 type TraceConfig struct {
-	*kvm.LogConfig
+	*logger.LogConfig
 	Tracer  *string
 	Timeout *string
 	Reexec  *uint64
@@ -82,7 +83,7 @@ type TraceConfig struct {
 // TraceCallConfig is the config for traceCall API. It holds one more
 // field to override the state for tracing.
 type TraceCallConfig struct {
-	*kvm.LogConfig
+	*logger.LogConfig
 	Tracer         *string
 	Timeout        *string
 	Reexec         *uint64
@@ -91,7 +92,7 @@ type TraceCallConfig struct {
 
 // StdTraceConfig holds extra parameters to standard-json trace functions.
 type StdTraceConfig struct {
-	kvm.LogConfig
+	logger.LogConfig
 	Reexec *uint64
 	TxHash common.Hash
 }
@@ -275,12 +276,14 @@ func (t *TracerAPI) TraceCall(ctx context.Context, args kaiapi.TransactionArgs, 
 func (t *TracerAPI) traceTx(ctx context.Context, message blockchain.Message, txctx *Context, vmctx kvm.BlockContext, statedb *state.StateDB, config *TraceConfig) (interface{}, error) {
 	// Assemble the structured logger or the JavaScript tracer
 	var (
-		tracer    kvm.Tracer
+		tracer    kvm.KVMLogger
 		err       error
 		txContext = blockchain.NewKVMTxContext(message)
 	)
 	switch {
-	case config != nil && config.Tracer != nil:
+	case config == nil:
+		tracer = logger.NewStructLogger(nil)
+	case config.Tracer != nil:
 		// Define a meaningful timeout of a single transaction trace
 		timeout := defaultTraceTimeout
 		if config.Timeout != nil {
@@ -288,25 +291,22 @@ func (t *TracerAPI) traceTx(ctx context.Context, message blockchain.Message, txc
 				return nil, err
 			}
 		}
-		// Constuct the JavaScript tracer to execute with
-		if tracer, err = New(*config.Tracer, txctx); err != nil {
+		// Construct the JavaScript tracer to execute with
+		if t, err := New(*config.Tracer, txctx); err != nil {
 			return nil, err
+		} else {
+			deadlineCtx, cancel := context.WithTimeout(ctx, timeout)
+			go func() {
+				<-deadlineCtx.Done()
+				if errors.Is(deadlineCtx.Err(), context.DeadlineExceeded) {
+					t.Stop(errors.New("execution timeout"))
+				}
+			}()
+			defer cancel()
+			tracer = t
 		}
-		// Handle timeouts and RPC cancellations
-		deadlineCtx, cancel := context.WithTimeout(ctx, timeout)
-		go func() {
-			<-deadlineCtx.Done()
-			if deadlineCtx.Err() == context.DeadlineExceeded {
-				tracer.(*Tracer).Stop(errors.New("execution timeout"))
-			}
-		}()
-		defer cancel()
-
-	case config == nil:
-		tracer = kvm.NewStructLogger(nil)
-
 	default:
-		tracer = kvm.NewStructLogger(config.LogConfig)
+		tracer = logger.NewStructLogger(config.LogConfig)
 	}
 	// Run the transaction with tracing enabled.
 	vmenv := kvm.NewKVM(vmctx, txContext, statedb, t.b.ChainConfig(), kvm.Config{Debug: true, Tracer: tracer})
@@ -321,7 +321,7 @@ func (t *TracerAPI) traceTx(ctx context.Context, message blockchain.Message, txc
 
 	// Depending on the tracer type, format and return the output.
 	switch tracer := tracer.(type) {
-	case *kvm.StructLogger:
+	case *logger.StructLogger:
 		// If the result contains a revert reason, return it.
 		returnVal := fmt.Sprintf("%x", result.Return())
 		if len(result.Revert()) > 0 {
@@ -336,7 +336,7 @@ func (t *TracerAPI) traceTx(ctx context.Context, message blockchain.Message, txc
 			StructLogs:   kaiapi.FormatLogs(tracer.StructLogs()),
 		}, nil
 
-	case *Tracer:
+	case Tracer:
 		return tracer.GetResult()
 
 	default:

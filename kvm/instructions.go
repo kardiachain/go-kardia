@@ -543,38 +543,6 @@ func opJumpdest(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error)
 	return nil, nil
 }
 
-func opBeginSub(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error) {
-	return nil, ErrInvalidSubroutineEntry
-}
-
-func opJumpSub(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error) {
-	if len(callContext.Rstack.data) >= 1023 {
-		return nil, ErrReturnStackExceeded
-	}
-	pos := callContext.Stack.pop()
-	if !pos.IsUint64() {
-		return nil, ErrInvalidJump
-	}
-	posU64 := pos.Uint64()
-	if !callContext.Contract.validJumpSubdest(posU64) {
-		return nil, ErrInvalidJump
-	}
-	callContext.Rstack.push(uint32(*pc))
-	*pc = posU64 + 1
-	return nil, nil
-}
-
-func opReturnSub(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error) {
-	if len(callContext.Rstack.data) == 0 {
-		return nil, ErrInvalidRetsub
-	}
-	// Other than the check that the return stack is not empty, there is no
-	// need to validate the pc from 'returns', since we only ever push valid
-	//values onto it via jumpsub.
-	*pc = uint64(callContext.Rstack.pop()) + 1
-	return nil, nil
-}
-
 func opPc(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error) {
 	callContext.Stack.push(new(uint256.Int).SetUint64(*pc))
 	return nil, nil

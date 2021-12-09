@@ -16,6 +16,7 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
+// generate these using: go install github.com/kevinburke/go-bindata/go-bindata@latest
 //go:generate go-bindata -nometadata -o assets.go -pkg tracers -ignore tracers.go -ignore assets.go ./...
 //go:generate gofmt -s -w assets.go
 
