@@ -467,10 +467,6 @@ func TxDifference(a, b Transactions) (keep Transactions) {
 //==============================================================================
 // Logic to handle transaction signing
 //==============================================================================
-// sigCache is used to cache the derived sender
-type sigCache struct {
-	from common.Address
-}
 
 // SignTx signs the transaction using the given signer and private key
 func SignTx(signer Signer, tx *Transaction, prv *ecdsa.PrivateKey) (*Transaction, error) {

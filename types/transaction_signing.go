@@ -35,6 +35,8 @@ var ErrInvalidChainId = errors.New("invalid chain id for signer")
 type Signer interface {
 	// Sender returns the sender address of the transaction.
 	Sender(tx *Transaction) (common.Address, error)
+	// ChainID returns the signer chainid
+	ChainID() *big.Int
 	// SignatureValues returns the raw R, S, V values corresponding to the
 	// given signature.
 	SignatureValues(tx *Transaction, sig []byte) (r, s, v *big.Int, err error)
@@ -42,6 +44,12 @@ type Signer interface {
 	Hash(tx *Transaction) common.Hash
 	// Equal returns true if the given signer is the same as the receiver.
 	Equal(Signer) bool
+}
+
+// sigCache is used to cache the derived sender
+type sigCache struct {
+	signer Signer
+	from   common.Address
 }
 
 // MakeSigner returns a Signer based on the given chain config and block number.
@@ -86,7 +94,10 @@ func LatestSignerForChainID(chainID *big.Int) Signer {
 func Sender(signer Signer, tx *Transaction) (common.Address, error) {
 	if sc := tx.from.Load(); sc != nil {
 		sigCache := sc.(sigCache)
-		return sigCache.from, nil
+
+		if sigCache.signer.Equal(signer) {
+			return sigCache.from, nil
+		}
 	}
 
 	addr, err := signer.Sender(tx)
@@ -100,6 +111,10 @@ func Sender(signer Signer, tx *Transaction) (common.Address, error) {
 // HomesteadTransaction implements TransactionInterface using the
 // homestead rules.
 type HomesteadSigner struct{ FrontierSigner }
+
+func (s HomesteadSigner) ChainID() *big.Int {
+	return nil
+}
 
 func (s HomesteadSigner) Equal(s2 Signer) bool {
 	_, ok := s2.(HomesteadSigner)
@@ -117,6 +132,10 @@ func (hs HomesteadSigner) Sender(tx *Transaction) (common.Address, error) {
 }
 
 type FrontierSigner struct{}
+
+func (s FrontierSigner) ChainID() *big.Int {
+	return nil
+}
 
 func (s FrontierSigner) Equal(s2 Signer) bool {
 	_, ok := s2.(FrontierSigner)
