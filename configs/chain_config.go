@@ -29,8 +29,8 @@ import (
 // that any network, identified by its genesis block, can have its own
 // set of configuration options.
 type ChainConfig struct {
-	ChainID *big.Int `json:"chainId,omitempty" yaml:"ChainID"` // chainId identifies the current chain and is used for replay protection
-	V2Block *big.Int `json:"v2Block,omitempty" yaml:"V2Block"` // Mainnet V2 switch block (nil = no fork, 0 = already V2)
+	ChainID       *big.Int `json:"chainId,omitempty" yaml:"ChainID"`             // chainId identifies the current chain and is used for replay protection
+	GalaxiasBlock *big.Int `json:"galaxiasBlock,omitempty" yaml:"galaxiasBlock"` // Mainnet V2 switch block (nil = no fork, 0 = already V2)
 
 	// Various consensus engines
 	Kaicon *KaiconConfig `json:"kaicon,omitempty" yaml:"KaiconConfig"`
@@ -60,8 +60,10 @@ func (c *ChainConfig) String() string {
 		engine,
 	)
 }
-func (c *ChainConfig) IsV2(num *big.Int) bool {
-	return isForked(c.V2Block, num)
+
+// IsGalaxias returns the comparison head block number for Galaxias Mainnet
+func (c *ChainConfig) IsGalaxias(num *big.Int) bool {
+	return isForked(c.GalaxiasBlock, num)
 }
 
 // isForked returns whether a fork scheduled at block s is active at the given head block.

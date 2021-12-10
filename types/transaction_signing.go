@@ -48,7 +48,7 @@ type Signer interface {
 func MakeSigner(config *configs.ChainConfig, blockNumber *big.Int) Signer {
 	var signer Signer
 	switch {
-	case config.IsV2(blockNumber):
+	case config.IsGalaxias(blockNumber):
 	default:
 		signer = HomesteadSigner{}
 	}
@@ -57,7 +57,7 @@ func MakeSigner(config *configs.ChainConfig, blockNumber *big.Int) Signer {
 
 func LatestSigner(config *configs.ChainConfig) Signer {
 	if config.ChainID != nil {
-		if config.V2Block != nil {
+		if config.GalaxiasBlock != nil {
 			return NewChainIDSigner(config.ChainID)
 		}
 	}
