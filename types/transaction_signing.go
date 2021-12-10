@@ -94,7 +94,9 @@ func LatestSignerForChainID(chainID *big.Int) Signer {
 func Sender(signer Signer, tx *Transaction) (common.Address, error) {
 	if sc := tx.from.Load(); sc != nil {
 		sigCache := sc.(sigCache)
-
+		// If the signer used to derive from in a previous
+		// call is not the same as used current, invalidate
+		// the cache.
 		if sigCache.signer.Equal(signer) {
 			return sigCache.from, nil
 		}
@@ -104,7 +106,7 @@ func Sender(signer Signer, tx *Transaction) (common.Address, error) {
 	if err != nil {
 		return common.Address{}, err
 	}
-	tx.from.Store(sigCache{from: addr})
+	tx.from.Store(sigCache{signer: signer, from: addr})
 	return addr, nil
 }
 
