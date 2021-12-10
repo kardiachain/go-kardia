@@ -55,7 +55,7 @@ var (
 			Period: 15,
 			Epoch:  30000,
 		},
-		GalaxiasBlock: big.NewInt(200),
+		GalaxiasBlock: big.NewInt(100),
 		ChainID:       big.NewInt(1337),
 	}
 
@@ -65,7 +65,7 @@ var (
 			Period: 15,
 			Epoch:  30000,
 		},
-		GalaxiasBlock: big.NewInt(200),
+		GalaxiasBlock: big.NewInt(100),
 		ChainID:       big.NewInt(1337),
 	}
 
@@ -75,7 +75,7 @@ var (
 			Period: 15,
 			Epoch:  30000,
 		},
-		GalaxiasBlock: big.NewInt(200),
+		GalaxiasBlock: big.NewInt(100),
 		ChainID:       big.NewInt(1337),
 	}
 )
