@@ -29,7 +29,6 @@ import (
 	kaiproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 )
 
-// TODO(huny): Get the proper genesis hash for Kardia when ready
 // Genesis hashes to enforce below configs on.
 var (
 	DefaultChainID  = uint64(1)
@@ -80,16 +79,6 @@ var (
 		ChainID:       big.NewInt(1337),
 	}
 )
-
-func configNumEqual(x, y *big.Int) bool {
-	if x == nil {
-		return y == nil
-	}
-	if y == nil {
-		return x == nil
-	}
-	return x.Cmp(y) == 0
-}
 
 type Config struct {
 	Consensus *ConsensusConfig

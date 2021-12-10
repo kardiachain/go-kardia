@@ -72,7 +72,6 @@ type (
 		NetworkID          uint64     `yaml:"NetworkId"`
 		AcceptTxs          uint32     `yaml:"AcceptTxs"`
 		Genesis            *Genesis   `yaml:"Genesis,omitempty"`
-		EventPool          *Pool      `yaml:"EventPool,omitempty"`
 		Database           *Database  `yaml:"Database,omitempty"`
 		Seeds              []string   `yaml:"Seeds"`
 		Events             []Event    `yaml:"Events"`
