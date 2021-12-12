@@ -71,8 +71,6 @@ type txdata struct {
 	Hash *common.Hash `json:"hash" rlp:"-"`
 }
 
-func (tx *txdata) chainID() *big.Int { return deriveChainId(tx.V) }
-
 func NewTransaction(nonce uint64, to common.Address, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte) *Transaction {
 	return newTransaction(nonce, &to, amount, gasLimit, gasPrice, data)
 }
@@ -132,7 +130,6 @@ func (tx *Transaction) GasPriceCmp(other *Transaction) int {
 func (tx *Transaction) GasPriceIntCmp(other *big.Int) int {
 	return tx.data.Price.Cmp(other)
 }
-func (tx *Transaction) ChainId() *big.Int { return tx.data.chainID() }
 
 func (tx *Transaction) Value() *big.Int  { return new(big.Int).Set(tx.data.Amount) }
 func (tx *Transaction) Nonce() uint64    { return tx.data.AccountNonce }
@@ -159,10 +156,15 @@ func (tx *Transaction) Hash() common.Hash {
 	return v
 }
 
+// ChainId returns which chain id this transaction was signed for (if at all)
+func (tx *Transaction) ChainId() *big.Int {
+	return deriveChainId(tx.data.V)
+}
+
 func isProtectedV(V *big.Int) bool {
 	if V.BitLen() <= 8 {
 		v := V.Uint64()
-		return v != 27 && v != 28 && v != 1 && v != 0
+		return v != 27 && v != 28
 	}
 	// anything not 27 or 28 is considered protected
 	return true

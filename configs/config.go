@@ -31,7 +31,6 @@ import (
 
 // Genesis hashes to enforce below configs on.
 var (
-	DefaultChainID  = uint64(1)
 	EthDualChainID  = uint64(2)
 	NeoDualChainID  = uint64(3)
 	TronDualChainID = uint64(4)
@@ -49,14 +48,17 @@ var (
 )
 
 var (
+	chainID           = big.NewInt(1337)
+	galaxiasForkBlock = uint64(10)
+
 	// MainnetChainConfig is the chain parameters to run a node on the main network.
 	MainnetChainConfig = &ChainConfig{
 		Kaicon: &KaiconConfig{
 			Period: 15,
 			Epoch:  30000,
 		},
-		GalaxiasBlock: big.NewInt(7000000),
-		ChainID:       big.NewInt(1337),
+		GalaxiasBlock: &galaxiasForkBlock,
+		ChainID:       chainID,
 	}
 
 	// TestnetChainConfig contains the chain parameters to run a node on the test network.
@@ -65,8 +67,8 @@ var (
 			Period: 15,
 			Epoch:  30000,
 		},
-		GalaxiasBlock: big.NewInt(7000000),
-		ChainID:       big.NewInt(1337),
+		GalaxiasBlock: &galaxiasForkBlock,
+		ChainID:       chainID,
 	}
 
 	// TestChainConfig contains the chain parameters to run unit test.
@@ -75,8 +77,8 @@ var (
 			Period: 15,
 			Epoch:  30000,
 		},
-		GalaxiasBlock: big.NewInt(7000000),
-		ChainID:       big.NewInt(1337),
+		GalaxiasBlock: &galaxiasForkBlock,
+		ChainID:       chainID,
 	}
 )
 
@@ -95,9 +97,9 @@ func DefaultConsensusParams() *kaiproto.ConsensusParams {
 			TimeIotaMs: 1000,
 		},
 		Evidence: kaiproto.EvidenceParams{
-			MaxAgeNumBlocks: 100000, // 27.8 hrs at 1block/s
+			MaxAgeNumBlocks: 100000,
 			MaxAgeDuration:  48 * time.Hour,
-			MaxBytes:        1048576, // 1MB
+			MaxBytes:        1048576,
 		},
 	}
 }
@@ -111,9 +113,9 @@ func TestConsensusParams() *kaiproto.ConsensusParams {
 		TimeIotaMs: 1000,
 	}
 	csParams.Evidence = kaiproto.EvidenceParams{
-		MaxAgeNumBlocks: 100000, // 27.8 hrs at 1block/s
+		MaxAgeNumBlocks: 100000,
 		MaxAgeDuration:  48 * time.Hour,
-		MaxBytes:        1048576, // 1MB
+		MaxBytes:        1048576,
 	}
 	return csParams
 }
