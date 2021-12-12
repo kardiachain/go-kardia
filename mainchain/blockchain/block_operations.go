@@ -129,8 +129,8 @@ func (bo *BlockOperations) CreateProposalBlock(
 // organizeTransactions sort and validate transactions in block to propose
 func (bo *BlockOperations) organizeTransactions(pendingTxs map[common.Address]types.Transactions, header *types.Header) []*types.Transaction {
 	proposeTxs := make([]*types.Transaction, 0)
-	signer := types.HomesteadSigner{}
-	// @lewtran: should we split local and remote txs here?
+
+	signer := types.MakeSigner(bo.blockchain.chainConfig, &header.Height)
 	txSet := types.NewTransactionsByPriceAndNonce(signer, pendingTxs)
 
 	gasPool := new(types.GasPool).AddGas(header.GasLimit)

@@ -53,10 +53,11 @@ type sigCache struct {
 }
 
 // MakeSigner returns a Signer based on the given chain config and block number.
-func MakeSigner(config *configs.ChainConfig, blockNumber *big.Int) Signer {
+func MakeSigner(config *configs.ChainConfig, blockNumber *uint64) Signer {
 	var signer Signer
 	switch {
 	case config.IsGalaxias(blockNumber):
+		signer = NewChainIDSigner(config.ChainID)
 	default:
 		signer = HomesteadSigner{}
 	}
