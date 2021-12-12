@@ -189,9 +189,14 @@ func (kvm *KVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	if !kvm.StateDB.Exist(addr) {
 		if !isPrecompile && value.Sign() == 0 {
 			// Calling a non existing account, don't do anything, but ping the tracer
-			if kvm.vmConfig.Debug && kvm.depth == 0 {
-				kvm.vmConfig.Tracer.CaptureStart(kvm, caller.Address(), addr, false, input, gas, value)
-				kvm.vmConfig.Tracer.CaptureEnd(ret, 0, 0, nil)
+			if kvm.vmConfig.Debug {
+				if kvm.depth == 0 {
+					kvm.vmConfig.Tracer.CaptureStart(kvm, caller.Address(), addr, false, input, gas, value)
+					kvm.vmConfig.Tracer.CaptureEnd(ret, 0, 0, nil)
+				} else {
+					kvm.vmConfig.Tracer.CaptureEnter(CALL, caller.Address(), addr, input, gas, value)
+					kvm.vmConfig.Tracer.CaptureExit(ret, 0, nil)
+				}
 			}
 			return nil, gas, nil
 		}

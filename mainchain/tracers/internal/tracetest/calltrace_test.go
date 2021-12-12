@@ -379,11 +379,9 @@ func TestZeroValueToNotExitCall(t *testing.T) {
 	if err := json.Unmarshal(res, have); err != nil {
 		t.Fatalf("failed to unmarshal trace result: %v", err)
 	}
-	wantStr := `{"type":"CALL","from":"0x682a80a6f560eec50d54e63cbeda1c324c5f8d1b","to":"0x00000000000000000000000000000000deadbeef","value":"0x0","gas":"0x7148","gasUsed":"0x2d0","input":"0x","output":"0x","calls":[{"type":"CALL","from":"0x00000000000000000000000000000000deadbeef","to":"0x00000000000000000000000000000000000000ff","value":"0x0","gas":"0x6cbf","gasUsed":"0x0","input":"0x","output":"0x"}]}`
+	wantStr := `{"type":"CALL","from":"0x682a80a6f560eec50d54e63cbeda1c324c5f8d1b","to":"0x00000000000000000000000000000000deadbeef","value":"0x0","gas":"0x72fd8","gasUsed":"0x620c","input":"0x","output":"0x","calls":[{"type":"CALL","from":"0x00000000000000000000000000000000deadbeef","to":"0x00000000000000000000000000000000000000ff","value":"0x0","gas":"0x6b2bd","gasUsed":"0x0","input":"0x","output":"0x"}]}`
 	want := new(callTrace)
 	json.Unmarshal([]byte(wantStr), want)
-	t.Logf("@@@@@@@@@@@@@ %+v", have)
-	t.Logf("@@@@@@@@@@@@@ %+v", want)
 	if !jsonEqual(have, want) {
 		t.Error("have != want")
 	}
