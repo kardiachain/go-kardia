@@ -43,8 +43,6 @@ Node:
     MaxPrice: 500000000000  # maximum gas price this node will accept. Type string
 MainChain:
   ServiceName: KARDIA     # mainchain service name
-  ChainId: 1337           # default chainid
-  NetworkId: 100          # default networkid
   AcceptTxs: 1            # accept tx sync process or not (1 is yes, 0 is no)
   Seeds:
     - faf0b7cbd8003dbef341a263cb9e1dd2a41e8acd@13.251.223.247:3000

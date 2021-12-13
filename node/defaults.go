@@ -24,20 +24,15 @@ import (
 )
 
 const (
-	DefaultHTTPHost    = "localhost" // Default host interface for the HTTP RPC server
-	DefaultHTTPPort    = 8545        // Default TCP port for the HTTP RPC server
-	DefaultWSHost      = "localhost" // Default host interface for the websocket RPC server
-	DefaultWSPort      = 8546        // Default TCP port for the websocket RPC server
-	DefaultGraphQLHost = "localhost" // Default host interface for the GraphQL server
-	DefaultGraphQLPort = 8547        // Default TCP port for the GraphQL server
+	DefaultHTTPHost = "localhost" // Default host interface for the HTTP RPC server
+	DefaultHTTPPort = 8545        // Default TCP port for the HTTP RPC server
+	DefaultWSHost   = "localhost" // Default host interface for the websocket RPC server
+	DefaultWSPort   = 8546        // Default TCP port for the websocket RPC server
 
 	DefaultDbCache   = 16 // 16MB memory allocated for leveldb cache, for each chains
 	DefaultDbHandles = 32 // 32 file handlers allocated for leveldb, for each chains
 
-	MainChainDataDir = "chaindata" // directory of database storage for main chain data
-
-	DefaultNetworkID  = 100
-	MainChainID       = 1
+	MainChainDataDir  = "chaindata" // directory of database storage for main chain data
 	KardiaServiceName = "KARDIA"
 )
 
@@ -54,8 +49,8 @@ var DefaultConfig = Config{
 	P2P:              configs.DefaultP2PConfig(),
 	MainChainConfig: MainChainConfig{
 		ServiceName: KardiaServiceName,
-		ChainId:     MainChainID,
-		NetworkId:   DefaultNetworkID,
+		ChainId:     configs.MainnetChainID,
+		NetworkId:   configs.MainnetNetworkID,
 		AcceptTxs:   1, // 1 is to allow new transactions, 0 is not
 	},
 }

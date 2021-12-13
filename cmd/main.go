@@ -163,16 +163,16 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 		Genesis:     genesisData,
 		TxPool:      c.getTxPoolConfig(),
 		AcceptTxs:   chain.AcceptTxs,
-		NetworkId:   chain.NetworkID,
-		ChainId:     chain.ChainID,
 		ServiceName: chain.ServiceName,
 		Consensus:   genesisData.Consensus,
 		FastSync:    c.getFastSyncConfig(),
 		GasOracle:   c.getGasOracleConfig(),
 	}
 	if args.network == Mainnet {
+		mainChainConfig.ChainId = configs.MainnetChainID
 		mainChainConfig.NetworkId = configs.MainnetNetworkID
 	} else {
+		mainChainConfig.ChainId = configs.TestnetChainID
 		mainChainConfig.NetworkId = configs.TestnetNetworkID
 	}
 	return &mainChainConfig, nil

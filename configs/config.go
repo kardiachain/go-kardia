@@ -48,7 +48,10 @@ var (
 )
 
 var (
-	chainID           = big.NewInt(1337)
+	MainnetChainID    = big.NewInt(24)
+	TestnetChainID    = big.NewInt(242)
+	MainnetNetworkID  = uint64(100)
+	TestnetNetworkID  = uint64(1000)
 	galaxiasForkBlock = uint64(10)
 
 	// MainnetChainConfig is the chain parameters to run a node on the main network.
@@ -58,7 +61,7 @@ var (
 			Epoch:  30000,
 		},
 		GalaxiasBlock: &galaxiasForkBlock,
-		ChainID:       chainID,
+		ChainID:       MainnetChainID,
 	}
 
 	// TestnetChainConfig contains the chain parameters to run a node on the test network.
@@ -68,7 +71,7 @@ var (
 			Epoch:  30000,
 		},
 		GalaxiasBlock: &galaxiasForkBlock,
-		ChainID:       chainID,
+		ChainID:       TestnetChainID,
 	}
 
 	// TestChainConfig contains the chain parameters to run unit test.
@@ -78,7 +81,7 @@ var (
 			Epoch:  30000,
 		},
 		GalaxiasBlock: &galaxiasForkBlock,
-		ChainID:       chainID,
+		ChainID:       MainnetChainID,
 	}
 )
 
