@@ -21,6 +21,7 @@ package blockchain
 import (
 	"errors"
 	"github.com/gogo/protobuf/proto"
+	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardia/lib/rlp"
 	"sync"
 	"time"
@@ -205,6 +206,7 @@ func (bo *BlockOperations) sortAndValidateTxs(proposalTxs []*types.Transaction, 
 // New calculated state root is validated against the root field in block.
 // Transactions, new state and receipts are saved to storage.
 func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCommit stypes.LastCommitInfo, byzVals []stypes.Evidence) ([]*types.Validator, common.Hash, error) {
+	var sumTxsByteLength int
 	vals, root, blockInfo, _, err := bo.commitTransactions(block.Transactions(), block.Header(), lastCommit, byzVals)
 	if err != nil {
 		return nil, common.Hash{}, err
@@ -223,7 +225,16 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCom
 		// block height
 		blockHeightGauge.Update(int64(block.Height()))
 		// block transactions gauge
-		blockTransactionsGauge.Update(int64(block.Transactions().Len()))
+		for i := range block.Transactions() {
+			entry := kvstore.TxLookupEntry{
+				BlockHash:  block.Hash(),
+				BlockIndex: block.Height(),
+				Index:      uint64(i),
+			}
+			data, _ := rlp.EncodeToBytes(entry)
+			sumTxsByteLength += len(data)
+		}
+		blockTransactionsGauge.Update(int64(sumTxsByteLength))
 		// block hash length gauge
 		blockHashGauge.Update(int64(len(block.Hash().Bytes())))
 		// block info gauge
