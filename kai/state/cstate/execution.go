@@ -108,7 +108,6 @@ func (blockExec *BlockExecutor) ApplyBlock(state LatestBlockState, blockID types
 	if err != nil {
 		return state, block.Height(), fmt.Errorf("commit failed for application: %v", err)
 	}
-
 	state.AppHash = appHash
 	blockExec.store.Save(state)
 

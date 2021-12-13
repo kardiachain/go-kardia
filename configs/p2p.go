@@ -117,20 +117,27 @@ func DefaultP2PConfig() *P2PConfig {
 		AddrBook:                     filepath.Join(DefaultDataDir(), defaultAddrBookName),
 		AddrBookStrict:               true,
 		MaxNumInboundPeers:           40,
-		MaxNumOutboundPeers:          10,
+		MaxNumOutboundPeers:          15,
 		PersistentPeersMaxDialPeriod: 0 * time.Second,
 		FlushThrottleTimeout:         100 * time.Millisecond,
-		MaxPacketMsgPayloadSize:      1024,    // 1 kB
-		SendRate:                     5120000, // 5 mB/s
-		RecvRate:                     5120000, // 5 mB/s
-		PexReactor:                   true,
-		SeedMode:                     false,
-		AllowDuplicateIP:             false,
-		HandshakeTimeout:             20 * time.Second,
-		DialTimeout:                  3 * time.Second,
-		TestDialFail:                 false,
-		TestFuzz:                     false,
-		TestFuzzConfig:               DefaultFuzzConnConfig(),
+		// MTU (Maximum Transmission Unit) for Etherenet is 1500 bytes
+		// IP header = 20 bytes, TCP header = 20 bytes
+		// If RFC1323 timestamp is applied it could take 12 bytes more (https://www.ietf.org/rfc/rfc1323.txt)
+		// Some other Etherenet using Jumbo (8kb) frames and token ring (4kb)
+		// (https://en.wikipedia.org/wiki/Jumbo_frame, https://en.wikipedia.org/wiki/Token_Ring)
+		// Some other technicals can reduce the payload such as tunneling or via gateway
+		// So safe option should be around 1380 (correct me @lewtran)
+		MaxPacketMsgPayloadSize: 1024,
+		SendRate:                5120000, // 5 mB/s
+		RecvRate:                5120000, // 5 mB/s
+		PexReactor:              true,
+		SeedMode:                false,
+		AllowDuplicateIP:        false,
+		HandshakeTimeout:        20 * time.Second,
+		DialTimeout:             3 * time.Second,
+		TestDialFail:            false,
+		TestFuzz:                false,
+		TestFuzzConfig:          DefaultFuzzConnConfig(),
 	}
 }
 

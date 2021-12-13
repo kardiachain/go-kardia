@@ -34,6 +34,8 @@ type (
 		P2P struct {
 			ListenAddress string `yaml:"ListenAddress"`
 			PrivateKey    string `yaml:"PrivateKey"`
+			InboundPeers  int    `yaml:"InboundPeers"`
+			OutboundPeers int    `yaml:"OutboundPeers"`
 		} `yaml:"P2P"`
 		LogLevel             string     `yaml:"LogLevel"`
 		Name                 string     `yaml:"Name"`
@@ -102,13 +104,12 @@ type (
 		ABI      string `yaml:"ABI,omitempty"`
 	}
 	Pool struct {
-		AccountSlots  uint64 `yaml:"AccountSlots"`
-		AccountQueue  uint64 `yaml:"AccountQueue"`
-		GlobalSlots   uint64 `yaml:"GlobalSlots"`
-		GlobalQueue   uint64 `yaml:"GlobalQueue"`
-		BlockSize     int    `yaml:"BlockSize,omitempty"`
-		Broadcast     bool   `yaml:"Broadcast"`
-		MaxBatchBytes int    `yaml:"MaxBatchBytes"`
+		AccountSlots uint64 `yaml:"AccountSlots"`
+		AccountQueue uint64 `yaml:"AccountQueue"`
+		GlobalSlots  uint64 `yaml:"GlobalSlots"`
+		GlobalQueue  uint64 `yaml:"GlobalQueue"`
+		BlockSize    int    `yaml:"BlockSize,omitempty"`
+		Broadcast    bool   `yaml:"Broadcast"`
 	}
 	Database struct {
 		Type    uint   `yaml:"Type"`

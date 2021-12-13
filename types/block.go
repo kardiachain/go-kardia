@@ -22,14 +22,13 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math/big"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
-	"unsafe"
-
-	"math/big"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -93,7 +92,7 @@ func (h *Header) Hash() common.Hash {
 // Size returns the approximate memory used by all internal contents. It is used
 // to approximate and limit the memory consumption of various caches.
 func (h *Header) Size() common.StorageSize {
-	return common.StorageSize(unsafe.Sizeof(*h))
+	return common.StorageSize(reflect.TypeOf(Header{}).Size())
 }
 
 // StringLong returns a long string representing full info about Header
@@ -290,6 +289,7 @@ func NewBlock(header *Header, txs []*Transaction, lastCommit *Commit, evidence [
 
 	if len(txs) == 0 {
 		b.header.TxHash = EmptyRootHash
+		b.header.NumTxs = 0
 	} else {
 		b.header.TxHash = DeriveSha(Transactions(txs))
 		b.header.NumTxs = uint64(len(txs))
