@@ -130,7 +130,7 @@ func (bo *BlockOperations) CreateProposalBlock(
 func (bo *BlockOperations) organizeTransactions(pendingTxs map[common.Address]types.Transactions, header *types.Header) []*types.Transaction {
 	proposeTxs := make([]*types.Transaction, 0)
 
-	signer := types.MakeSigner(bo.blockchain.chainConfig, &header.Height)
+	signer := types.LatestSigner(bo.blockchain.chainConfig)
 	txSet := types.NewTransactionsByPriceAndNonce(signer, pendingTxs)
 
 	gasPool := new(types.GasPool).AddGas(header.GasLimit)
