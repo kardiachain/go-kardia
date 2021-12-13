@@ -27,8 +27,7 @@ type (
 	Config struct {
 		Node      `yaml:"Node"`
 		MainChain *Chain `yaml:"MainChain"`
-		DualChain *Chain `yaml:"DualChain,omitempty"`
-		Debug     *Debug `yaml:"Debug"` // todo @longnd: Change this config name to profile
+		Debug     *Debug `yaml:"Debug"`
 	}
 	Node struct {
 		P2P struct {
@@ -69,12 +68,8 @@ type (
 	Chain struct {
 		ServiceName        string     `yaml:"ServiceName"`
 		Protocol           *string    `yaml:"Protocol,omitempty"`
-		ChainID            uint64     `yaml:"ChainId"`
-		NetworkID          uint64     `yaml:"NetworkId"`
 		AcceptTxs          uint32     `yaml:"AcceptTxs"`
-		IsDual             uint       `yaml:"IsDual"`
 		Genesis            *Genesis   `yaml:"Genesis,omitempty"`
-		EventPool          *Pool      `yaml:"EventPool,omitempty"`
 		Database           *Database  `yaml:"Database,omitempty"`
 		Seeds              []string   `yaml:"Seeds"`
 		Events             []Event    `yaml:"Events"`

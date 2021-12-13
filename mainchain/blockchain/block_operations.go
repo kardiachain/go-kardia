@@ -129,8 +129,8 @@ func (bo *BlockOperations) CreateProposalBlock(
 // organizeTransactions sort and validate transactions in block to propose
 func (bo *BlockOperations) organizeTransactions(pendingTxs map[common.Address]types.Transactions, header *types.Header) []*types.Transaction {
 	proposeTxs := make([]*types.Transaction, 0)
-	signer := types.HomesteadSigner{}
-	// @lewtran: should we split local and remote txs here?
+
+	signer := types.LatestSigner(bo.blockchain.chainConfig)
 	txSet := types.NewTransactionsByPriceAndNonce(signer, pendingTxs)
 
 	gasPool := new(types.GasPool).AddGas(header.GasLimit)
@@ -157,7 +157,7 @@ func (bo *BlockOperations) organizeTransactions(pendingTxs map[common.Address]ty
 
 		state.Prepare(tx.Hash(), header.Hash(), tcount)
 		snap := state.Snapshot()
-		_, _, err := ApplyTransaction(bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvmConfig)
+		_, _, err := ApplyTransaction(bo.blockchain.chainConfig, bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvmConfig)
 		if err != nil {
 			state.RevertToSnapshot(snap)
 		} else {
@@ -354,7 +354,7 @@ LOOP:
 	for i, tx := range txs {
 		state.Prepare(tx.Hash(), header.Hash(), i)
 		snap := state.Snapshot()
-		receipt, _, err := ApplyTransaction(bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvmConfig)
+		receipt, _, err := ApplyTransaction(bo.blockchain.chainConfig, bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvmConfig)
 		if err != nil {
 			bo.logger.Error("ApplyTransaction failed", "tx", tx.Hash().Hex(), "nonce", tx.Nonce(), "err", err)
 			state.RevertToSnapshot(snap)

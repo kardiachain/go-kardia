@@ -20,6 +20,7 @@ package configs
 
 import (
 	"fmt"
+	"math/big"
 )
 
 // ChainConfig is the core config which determines the blockchain settings.
@@ -28,13 +29,15 @@ import (
 // that any network, identified by its genesis block, can have its own
 // set of configuration options.
 type ChainConfig struct {
+	ChainID       *big.Int `json:"chainId,omitempty" yaml:"ChainID"`             // chainId identifies the current chain and is used for replay protection
+	GalaxiasBlock *uint64  `json:"galaxiasBlock,omitempty" yaml:"galaxiasBlock"` // Mainnet V2 switch block (nil = no fork, 0 = already V2)
+
 	// Various consensus engines
 	Kaicon *KaiconConfig `json:"kaicon,omitempty" yaml:"KaiconConfig"`
 }
 
 // KaiconConfig is the consensus engine configs for Kardia BFT DPoS.
 type KaiconConfig struct {
-	// TODO(huny): implement this
 	Period uint64 `json:"period" yaml:"Period"` // Number of seconds between blocks to enforce
 	Epoch  uint64 `json:"epoch" yaml:"Epoch"`   // Epoch length to reset votes and checkpoint
 }
@@ -56,4 +59,17 @@ func (c *ChainConfig) String() string {
 	return fmt.Sprintf("{Engine: %v}",
 		engine,
 	)
+}
+
+// IsGalaxias returns the comparison head block height for Galaxias fork
+func (c *ChainConfig) IsGalaxias(height *uint64) bool {
+	return isForked(c.GalaxiasBlock, height)
+}
+
+// isForked returns whether a fork scheduled at block s is active at the given head block.
+func isForked(s, head *uint64) bool {
+	if s == nil || head == nil {
+		return false
+	}
+	return *s <= *head
 }

@@ -34,7 +34,7 @@ Node:
     MinRecvRate: 0       # minimum receive rate from peer, otherwise prune. Type int64
 MainChain:
   ServiceName: KARDIA    # mainchain service name
-  ChainId: 0             # default chainid
+  ChainId: 7331          # default chainid
   NetworkId: 1000        # default networkid
   AcceptTxs: 1           # accept tx sync process or not (1 is yes, 0 is no)
   Seeds:

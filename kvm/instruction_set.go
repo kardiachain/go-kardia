@@ -941,6 +941,12 @@ func newKardiaInstructionSet() JumpTable {
 			writes:      true,
 			returns:     true,
 		},
+		CHAINID: {
+			execute:     opChainID,
+			constantGas: configs.GasQuickStep,
+			minStack:    minStack(0, 1),
+			maxStack:    maxStack(0, 1),
+		},
 		SELFBALANCE: {
 			execute:     opSelfBalance,
 			constantGas: configs.GasFastStep,

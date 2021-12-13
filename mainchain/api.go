@@ -141,7 +141,7 @@ func NewBlockHeaderJSON(header *types.Header, blockInfo *types.BlockInfo) *Block
 }
 
 // NewBlockJSON creates a new Block JSON data from Block
-func NewBlockJSON(block *types.Block, blockInfo *types.BlockInfo) *BlockJSON {
+func NewBlockJSON(config *configs.ChainConfig, block *types.Block, blockInfo *types.BlockInfo) *BlockJSON {
 	if block == nil {
 		return nil
 	}
@@ -159,7 +159,7 @@ func NewBlockJSON(block *types.Block, blockInfo *types.BlockInfo) *BlockJSON {
 
 	for index, transaction := range txs {
 		idx := uint64(index)
-		tx := NewPublicTransaction(transaction, block.Hash(), block.Height(), idx)
+		tx := NewPublicTransaction(config, transaction, block.Hash(), block.Height(), idx)
 		// add time for tx
 		tx.Time = block.Header().Time
 		transactions = append(transactions, tx)
@@ -215,7 +215,7 @@ func (s *PublicKaiAPI) GetBlockHeaderByHash(ctx context.Context, blockHash rpc.B
 func (s *PublicKaiAPI) GetBlockByNumber(ctx context.Context, blockHeight rpc.BlockHeight) *BlockJSON {
 	block := s.kaiService.BlockByHeight(ctx, blockHeight)
 	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, block.Hash())
-	return NewBlockJSON(block, blockInfo)
+	return NewBlockJSON(s.kaiService.chainConfig, block, blockInfo)
 }
 
 // GetBlockByHash returns block by block hash
@@ -225,7 +225,7 @@ func (s *PublicKaiAPI) GetBlockByHash(ctx context.Context, blockHash rpc.BlockHe
 		return nil
 	}
 	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, block.Hash())
-	return NewBlockJSON(block, blockInfo)
+	return NewBlockJSON(s.kaiService.chainConfig, block, blockInfo)
 }
 
 type Validator struct {
@@ -395,8 +395,8 @@ type BasicReceipt struct {
 
 // NewPublicTransaction returns a transaction that will serialize to the RPC
 // representation, with the given location metadata set (if available).
-func NewPublicTransaction(tx *types.Transaction, blockHash common.Hash, blockHeight uint64, index uint64) *PublicTransaction {
-	from, _ := types.Sender(types.FrontierSigner{}, tx)
+func NewPublicTransaction(config *configs.ChainConfig, tx *types.Transaction, blockHash common.Hash, blockHeight uint64, index uint64) *PublicTransaction {
+	from, _ := types.Sender(types.LatestSigner(config), tx)
 	v, r, s := tx.RawSignatureValues()
 	result := &PublicTransaction{
 		From:     from.Hex(),
@@ -570,7 +570,7 @@ func (a *PublicTransactionAPI) PendingTransactions() ([]*PublicTransaction, erro
 	transactions := make([]*PublicTransaction, 0, len(pendingTxs))
 
 	for _, tx := range pendingTxs {
-		jsonData := NewPublicTransaction(tx, common.Hash{}, 0, 0)
+		jsonData := NewPublicTransaction(a.s.Config(), tx, common.Hash{}, 0, 0)
 		transactions = append(transactions, jsonData)
 	}
 	return transactions, nil
@@ -585,7 +585,7 @@ func (a *PublicTransactionAPI) GetTransaction(hash string) (*PublicTransaction, 
 		return nil, errors.New("tx for hash not found")
 	}
 
-	publicTx := NewPublicTransaction(tx, blockHash, height, index)
+	publicTx := NewPublicTransaction(a.s.Config(), tx, blockHash, height, index)
 	// get block by block height
 	block := a.s.blockchain.GetBlockByHeight(height)
 	// get block time from block
@@ -620,8 +620,8 @@ func getReceiptLogs(receipt types.Receipt) []Log {
 }
 
 // getTransactionReceipt gets transaction receipt from transaction, blockHash, blockHeight and index.
-func getPublicReceipt(receipt types.Receipt, tx *types.Transaction, blockHash common.Hash, blockHeight, index uint64) *PublicReceipt {
-	from, _ := types.Sender(types.HomesteadSigner{}, tx)
+func getPublicReceipt(config *configs.ChainConfig, receipt types.Receipt, tx *types.Transaction, blockHash common.Hash, blockHeight, index uint64) *PublicReceipt {
+	from, _ := types.Sender(types.LatestSigner(config), tx)
 	logs := getReceiptLogs(receipt)
 
 	publicReceipt := &PublicReceipt{
@@ -666,7 +666,7 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 	// return the receipt if tx and receipt hashes at index are the same
 	if len(blockInfo.Receipts) > int(index) && blockInfo.Receipts[index].TxHash.Equal(txHash) {
 		receipt := blockInfo.Receipts[index]
-		return getPublicReceipt(*receipt, tx, blockHash, height, index), nil
+		return getPublicReceipt(a.s.chainConfig, *receipt, tx, blockHash, height, index), nil
 	}
 	// else traverse receipts list to find the corresponding receipt of txHash
 	for _, r := range blockInfo.Receipts {
@@ -674,7 +674,7 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 			continue
 		} else {
 			receipt := r
-			return getPublicReceipt(*receipt, tx, blockHash, height, index), nil
+			return getPublicReceipt(a.s.chainConfig, *receipt, tx, blockHash, height, index), nil
 		}
 	}
 

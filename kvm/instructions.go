@@ -817,13 +817,12 @@ func opSuicide(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error) 
 	return nil, nil
 }
 
-// NOT SUPPPORT ChainID yet
 // opChainID implements CHAINID opcode
-// func opChainID(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error) {
-// 	chainId, _ := uint256.FromBig(kvm.vmConfig.ChainID)
-// 	callContext.Stack.push(chainId)
-// 	return nil, nil
-// }
+func opChainID(pc *uint64, kvm *KVM, scope *ScopeContext) ([]byte, error) {
+	chainId, _ := uint256.FromBig(kvm.chainConfig.ChainID)
+	scope.Stack.push(chainId)
+	return nil, nil
+}
 
 func opSelfBalance(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error) {
 	balance, _ := uint256.FromBig(kvm.StateDB.GetBalance(callContext.Contract.Address()))

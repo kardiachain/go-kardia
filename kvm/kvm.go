@@ -100,6 +100,8 @@ type KVM struct {
 	// Depth is the current call stack
 	depth int
 
+	// chainConfig contains information about the current chain
+	chainConfig *configs.ChainConfig
 	// virtual machine configuration options used to initialise the
 	// kvm.
 	vmConfig Config
