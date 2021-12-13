@@ -21,6 +21,7 @@ package kvm
 import (
 	"math/big"
 
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/types"
@@ -29,23 +30,29 @@ import (
 // ChainContext supports retrieving headers and consensus parameters from the
 // current blockchain to be used during transaction processing.
 type ChainContext interface {
+	// Config returns the current chain configs
+	Config() *configs.ChainConfig
 	// GetHeader returns the hash corresponding to their hash.
 	GetHeader(common.Hash, uint64) *types.Header
 }
 
 // NewKVMContext creates a new context for use in the KVM.
 func NewKVMContext(msg types.Message, header *types.Header, chain ChainContext) kvm.Context {
-	return kvm.Context{
+	kvmContext := kvm.Context{
 		CanTransfer: CanTransfer,
 		Transfer:    Transfer,
-		GetHash:     GetHashFn(header, chain),
+		GetHash:     GetHashFnLegacy(header, chain),
 		Origin:      msg.From(),
 		Coinbase:    header.ProposerAddress,
 		BlockHeight: new(big.Int).SetUint64(header.Height),
-		Time:        new(big.Int).SetUint64(uint64(header.Time.Unix())),
+		Time:        new(big.Int).SetInt64(header.Time.Unix()),
 		GasLimit:    header.GasLimit,
 		GasPrice:    new(big.Int).Set(msg.GasPrice()),
 	}
+	if chain.Config().IsGalaxias(&header.Height) {
+		kvmContext.GetHash = GetHashFn(header, chain)
+	}
+	return kvmContext
 }
 
 // NewKVMContext creates a new context for dual node to call smc in the KVM.
@@ -57,7 +64,7 @@ func NewKVMContextFromDualNodeCall(from common.Address, header *types.Header, ch
 		Origin:      from,
 		Coinbase:    header.ProposerAddress,
 		BlockHeight: new(big.Int).SetUint64(header.Height),
-		Time:        new(big.Int).SetUint64(uint64(header.Time.Unix())),
+		Time:        new(big.Int).SetInt64(header.Time.Unix()),
 		GasLimit:    header.GasLimit,
 		GasPrice:    big.NewInt(1),
 	}
@@ -65,6 +72,51 @@ func NewKVMContextFromDualNodeCall(from common.Address, header *types.Header, ch
 
 // GetHashFn returns a GetHashFunc which retrieves header hashes by height
 func GetHashFn(ref *types.Header, chain ChainContext) func(n uint64) common.Hash {
+	var cache []common.Hash
+
+	return func(n uint64) common.Hash {
+		// If there's no hash cache yet, make one
+		if len(cache) == 0 {
+			cache = append(cache, ref.LastBlockID.Hash)
+		}
+		if idx := ref.Height - n - 1; idx < uint64(len(cache)) {
+			return cache[idx]
+		}
+		// No luck in the cache, but we can start iterating from the last element we already know
+		lastKnownHash := cache[len(cache)-1]
+		lastKnownHeight := ref.Height - uint64(len(cache))
+
+		// Not cached, iterate the blocks and cache the hashes
+		for {
+			header := chain.GetHeader(lastKnownHash, lastKnownHeight)
+			if header == nil {
+				break
+			}
+			cache = append(cache, header.LastBlockID.Hash)
+			lastKnownHash = header.LastBlockID.Hash
+			lastKnownHeight = header.Height - 1
+			if n == lastKnownHeight {
+				return lastKnownHash
+			}
+		}
+		return common.Hash{}
+	}
+}
+
+// CanTransfer checks wether there are enough funds in the address' account to make a transfer.
+// This does not take the necessary gas in to account to make the transfer valid.
+func CanTransfer(db kvm.StateDB, addr common.Address, amount *big.Int) bool {
+	return db.GetBalance(addr).Cmp(amount) >= 0
+}
+
+// Transfer subtracts amount from sender and adds amount to recipient using the given Db
+func Transfer(db kvm.StateDB, sender, recipient common.Address, amount *big.Int) {
+	db.SubBalance(sender, amount)
+	db.AddBalance(recipient, amount)
+}
+
+// GetHashFn returns a GetHashFunc which retrieves header hashes by height
+func GetHashFnLegacy(ref *types.Header, chain ChainContext) func(n uint64) common.Hash {
 	var cache []common.Hash
 
 	return func(n uint64) common.Hash {
@@ -94,16 +146,4 @@ func GetHashFn(ref *types.Header, chain ChainContext) func(n uint64) common.Hash
 		}
 		return common.Hash{}
 	}
-}
-
-// CanTransfer checks wether there are enough funds in the address' account to make a transfer.
-// This does not take the necessary gas in to account to make the transfer valid.
-func CanTransfer(db kvm.StateDB, addr common.Address, amount *big.Int) bool {
-	return db.GetBalance(addr).Cmp(amount) >= 0
-}
-
-// Transfer subtracts amount from sender and adds amount to recipient using the given Db
-func Transfer(db kvm.StateDB, sender, recipient common.Address, amount *big.Int) {
-	db.SubBalance(sender, amount)
-	db.AddBalance(recipient, amount)
 }
