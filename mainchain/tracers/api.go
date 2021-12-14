@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -64,6 +65,7 @@ type Backend interface {
 	BlockByHeightOrHash(ctx context.Context, blockHeightOrHash rpc.BlockHeightOrHash) (*types.Block, error)
 	GetTransaction(ctx context.Context, txHash common.Hash) (*types.Transaction, common.Hash, uint64, uint64)
 	StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.Context, *state.StateDB, error)
+	Config() *configs.ChainConfig
 }
 
 // VerifyKaiAPI provides APIs to access Kai full node-related information.
@@ -121,7 +123,7 @@ func (t *TracerAPI) traceTx(ctx context.Context, message blockchain.Message, txc
 
 	tracer = kvm.NewStructLogger(nil)
 	// Run the transaction with tracing enabled.
-	vmenv := kvm.NewKVM(vmctx, statedb, kvm.Config{Debug: true, Tracer: tracer})
+	vmenv := kvm.NewKVM(vmctx, statedb, t.b.Config(), kvm.Config{Debug: true, Tracer: tracer})
 
 	// Call Prepare to clear out the statedb access list
 	statedb.Prepare(txctx.hash, txctx.block, txctx.index)

@@ -173,7 +173,7 @@ func (k *KardiaService) GetKVM(ctx context.Context, msg types.Message, state *st
 	vmError := func() error { return nil }
 
 	context := vm.NewKVMContext(msg, header, k.BlockChain())
-	return kvm.NewKVM(context, state, *k.blockchain.GetVMConfig()), vmError, nil
+	return kvm.NewKVM(context, state, k.blockchain.Config(), *k.blockchain.GetVMConfig()), vmError, nil
 }
 
 // ValidatorsListFromStakingContract returns all validators on staking
