@@ -368,6 +368,15 @@ func CopyCommit(c *Commit) *Commit {
 
 func (b *Block) Transactions() Transactions { return b.transactions }
 
+func (b *Block) TransactionsByPriceAndNonce(signer Signer) *TransactionsByPriceAndNonce {
+	txs := make(map[common.Address]Transactions)
+	for _, tx := range b.Transactions() {
+		acc, _ := Sender(signer, tx)
+		txs[acc] = append(txs[acc], tx)
+	}
+	return NewTransactionsByPriceAndNonce(signer, txs)
+}
+
 func (b *Block) Transaction(hash common.Hash) *Transaction {
 	for _, transaction := range b.transactions {
 		if transaction.Hash() == hash {
