@@ -49,7 +49,7 @@ func NewKVMContext(msg types.Message, header *types.Header, chain ChainContext) 
 		GasLimit:    header.GasLimit,
 		GasPrice:    new(big.Int).Set(msg.GasPrice()),
 	}
-	if chain.Config().IsGalaxias(&header.Height) {
+	if chain != nil && chain.Config().IsGalaxias(&header.Height) {
 		kvmContext.GetHash = GetHashFn(header, chain)
 	}
 	return kvmContext
