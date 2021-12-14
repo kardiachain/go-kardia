@@ -171,7 +171,7 @@ func (k *KardiaService) stateAtTransaction(block *types.Block, txIndex int, reex
 			return msg, context, statedb, nil
 		}
 		// Not yet the searched for transaction, execute on top of the current state
-		vmenv := kvm.NewKVM(context, statedb, kvm.Config{})
+		vmenv := kvm.NewKVM(context, statedb, k.BlockChain().Config(), kvm.Config{})
 		statedb.Prepare(tx.Hash(), block.Hash(), idx)
 		if _, err := blockchain.ApplyMessage(vmenv, msg, new(types.GasPool).AddGas(tx.Gas())); err != nil {
 			return nil, kvm.Context{}, nil, fmt.Errorf("transaction %#x failed: %v", tx.Hash(), err)

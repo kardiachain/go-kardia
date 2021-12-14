@@ -119,11 +119,12 @@ type KVM struct {
 
 // NewKVM returns a new KVM. The returned KVM is not thread safe and should
 // only ever be used *once*.
-func NewKVM(ctx Context, statedb StateDB, vmConfig Config) *KVM {
+func NewKVM(ctx Context, statedb StateDB, chainConfig *configs.ChainConfig, vmConfig Config) *KVM {
 	kvm := &KVM{
-		Context:  ctx,
-		StateDB:  statedb,
-		vmConfig: vmConfig,
+		Context:     ctx,
+		StateDB:     statedb,
+		vmConfig:    vmConfig,
+		chainConfig: chainConfig,
 	}
 	kvm.interpreter = NewInterpreter(kvm, vmConfig)
 

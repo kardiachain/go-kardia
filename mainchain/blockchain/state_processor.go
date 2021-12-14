@@ -91,7 +91,7 @@ func ApplyTransaction(config *configs.ChainConfig, logger log.Logger, bc vm.Chai
 	context := vm.NewKVMContext(msg, header, bc)
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
-	vmenv := kvm.NewKVM(context, statedb, cfg)
+	vmenv := kvm.NewKVM(context, statedb, config, cfg)
 	// Apply the transaction to the current state (included in the env)
 	result, err := ApplyMessage(vmenv, msg, gp)
 	if err != nil {
