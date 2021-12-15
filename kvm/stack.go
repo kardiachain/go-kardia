@@ -1,20 +1,18 @@
-/*
- *  Copyright 2020 KardiaChain
- *  This file is part of the go-kardia library.
- *
- *  The go-kardia library is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU Lesser General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
- *
- *  The go-kardia library is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- *  GNU Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public License
- *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
- */
+// Copyright 2014 The go-ethereum Authors
+// This file is part of the go-ethereum library.
+//
+// The go-ethereum library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// The go-ethereum library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 package kvm
 
@@ -23,8 +21,6 @@ import (
 	"sync"
 
 	"github.com/holiman/uint256"
-
-	"github.com/kardiachain/go-kardia/configs"
 )
 
 var stackPool = sync.Pool{
@@ -49,7 +45,7 @@ func returnStack(s *Stack) {
 	stackPool.Put(s)
 }
 
-// Data returns the underlying big.Int array.
+// Data returns the underlying uint256.Int array.
 func (st *Stack) Data() []uint256.Int {
 	return st.data
 }
@@ -59,7 +55,7 @@ func (st *Stack) push(d *uint256.Int) {
 	st.data = append(st.data, *d)
 }
 func (st *Stack) pushN(ds ...uint256.Int) {
-	// TODO: try to pass args by pointers if possible.
+	// FIXME: Is there a way to pass args by pointers.
 	st.data = append(st.data, ds...)
 }
 
@@ -95,66 +91,10 @@ func (st *Stack) Print() {
 	fmt.Println("### stack ###")
 	if len(st.data) > 0 {
 		for i, val := range st.data {
-			fmt.Printf("%-3d  %v\n", i, val)
+			fmt.Printf("%-3d  %s\n", i, val.String())
 		}
 	} else {
 		fmt.Println("-- empty --")
 	}
 	fmt.Println("#############")
-}
-
-var rStackPool = sync.Pool{
-	New: func() interface{} {
-		return &ReturnStack{data: make([]uint32, 0, 10)}
-	},
-}
-
-// #######################################################
-// Stack table
-// #######################################################
-
-func minSwapStack(n int) int {
-	return minStack(n, n)
-}
-func maxSwapStack(n int) int {
-	return maxStack(n, n)
-}
-
-func minDupStack(n int) int {
-	return minStack(n, n+1)
-}
-func maxDupStack(n int) int {
-	return maxStack(n, n+1)
-}
-
-func maxStack(pop, push int) int {
-	return int(configs.StackLimit) + pop - push
-}
-func minStack(pops, push int) int {
-	return pops
-}
-
-// ReturnStack is an object for basic return stack operations.
-type ReturnStack struct {
-	data []uint32
-}
-
-func newReturnStack() *ReturnStack {
-	return rStackPool.Get().(*ReturnStack)
-}
-
-func returnRStack(rs *ReturnStack) {
-	rs.data = rs.data[:0]
-	rStackPool.Put(rs)
-}
-
-func (st *ReturnStack) push(d uint32) {
-	st.data = append(st.data, d)
-}
-
-// A uint32 is sufficient as for code below 4.2G
-func (st *ReturnStack) pop() (ret uint32) {
-	ret = st.data[len(st.data)-1]
-	st.data = st.data[:len(st.data)-1]
-	return
 }

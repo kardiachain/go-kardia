@@ -34,33 +34,44 @@ type ChainContext interface {
 }
 
 // NewKVMContext creates a new context for use in the KVM.
-func NewKVMContext(msg types.Message, header *types.Header, chain ChainContext) kvm.Context {
-	return kvm.Context{
+// NewEVMBlockContext creates a new context for use in the EVM.
+func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common.Address) kvm.BlockContext {
+	return kvm.BlockContext{
 		CanTransfer: CanTransfer,
 		Transfer:    Transfer,
 		GetHash:     GetHashFn(header, chain),
-		Origin:      msg.From(),
 		Coinbase:    header.ProposerAddress,
-		BlockHeight: new(big.Int).SetUint64(header.Height),
+		BlockNumber: new(big.Int).SetUint64(header.Height),
 		Time:        new(big.Int).SetUint64(uint64(header.Time.Unix())),
 		GasLimit:    header.GasLimit,
-		GasPrice:    new(big.Int).Set(msg.GasPrice()),
+	}
+}
+
+// Message represents a message sent to a contract.
+type Message interface {
+	From() common.Address
+	To() *common.Address
+
+	GasPrice() *big.Int
+	Gas() uint64
+	Value() *big.Int
+
+	Nonce() uint64
+	CheckNonce() bool
+	Data() []byte
+}
+
+// NewEVMTxContext creates a new transaction context for a single transaction.
+func NewEVMTxContext(msg Message) kvm.TxContext {
+	return kvm.TxContext{
+		Origin:   msg.From(),
+		GasPrice: new(big.Int).Set(msg.GasPrice()),
 	}
 }
 
 // NewKVMContext creates a new context for dual node to call smc in the KVM.
-func NewKVMContextFromDualNodeCall(from common.Address, header *types.Header, chain ChainContext) kvm.Context {
-	return kvm.Context{
-		CanTransfer: CanTransfer,
-		Transfer:    Transfer,
-		GetHash:     GetHashFn(header, chain),
-		Origin:      from,
-		Coinbase:    header.ProposerAddress,
-		BlockHeight: new(big.Int).SetUint64(header.Height),
-		Time:        new(big.Int).SetUint64(uint64(header.Time.Unix())),
-		GasLimit:    header.GasLimit,
-		GasPrice:    big.NewInt(1),
-	}
+func NewKVMContextFromDualNodeCall(from common.Address, header *types.Header, chain ChainContext) kvm.BlockContext {
+	return kvm.BlockContext{}
 }
 
 // GetHashFn returns a GetHashFunc which retrieves header hashes by height

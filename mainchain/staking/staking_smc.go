@@ -141,11 +141,12 @@ func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *
 		&s.ContractAddress,
 		0,
 		selfDelegate,  // Self delegate amount
-		5000000,       // Gas limit
+		50000000,      // Gas limit
 		big.NewInt(1), // Gas price
 		input,
 		false,
 	)
+
 	if _, err = Apply(s.logger, bc, statedb, header, cfg, msg); err != nil {
 		panic(err)
 	}
@@ -364,9 +365,13 @@ func (s *StakingSmcUtil) SetRoot(statedb *state.StateDB, header *types.Header, b
 
 // Apply ...
 func Apply(logger log.Logger, bc vm.ChainContext, statedb *state.StateDB, header *types.Header, cfg kvm.Config, msg types.Message) ([]byte, error) {
+	txContext := vm.NewEVMTxContext(msg)
+	context := vm.NewEVMBlockContext(header, nil, nil)
 	// Create a new context to be used in the KVM environment
-	context := vm.NewKVMContext(msg, header, bc)
-	vmenv := kvm.NewKVM(context, statedb, nil, cfg)
+	vmenv := kvm.NewEVM(context, txContext, statedb, &configs.ChainConfig{
+		ChainID:       nil,
+		GalaxiasBlock: nil,
+	}, cfg)
 	sender := kvm.AccountRef(msg.From())
 	ret, _, vmerr := vmenv.Call(sender, *msg.To(), msg.Data(), msg.Gas(), msg.Value())
 	if vmerr != nil {
@@ -393,9 +398,14 @@ func (s *StakingSmcUtil) CreateStakingContract(statedb *state.StateDB,
 		false,
 	)
 
+	txContext := vm.NewEVMTxContext(msg)
+
 	// Create a new context to be used in the KVM environment
-	context := vm.NewKVMContext(msg, header, nil)
-	vmenv := kvm.NewKVM(context, statedb, nil, cfg)
+	context := vm.NewEVMBlockContext(header, nil, nil)
+	vmenv := kvm.NewEVM(context, txContext, statedb, &configs.ChainConfig{
+		ChainID:       nil,
+		GalaxiasBlock: nil,
+	}, cfg)
 	sender := kvm.AccountRef(msg.From())
 	if err := vmenv.CreateGenesisContractAddress(sender, msg.Data(), msg.Gas(), msg.Value(), s.ContractAddress); err != nil {
 		return err

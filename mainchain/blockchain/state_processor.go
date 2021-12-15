@@ -56,44 +56,21 @@ func NewStateProcessor(logger log.Logger, bc *BlockChain) *StateProcessor {
 // returns the amount of gas that was used in the process. If any of the
 // transactions failed to execute due to insufficient gas it will return an error.
 func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg kvm.Config) (types.Receipts, []*types.Log, uint64, error) {
-	var (
-		receipts types.Receipts
-		usedGas  = new(uint64)
-		header   = block.Header()
-		allLogs  []*types.Log
-		gp       = new(types.GasPool).AddGas(block.GasLimit())
-	)
-	// Iterate over and process the individual transactions
-	for i, tx := range block.Transactions() {
-		statedb.Prepare(tx.Hash(), block.Hash(), i)
-		receipt, _, err := ApplyTransaction(p.bc.chainConfig, p.logger, p.bc, gp, statedb, header, tx, usedGas, cfg)
-		if err != nil {
-			return nil, nil, 0, err
-		}
-		receipts = append(receipts, receipt)
-		allLogs = append(allLogs, receipt.Logs...)
-	}
-
-	return receipts, allLogs, *usedGas, nil
+	return nil, nil, 0, nil
 }
 
 // ApplyTransaction attempts to apply a transaction to the given state database
 // and uses the input parameters for its environment. It returns the receipt
 // for the transaction, gas used and an error if the transaction failed,
 // indicating the block was invalid.
-func ApplyTransaction(config *configs.ChainConfig, logger log.Logger, bc vm.ChainContext, gp *types.GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg kvm.Config) (*types.Receipt, uint64, error) {
-	msg, err := tx.AsMessage(types.MakeSigner(config, &header.Height))
-	if err != nil {
-		return nil, 0, err
-	}
+func applyTransaction(msg types.Message, config *configs.ChainConfig, logger log.Logger, bc vm.ChainContext, gp *types.GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg kvm.Config, evm *kvm.EVM) (*types.Receipt, uint64, error) {
+	// Create a new context to be used in the EVM environment.
+	txContext := vm.NewEVMTxContext(msg)
+	evm.Reset(txContext, statedb)
+
 	logger.Trace("Apply transaction", "hash", tx.Hash().Hex(), "nonce", msg.Nonce(), "from", msg.From().Hex())
-	// Create a new context to be used in the KVM environment
-	context := vm.NewKVMContext(msg, header, bc)
-	// Create a new environment which holds all relevant information
-	// about the transaction and calling mechanisms.
-	vmenv := kvm.NewKVM(context, statedb, config, cfg)
 	// Apply the transaction to the current state (included in the env)
-	result, err := ApplyMessage(vmenv, msg, gp)
+	result, err := ApplyMessage(evm, msg, gp)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -108,13 +85,28 @@ func ApplyTransaction(config *configs.ChainConfig, logger log.Logger, bc vm.Chai
 	receipt.GasUsed = result.UsedGas
 	// if the transaction created a contract, store the creation address in the receipt.
 	if msg.To() == nil {
-		receipt.ContractAddress = crypto.CreateAddress(vmenv.Context.Origin, tx.Nonce())
+		receipt.ContractAddress = crypto.CreateAddress(evm.TxContext.Origin, tx.Nonce())
 	}
 	// Set the receipt logs and create a bloom for filtering
 	receipt.Logs = statedb.GetLogs(tx.Hash())
 	receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
 
 	return receipt, result.UsedGas, err
+}
+
+// ApplyTransaction attempts to apply a transaction to the given state database
+// and uses the input parameters for its environment. It returns the receipt
+// for the transaction, gas used and an error if the transaction failed,
+// indicating the block was invalid.
+func ApplyTransaction(config *configs.ChainConfig, loggger log.Logger, bc vm.ChainContext, gp *types.GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg kvm.Config) (*types.Receipt, uint64, error) {
+	msg, err := tx.AsMessage(types.MakeSigner(config, &header.Height))
+	if err != nil {
+		return nil, 0, err
+	}
+	// Create a new context to be used in the EVM environment
+	blockContext := vm.NewEVMBlockContext(header, bc, nil)
+	vmenv := kvm.NewEVM(blockContext, kvm.TxContext{}, statedb, config, cfg)
+	return applyTransaction(msg, config, loggger, bc, gp, statedb, header, tx, usedGas, cfg, vmenv)
 }
 
 /*
@@ -141,7 +133,7 @@ type StateTransition struct {
 	value      *big.Int
 	data       []byte
 	state      kvm.StateDB
-	vm         *kvm.KVM
+	vm         *kvm.EVM
 }
 
 // Message represents a message sent to a contract.
@@ -159,7 +151,7 @@ type Message interface {
 }
 
 // NewStateTransition initialises and returns a new state transition object.
-func NewStateTransition(kvm *kvm.KVM, msg Message, gp *types.GasPool) *StateTransition {
+func NewStateTransition(kvm *kvm.EVM, msg Message, gp *types.GasPool) *StateTransition {
 	return &StateTransition{
 		gp:       gp,
 		vm:       kvm,
@@ -178,7 +170,7 @@ func NewStateTransition(kvm *kvm.KVM, msg Message, gp *types.GasPool) *StateTran
 // the gas used (which includes gas refunds) and an error if it failed. An error always
 // indicates a core error meaning that the message would always fail for that particular
 // state and would never be accepted within a block.
-func ApplyMessage(kvm *kvm.KVM, msg Message, gp *types.GasPool) (*kvm.ExecutionResult, error) {
+func ApplyMessage(kvm *kvm.EVM, msg Message, gp *types.GasPool) (*kvm.ExecutionResult, error) {
 	return NewStateTransition(kvm, msg, gp).TransitionDb()
 }
 
@@ -252,7 +244,7 @@ func (st *StateTransition) TransitionDb() (*kvm.ExecutionResult, error) {
 	st.gas -= gas
 
 	// Check clause 6
-	if msg.Value().Sign() > 0 && !st.vm.CanTransfer(st.state, msg.From(), msg.Value()) {
+	if msg.Value().Sign() > 0 && !st.vm.Context.CanTransfer(st.state, msg.From(), msg.Value()) {
 		return nil, tx_pool.ErrInsufficientFundsForTransfer
 	}
 
@@ -269,7 +261,7 @@ func (st *StateTransition) TransitionDb() (*kvm.ExecutionResult, error) {
 	}
 
 	st.refundGas()
-	st.state.AddBalance(st.vm.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
+	st.state.AddBalance(st.vm.Context.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
 
 	return &kvm.ExecutionResult{
 		UsedGas:    st.gasUsed(),

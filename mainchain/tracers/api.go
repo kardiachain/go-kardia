@@ -29,6 +29,7 @@ import (
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
+	mvm "github.com/kardiachain/go-kardia/mainchain/kvm"
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -64,7 +65,7 @@ const (
 type Backend interface {
 	BlockByHeightOrHash(ctx context.Context, blockHeightOrHash rpc.BlockHeightOrHash) (*types.Block, error)
 	GetTransaction(ctx context.Context, txHash common.Hash) (*types.Transaction, common.Hash, uint64, uint64)
-	StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.Context, *state.StateDB, error)
+	StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.BlockContext, *state.StateDB, error)
 	Config() *configs.ChainConfig
 }
 
@@ -114,16 +115,18 @@ func (t *TracerAPI) TraceTransaction(ctx context.Context, hash common.Hash) (int
 // traceTx configures a new tracer according to the provided configuration, and
 // executes the given message in the provided environment. The return value will
 // be tracer dependent.
-func (t *TracerAPI) traceTx(ctx context.Context, message blockchain.Message, txctx *txTraceContext, vmctx kvm.Context, statedb *state.StateDB) (interface{}, error) {
+func (t *TracerAPI) traceTx(ctx context.Context, message mvm.Message, txctx *txTraceContext, vmctx kvm.BlockContext, statedb *state.StateDB) (interface{}, error) {
 	// Assemble the structured logger or the JavaScript tracer
 	var (
-		tracer kvm.Tracer
-		err    error
+		tracer    kvm.EVMLogger
+		err       error
+		txContext = mvm.NewEVMTxContext(message)
 	)
 
 	tracer = kvm.NewStructLogger(nil)
 	// Run the transaction with tracing enabled.
-	vmenv := kvm.NewKVM(vmctx, statedb, t.b.Config(), kvm.Config{Debug: true, Tracer: tracer})
+	// Run the transaction with tracing enabled.
+	vmenv := kvm.NewEVM(vmctx, txContext, statedb, t.b.Config(), kvm.Config{Debug: true, Tracer: tracer, NoBaseFee: true})
 
 	// Call Prepare to clear out the statedb access list
 	statedb.Prepare(txctx.hash, txctx.block, txctx.index)

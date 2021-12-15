@@ -1,20 +1,18 @@
-/*
- *  Copyright 2020 KardiaChain
- *  This file is part of the go-kardia library.
- *
- *  The go-kardia library is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU Lesser General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
- *
- *  The go-kardia library is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- *  GNU Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public License
- *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
- */
+// Copyright 2015 The go-ethereum Authors
+// This file is part of the go-ethereum library.
+//
+// The go-ethereum library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// The go-ethereum library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 package kvm
 
@@ -22,7 +20,6 @@ import (
 	"math/big"
 
 	"github.com/holiman/uint256"
-
 	"github.com/kardiachain/go-kardia/lib/common"
 )
 
@@ -33,7 +30,7 @@ type ContractRef interface {
 
 // AccountRef implements ContractRef.
 //
-// Account references are used during KVM initialisation and
+// Account references are used during EVM initialisation and
 // it's primary use is to fetch addresses. Removing this object
 // proves difficult because of the cached jump destinations which
 // are fetched from the parent contract (i.e. the caller), which
@@ -43,8 +40,8 @@ type AccountRef common.Address
 // Address casts AccountRef to a Address
 func (ar AccountRef) Address() common.Address { return (common.Address)(ar) }
 
-// Contract represents a Kardia contract in the state database. It contains
-// the the contract code, calling arguments. Contract implements ContractRef
+// Contract represents an ethereum contract in the state database. It contains
+// the contract code, calling arguments. Contract implements ContractRef
 type Contract struct {
 	// CallerAddress is the result of the caller which initialised this
 	// contract. However when the "call method" is delegated this value
@@ -53,8 +50,8 @@ type Contract struct {
 	caller        ContractRef
 	self          ContractRef
 
-	jumpdests map[common.Hash]bitvec // result of JUMPDEST analysis.
-	analysis  bitvec
+	jumpdests map[common.Hash]bitvec // Aggregated result of JUMPDEST analysis.
+	analysis  bitvec                 // Locally cached result of JUMPDEST analysis
 
 	Code     []byte
 	CodeHash common.Hash
@@ -65,7 +62,7 @@ type Contract struct {
 	value *big.Int
 }
 
-// NewContract returns a new contract environment for the execution of KVM.
+// NewContract returns a new contract environment for the execution of EVM.
 func NewContract(caller ContractRef, object ContractRef, value *big.Int, gas uint64) *Contract {
 	c := &Contract{CallerAddress: caller.Address(), caller: caller, self: object}
 
@@ -99,23 +96,16 @@ func (c *Contract) validJumpdest(dest *uint256.Int) bool {
 	return c.isCode(udest)
 }
 
-func (c *Contract) validJumpSubdest(udest uint64) bool {
-	// PC cannot go beyond len(code) and certainly can't be bigger than 63 bits.
-	// Don't bother checking for BEGINSUB in that case.
-	if int64(udest) < 0 || udest >= uint64(len(c.Code)) {
-		return false
-	}
-	// Only BEGINSUBs allowed for destinations
-	if OpCode(c.Code[udest]) != BEGINSUB {
-		return false
-	}
-	return c.isCode(udest)
-}
-
 // isCode returns true if the provided PC location is an actual opcode, as
 // opposed to a data-segment following a PUSHN operation.
 func (c *Contract) isCode(udest uint64) bool {
+	// Do we already have an analysis laying around?
+	if c.analysis != nil {
+		return c.analysis.codeSegment(udest)
+	}
 	// Do we have a contract hash already?
+	// If we do have a hash, that means it's a 'regular' contract. For regular
+	// contracts ( not temporary initcode), we store the analysis in a map
 	if c.CodeHash != (common.Hash{}) {
 		// Does parent context have the analysis?
 		analysis, exist := c.jumpdests[c.CodeHash]
@@ -187,7 +177,7 @@ func (c *Contract) Address() common.Address {
 	return c.self.Address()
 }
 
-// Value returns the contracts value (sent to it from it's caller)
+// Value returns the contract's value (sent to it from it's caller)
 func (c *Contract) Value() *big.Int {
 	return c.value
 }
@@ -206,51 +196,4 @@ func (c *Contract) SetCodeOptionalHash(addr *common.Address, codeAndHash *codeAn
 	c.Code = codeAndHash.code
 	c.CodeHash = codeAndHash.hash
 	c.CodeAddr = addr
-}
-
-//====================================================================================
-
-// bitvec is a bit vector which maps bytes in a program.
-// An unset bit means the byte is an opcode, a set bit means
-// it's data (i.e. argument of PUSHxx).
-type bitvec []byte
-
-func (bits *bitvec) set(pos uint64) {
-	(*bits)[pos/8] |= 0x80 >> (pos % 8)
-}
-func (bits *bitvec) set8(pos uint64) {
-	(*bits)[pos/8] |= 0xFF >> (pos % 8)
-	(*bits)[pos/8+1] |= ^(0xFF >> (pos % 8))
-}
-
-// codeSegment checks if the position is in a code segment.
-func (bits *bitvec) codeSegment(pos uint64) bool {
-	return ((*bits)[pos/8] & (0x80 >> (pos % 8))) == 0
-}
-
-// codeBitmap collects data locations in code.
-func codeBitmap(code []byte) bitvec {
-	// The bitmap is 4 bytes longer than necessary, in case the code
-	// ends with a PUSH32, the algorithm will push zeroes onto the
-	// bitvector outside the bounds of the actual code.
-	bits := make(bitvec, len(code)/8+1+4)
-	for pc := uint64(0); pc < uint64(len(code)); {
-		op := OpCode(code[pc])
-
-		if op >= PUSH1 && op <= PUSH32 {
-			numbits := op - PUSH1 + 1
-			pc++
-			for ; numbits >= 8; numbits -= 8 {
-				bits.set8(pc) // 8
-				pc += 8
-			}
-			for ; numbits > 0; numbits-- {
-				bits.set(pc)
-				pc++
-			}
-		} else {
-			pc++
-		}
-	}
-	return bits
 }

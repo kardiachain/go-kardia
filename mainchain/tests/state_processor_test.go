@@ -111,8 +111,9 @@ func execute(bc *blockchain.BlockChain, msg types.Message) ([]byte, error) {
 	gasPool := new(types.GasPool).AddGas(bc.CurrentBlock().Header().GasLimit)
 
 	// Create a new context to be used in the KVM environment
-	context := vm.NewKVMContext(msg, bc.CurrentBlock().Header(), bc)
-	vmenv := kvm.NewKVM(context, stateDb, nil, kvm.Config{})
+	txContext := vm.NewEVMTxContext(msg)
+	context := vm.NewEVMBlockContext(bc.CurrentBlock().Header(), bc, nil)
+	vmenv := kvm.NewEVM(context, txContext, stateDb, nil, kvm.Config{})
 
 	res, err := blockchain.NewStateTransition(vmenv, msg, gasPool).TransitionDb()
 	if err != nil {
@@ -146,8 +147,9 @@ func executeWithFee(bc *blockchain.BlockChain, msg types.Message) ([]byte, error
 	gasPool := new(types.GasPool).AddGas(bc.CurrentBlock().Header().GasLimit)
 
 	// Create a new context to be used in the KVM environment
-	context := vm.NewKVMContext(msg, bc.CurrentBlock().Header(), bc)
-	vmenv := kvm.NewKVM(context, stateDb, nil, kvm.Config{})
+	txContext := vm.NewEVMTxContext(msg)
+	context := vm.NewEVMBlockContext(bc.CurrentBlock().Header(), bc, nil)
+	vmenv := kvm.NewEVM(context, txContext, stateDb, nil, kvm.Config{})
 
 	res, err := blockchain.NewStateTransition(vmenv, msg, gasPool).TransitionDb()
 	if err != nil {

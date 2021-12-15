@@ -43,7 +43,7 @@ type APIBackend interface {
 	BlockByHeightOrHash(ctx context.Context, blockHeightOrHash rpc.BlockHeightOrHash) (*types.Block, error)
 	BlockInfoByBlockHash(ctx context.Context, hash common.Hash) *types.BlockInfo
 
-	GetKVM(ctx context.Context, msg types.Message, state *state.StateDB, header *types.Header) (*kvm.KVM, func() error, error)
+	GetKVM(ctx context.Context, msg types.Message, state *state.StateDB, header *types.Header) (*kvm.EVM, func() error, error)
 	GetValidators() ([]*staking.Validator, error)
 	GetValidator(valAddr common.Address) (*staking.Validator, error)
 	GetDelegationsByValidator(valAddr common.Address) ([]*staking.Delegator, error)
@@ -67,7 +67,7 @@ type APIBackend interface {
 
 	// Tracer API
 	GetTransaction(ctx context.Context, hash common.Hash) (*types.Transaction, common.Hash, uint64, uint64)
-	StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.Context, *state.StateDB, error)
+	StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.BlockContext, *state.StateDB, error)
 }
 
 func (k *KardiaService) HeaderByHeight(ctx context.Context, height rpc.BlockHeight) *types.Header {
@@ -169,11 +169,13 @@ func (k *KardiaService) StateAndHeaderByHeightOrHash(ctx context.Context, blockH
 	return nil, nil, ErrInvalidArguments
 }
 
-func (k *KardiaService) GetKVM(ctx context.Context, msg types.Message, state *state.StateDB, header *types.Header) (*kvm.KVM, func() error, error) {
+func (k *KardiaService) GetKVM(ctx context.Context, msg types.Message, state *state.StateDB, header *types.Header) (*kvm.EVM, func() error, error) {
 	vmError := func() error { return nil }
 
-	context := vm.NewKVMContext(msg, header, k.BlockChain())
-	return kvm.NewKVM(context, state, k.blockchain.Config(), *k.blockchain.GetVMConfig()), vmError, nil
+	vmConfig := k.blockchain.GetVMConfig()
+	txContext := vm.NewEVMTxContext(msg)
+	context := vm.NewEVMBlockContext(header, k.BlockChain(), nil)
+	return kvm.NewEVM(context, txContext, state, k.blockchain.Config(), *vmConfig), vmError, nil
 }
 
 // ValidatorsListFromStakingContract returns all validators on staking
@@ -314,6 +316,6 @@ func (k *KardiaService) GetTransaction(ctx context.Context, hash common.Hash) (*
 	return k.kaiDb.ReadTransaction(hash)
 }
 
-func (k *KardiaService) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.Context, *state.StateDB, error) {
+func (k *KardiaService) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.BlockContext, *state.StateDB, error) {
 	return k.stateAtTransaction(block, txIndex, reexec)
 }

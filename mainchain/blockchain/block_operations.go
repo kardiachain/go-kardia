@@ -20,6 +20,7 @@ package blockchain
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -31,6 +32,7 @@ import (
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
+	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -334,6 +336,8 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 
 	kvmConfig := kvm.Config{}
 
+	blockContext := vm.NewEVMBlockContext(header, bo.blockchain, nil)
+	vmenv := kvm.NewEVM(blockContext, kvm.TxContext{}, state, bo.blockchain.chainConfig, kvmConfig)
 	blockReward, err := bo.staking.Mint(state, header, bo.blockchain, kvmConfig)
 	if err != nil {
 		bo.logger.Error("Fail to mint", "err", err)
@@ -352,9 +356,14 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 
 LOOP:
 	for i, tx := range txs {
+		msg, err := tx.AsMessage(types.MakeSigner(bo.blockchain.chainConfig, &header.Height))
+		if err != nil {
+			return nil, common.Hash{}, nil, nil, fmt.Errorf("could not apply tx %d [%v]: %w", i, tx.Hash().Hex(), err)
+		}
+
 		state.Prepare(tx.Hash(), header.Hash(), i)
 		snap := state.Snapshot()
-		receipt, _, err := ApplyTransaction(bo.blockchain.chainConfig, bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvmConfig)
+		receipt, _, err := applyTransaction(msg, bo.blockchain.chainConfig, bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvmConfig, vmenv)
 		if err != nil {
 			bo.logger.Error("ApplyTransaction failed", "tx", tx.Hash().Hex(), "nonce", tx.Nonce(), "err", err)
 			state.RevertToSnapshot(snap)

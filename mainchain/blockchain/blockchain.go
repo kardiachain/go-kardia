@@ -424,7 +424,7 @@ func (bc *BlockChain) SaveBlock(block *types.Block, blockParts *types.PartSet, s
 	bc.db.WriteBlock(block, blockParts, seenCommit)
 }
 
-func (bc *BlockChain) ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) (*kvm.ExecutionResult, error) {
+func (bc *BlockChain) ApplyMessage(vm *kvm.EVM, msg types.Message, gp *types.GasPool) (*kvm.ExecutionResult, error) {
 	return ApplyMessage(vm, msg, gp)
 }
 

@@ -1,20 +1,19 @@
-/*
- *  Copyright 2020 KardiaChain
- *  This file is part of the go-kardia library.
- *
- *  The go-kardia library is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU Lesser General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
- *
- *  The go-kardia library is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- *  GNU Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public License
- *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
- */
+// Copyright 2014 The go-ethereum Authors
+// This file is part of the go-ethereum library.
+//
+// The go-ethereum library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// The go-ethereum library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+
 package kvm
 
 import (
@@ -22,20 +21,29 @@ import (
 	"sync/atomic"
 
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/math"
 )
 
 // Config are the configuration options for the Interpreter
 type Config struct {
-	Debug  bool   // Enables debugging
-	Tracer Tracer // Opcode logger
-	// NoRecursion disabled Interpreter call, callcode,
-	// delegate call and create.
-	NoRecursion             bool
-	EnablePreimageRecording bool // Enables recording of SHA3/keccak preimages
-	// JumpTable contains the KVM instruction table. This
-	// may be left uninitialised and will be set to the default
-	// table.
-	JumpTable [256]*operation
+	Debug                   bool      // Enables debugging
+	Tracer                  EVMLogger // Opcode logger
+	NoRecursion             bool      // Disables call, callcode, delegate call and create
+	NoBaseFee               bool      // Forces the EIP-1559 baseFee to 0 (needed for 0 price calls)
+	EnablePreimageRecording bool      // Enables recording of SHA3/keccak preimages
+
+	JumpTable [256]*operation // EVM instruction table, automatically populated if unset
+
+	ExtraEips []int // Additional EIPS that are to be enabled
+}
+
+// ScopeContext contains the things that are per-call, such as stack and memory,
+// but not transients like pc and gas
+type ScopeContext struct {
+	Memory   *Memory
+	Stack    *Stack
+	Contract *Contract
 }
 
 // keccakState wraps sha3.state. In addition to the usual hash methods, it also supports
@@ -46,40 +54,43 @@ type keccakState interface {
 	Read([]byte) (int, error)
 }
 
-// Interpreter is used to run Kardia based contracts and will utilise the
-// passed environment to query external sources for state information.
-// The Interpreter will run the byte code VM based on the passed
-// configuration.
-type Interpreter struct {
-	kvm *KVM
+// EVMInterpreter represents an EVM interpreter
+type EVMInterpreter struct {
+	evm *EVM
 	cfg Config
 
 	hasher    keccakState // Keccak256 hasher instance shared across opcodes
-	hasherBuf common.Hash // Keccak256 hasher result array shared aross opcode
+	hasherBuf common.Hash // Keccak256 hasher result array shared aross opcodes
 
 	readOnly   bool   // Whether to throw on stateful modifications
 	returnData []byte // Last CALL's return data for subsequent reuse
 }
 
-// ScopeContext contains the things that are per-call, such as stack and memory,
-// but not transients like pc and gas
-type ScopeContext struct {
-	Memory   *Memory
-	Stack    *Stack
-	Rstack   *ReturnStack
-	Contract *Contract
-}
-
-// NewInterpreter returns a new instance of the Interpreter.
-func NewInterpreter(kvm *KVM, cfg Config) *Interpreter {
+// NewEVMInterpreter returns a new instance of the Interpreter.
+func NewEVMInterpreter(evm *EVM, cfg Config) *EVMInterpreter {
 	// We use the STOP instruction whether to see
 	// the jump table was initialised. If it was not
 	// we'll set the default jump table.
 	if cfg.JumpTable[STOP] == nil {
-		cfg.JumpTable = newKardiaInstructionSet()
+		var jt JumpTable
+		switch {
+		case evm.chainRules.IsGalaxias:
+			jt = londonInstructionSet
+		default:
+			jt = londonInstructionSet
+		}
+		for i, eip := range cfg.ExtraEips {
+			if err := EnableEIP(eip, &jt); err != nil {
+				// Disable it, so caller can check if it's activated or not
+				cfg.ExtraEips = append(cfg.ExtraEips[:i], cfg.ExtraEips[i+1:]...)
+				log.Error("EIP activation failed", "eip", eip, "error", err)
+			}
+		}
+		cfg.JumpTable = jt
 	}
-	return &Interpreter{
-		kvm: kvm,
+
+	return &EVMInterpreter{
+		evm: evm,
 		cfg: cfg,
 	}
 }
@@ -90,13 +101,14 @@ func NewInterpreter(kvm *KVM, cfg Config) *Interpreter {
 // It's important to note that any errors returned by the interpreter should be
 // considered a revert-and-consume-all-gas operation except for
 // ErrExecutionReverted which means revert-and-keep-gas-left.
-func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret []byte, err error) {
+func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (ret []byte, err error) {
+
 	// Increment the call depth which is restricted to 1024
-	in.kvm.depth++
-	defer func() { in.kvm.depth-- }()
+	in.evm.depth++
+	defer func() { in.evm.depth-- }()
 
 	// Make sure the readOnly is only set if we aren't in readOnly yet.
-	// This makes also sure that the readOnly flag isn't removed for child calls.
+	// This also makes sure that the readOnly flag isn't removed for child calls.
 	if readOnly && !in.readOnly {
 		in.readOnly = true
 		defer func() { in.readOnly = false }()
@@ -112,10 +124,9 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 	}
 
 	var (
-		op          OpCode             // current opcode
-		mem         = NewMemory()      // bound memory
-		stack       = newstack()       // local stack
-		returns     = newReturnStack() // local returns stack
+		op          OpCode        // current opcode
+		mem         = NewMemory() // bound memory
+		stack       = newstack()  // local stack
 		callContext = &ScopeContext{
 			Memory:   mem,
 			Stack:    stack,
@@ -127,18 +138,16 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 		pc   = uint64(0) // program counter
 		cost uint64
 		// copies used by tracer
-		pcCopy  uint64 // needed for the deferred Tracer
-		gasCopy uint64 // for Tracer to log gas remaining before execution
-		logged  bool   // deferred Tracer should ignore already logged steps
+		pcCopy  uint64 // needed for the deferred EVMLogger
+		gasCopy uint64 // for EVMLogger to log gas remaining before execution
+		logged  bool   // deferred EVMLogger should ignore already logged steps
 		res     []byte // result of the opcode execution function
-
 	)
 	// Don't move this deferrred function, it's placed before the capturestate-deferred method,
 	// so that it get's executed _after_: the capturestate needs the stacks before
 	// they are returned to the pools
 	defer func() {
 		returnStack(stack)
-		returnRStack(returns)
 	}()
 	contract.Input = input
 
@@ -146,24 +155,13 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 		defer func() {
 			if err != nil {
 				if !logged {
-					in.cfg.Tracer.CaptureState(in.kvm, pcCopy, op, gasCopy, cost, &ScopeContext{
-						Memory:   mem,
-						Stack:    stack,
-						Rstack:   returns,
-						Contract: contract,
-					}, in.returnData, in.kvm.depth, err)
+					in.cfg.Tracer.CaptureState(pcCopy, op, gasCopy, cost, callContext, in.returnData, in.evm.depth, err)
 				} else {
-					in.cfg.Tracer.CaptureFault(in.kvm, pcCopy, op, gasCopy, cost, &ScopeContext{
-						Memory:   mem,
-						Stack:    stack,
-						Rstack:   returns,
-						Contract: contract,
-					}, in.kvm.depth, err)
+					in.cfg.Tracer.CaptureFault(pcCopy, op, gasCopy, cost, callContext, in.evm.depth, err)
 				}
 			}
 		}()
 	}
-
 	// The Interpreter main run loop (contextual). This loop runs until either an
 	// explicit STOP, RETURN or SELFDESTRUCT is executed, an error occurred during
 	// the execution of one of the operations or until the done flag is set by the
@@ -171,13 +169,14 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 	steps := 0
 	for {
 		steps++
-		if steps%1000 == 0 && atomic.LoadInt32(&in.kvm.abort) != 0 {
+		if steps%1000 == 0 && atomic.LoadInt32(&in.evm.abort) != 0 {
 			break
 		}
 		if in.cfg.Debug {
 			// Capture pre-execution values for tracing.
 			logged, pcCopy, gasCopy = false, pc, contract.Gas
 		}
+
 		// Get the operation from the jump table and validate the stack to ensure there are
 		// enough stack items available to perform the operation.
 		op = contract.GetOp(pc)
@@ -191,8 +190,8 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 		} else if sLen > operation.maxStack {
 			return nil, &ErrStackOverflow{stackLen: sLen, limit: operation.maxStack}
 		}
-		// If the operation is valid, enforce and write restrictions
-		if in.readOnly {
+		// If the operation is valid, enforce write restrictions
+		if in.readOnly && in.evm.chainRules.IsGalaxias {
 			// If the interpreter is operating in readonly mode, make sure no
 			// state-modifying operation is performed. The 3rd stack item
 			// for a call operation is the value. Transferring value from one
@@ -202,9 +201,8 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 				return nil, ErrWriteProtection
 			}
 		}
-
 		// Static portion of gas
-		cost = operation.constantGas
+		cost = operation.constantGas // For tracing
 		if !contract.UseGas(operation.constantGas) {
 			return nil, ErrOutOfGas
 		}
@@ -221,7 +219,7 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 			}
 			// memory is expanded in words of 32 bytes. Gas
 			// is also calculated in words.
-			if memorySize, overflow = common.SafeMul(toWordSize(memSize), 32); overflow {
+			if memorySize, overflow = math.SafeMul(toWordSize(memSize), 32); overflow {
 				return nil, ErrGasUintOverflow
 			}
 		}
@@ -230,28 +228,23 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 		// cost is explicitly set so that the capture state defer method can get the proper cost
 		if operation.dynamicGas != nil {
 			var dynamicCost uint64
-			dynamicCost, err = operation.dynamicGas(in.kvm, contract, stack, mem, memorySize)
-			cost += dynamicCost
-			if err != nil || !contract.UseGas(cost) {
+			dynamicCost, err = operation.dynamicGas(in.evm, contract, stack, mem, memorySize)
+			cost += dynamicCost // total cost, for debug tracing
+			if err != nil || !contract.UseGas(dynamicCost) {
 				return nil, ErrOutOfGas
 			}
 		}
 		if memorySize > 0 {
 			mem.Resize(memorySize)
 		}
-		/* TODO(huny@): Add tracer later
+
 		if in.cfg.Debug {
-			in.cfg.Tracer.CaptureState(in.kvm, pc, op, gasCopy, cost, &ScopeContext{
-						Memory:   mem,
-						Stack:    stack,
-						Contract: contract,
-					}, in.kvm.depth, err)
+			in.cfg.Tracer.CaptureState(pc, op, gasCopy, cost, callContext, in.returnData, in.evm.depth, err)
 			logged = true
 		}
-		*/
-		// execute the operation
-		res, err = operation.execute(&pc, in.kvm, callContext)
 
+		// execute the operation
+		res, err = operation.execute(&pc, in, callContext)
 		// if the operation clears the return data (e.g. it has returning data)
 		// set the last return to the result of the operation.
 		if operation.returns {
@@ -270,10 +263,4 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 		}
 	}
 	return nil, nil
-}
-
-// CanRun tells if the contract, passed as an argument, can be
-// run by the current interpreter.
-func (in *Interpreter) CanRun(code []byte) bool {
-	return true
 }

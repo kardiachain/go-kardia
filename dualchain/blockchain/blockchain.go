@@ -456,6 +456,6 @@ func (dbc *DualBlockChain) ReadCommit(height uint64) *types.Commit {
 	return dbc.db.ReadCommit(height)
 }
 
-func (dbc *DualBlockChain) ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) (*kvm.ExecutionResult, error) {
+func (dbc *DualBlockChain) ApplyMessage(vm *kvm.EVM, msg types.Message, gp *types.GasPool) (*kvm.ExecutionResult, error) {
 	return nil, fmt.Errorf("this function is not applied for dual blockchain")
 }

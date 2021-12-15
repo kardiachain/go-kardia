@@ -315,25 +315,26 @@ func getPackedInput(p *Parser, kaiAbi *abi.ABI, method string, patterns []string
 
 // callStaticKardiaMasterSmc calls smc and return result in bytes format
 func callStaticKardiaMasterSmc(from common.Address, to common.Address, currentHeader *types.Header, chain vm.ChainContext, input []byte, statedb *state.StateDB) (result []byte, err error) {
-	ctx := vm.NewKVMContextFromDualNodeCall(from, currentHeader, chain)
-	vmenv := kvm.NewKVM(ctx, statedb, kvm.Config{})
-	sender := kvm.AccountRef(from)
-	ret, _, err := vmenv.StaticCall(sender, to, input, uint64(MaximumGasToCallFunction))
-	if err != nil {
-		return make([]byte, 0), err
-	}
-	return ret, nil
+	// ctx := vm.NewKVMContextFromDualNodeCall(from, currentHeader, chain)
+	// vmenv := kvm.NewKVM(ctx, statedb, kvm.Config{})
+	// sender := kvm.AccountRef(from)
+	// ret, _, err := vmenv.StaticCall(sender, to, input, uint64(MaximumGasToCallFunction))
+	// if err != nil {
+	// 	return make([]byte, 0), err
+	// }
+	// return ret, nil
+	return nil, nil
 }
 
 // EstimateGas estimates spent in order to
 func EstimateGas(from common.Address, to common.Address, currentHeader *types.Header, bc base.BaseBlockChain, stateDb *state.StateDB, input []byte) (uint64, error) {
 	// Create new call message
 	msg := types.NewMessage(from, &to, 0, big.NewInt(0), uint64(MaximumGasToCallFunction), big.NewInt(1), input, false)
-	// Create a new context to be used in the KVM environment
-	vmContext := vm.NewKVMContext(msg, currentHeader, bc)
-	// Create a new environment which holds all relevant information
-	// about the transaction and calling mechanisms.
-	kaiVm := kvm.NewKVM(vmContext, stateDb, kvm.Config{})
+
+	txContext := vm.NewEVMTxContext(msg)
+	context := vm.NewEVMBlockContext(bc.CurrentBlock().Header(), bc, nil)
+	kaiVm := kvm.NewEVM(context, txContext, stateDb, nil, kvm.Config{})
+
 	defer kaiVm.Cancel()
 	// Apply the transaction to the current state (included in the env)
 	gp := new(types.GasPool).AddGas(common.MaxUint64)

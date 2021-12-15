@@ -337,12 +337,14 @@ func ToCell(amount int64) *big.Int {
 }
 
 func setupGenesisStaking(stakingUtil *staking.StakingSmcUtil, statedb *state.StateDB, header *types.Header, cfg kvm.Config, validators []*GenesisValidator) error {
+
 	if err := stakingUtil.CreateStakingContract(statedb, header, cfg); err != nil {
 		return err
 	}
 	if err := stakingUtil.SetRoot(statedb, header, nil, cfg); err != nil {
 		return err
 	}
+
 	// init a validator SMC util to delegate genesis amounts to corresponding validators
 	validatorUtil, err := staking.NewSmcValidatorUtil()
 	if err != nil {
@@ -379,6 +381,7 @@ func setupGenesisStaking(stakingUtil *staking.StakingSmcUtil, statedb *state.Sta
 			common.HexToAddress(val.Address)); err != nil {
 			return fmt.Errorf("apply start validator err: %s  Validator info: %+v", err, val)
 		}
+
 	}
 	return nil
 }
