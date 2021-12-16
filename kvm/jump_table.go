@@ -84,16 +84,6 @@ func newBerlinInstructionSet() JumpTable {
 func newIstanbulInstructionSet() JumpTable {
 	instructionSet := newConstantinopleInstructionSet()
 
-	instructionSet[BALANCE].constantGas = configs.BalanceGasEIP150
-	instructionSet[EXTCODESIZE].constantGas = configs.ExtcodeSizeGasEIP150
-	instructionSet[SLOAD].constantGas = configs.SloadGasEIP150
-	instructionSet[EXTCODECOPY].constantGas = configs.ExtcodeCopyBaseEIP150
-	instructionSet[CALL].constantGas = configs.CallGasEIP150
-	instructionSet[CALLCODE].constantGas = configs.CallGasEIP150
-	instructionSet[DELEGATECALL].constantGas = configs.CallGasEIP150
-	instructionSet[EXP].dynamicGas = gasExpEIP158
-	instructionSet[STATICCALL].constantGas = configs.CallGasFrontier
-
 	enable1344(&instructionSet) // ChainID opcode - https://eips.ethereum.org/EIPS/eip-1344
 	enable1884(&instructionSet) // Reprice reader opcodes - https://eips.ethereum.org/EIPS/eip-1884
 	enable2200(&instructionSet) // Net metered SSTORE - https://eips.ethereum.org/EIPS/eip-2200
@@ -148,7 +138,7 @@ func newByzantiumInstructionSet() JumpTable {
 	instructionSet := newSpuriousDragonInstructionSet()
 	instructionSet[STATICCALL] = &operation{
 		execute:     opStaticCall,
-		constantGas: configs.CallGasFrontier,
+		constantGas: configs.CallGasEIP150,
 		dynamicGas:  gasStaticCall,
 		minStack:    minStack(6, 1),
 		maxStack:    maxStack(6, 1),
@@ -184,7 +174,7 @@ func newByzantiumInstructionSet() JumpTable {
 // EIP 158 a.k.a Spurious Dragon
 func newSpuriousDragonInstructionSet() JumpTable {
 	instructionSet := newTangerineWhistleInstructionSet()
-	// instructionSet[EXP].dynamicGas = gasExpEIP158
+	instructionSet[EXP].dynamicGas = gasExpEIP158
 	return instructionSet
 
 }
@@ -192,10 +182,10 @@ func newSpuriousDragonInstructionSet() JumpTable {
 // EIP 150 a.k.a Tangerine Whistle
 func newTangerineWhistleInstructionSet() JumpTable {
 	instructionSet := newHomesteadInstructionSet()
-	// instructionSet[BALANCE].constantGas = configs.BalanceGasEIP150
-	// instructionSet[EXTCODESIZE].constantGas = configs.ExtcodeSizeGasEIP150
+	instructionSet[BALANCE].constantGas = configs.BalanceGasEIP150
+	instructionSet[EXTCODESIZE].constantGas = configs.ExtcodeSizeGasEIP150
 	// instructionSet[SLOAD].constantGas = configs.SloadGasEIP150
-	// instructionSet[EXTCODECOPY].constantGas = configs.ExtcodeCopyBaseEIP150
+	instructionSet[EXTCODECOPY].constantGas = configs.ExtcodeCopyBaseEIP150
 	// instructionSet[CALL].constantGas = configs.CallGasEIP150
 	// instructionSet[CALLCODE].constantGas = configs.CallGasEIP150
 	// instructionSet[DELEGATECALL].constantGas = configs.CallGasEIP150
