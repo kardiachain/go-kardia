@@ -95,71 +95,19 @@ var (
 
 func gasSStore(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
 	var (
-		y, x    = stack.Back(1), stack.Back(0)
-		current = evm.StateDB.GetState(contract.Address(), x.Bytes32())
+		y, x = stack.Back(1), stack.Back(0)
+		val  = evm.StateDB.GetState(contract.Address(), common.Hash(x.Bytes32()))
 	)
-	// The legacy gas metering only takes into consideration the current state
-	// Legacy rules should be applied if we are in Petersburg (removal of EIP-1283)
-	// OR Constantinople is not active
-	if evm.chainRules.IsGalaxias {
-		// This checks for 3 scenario's and calculates gas accordingly:
-		//
-		// 1. From a zero-value address to a non-zero value         (NEW VALUE)
-		// 2. From a non-zero value address to a zero-value address (DELETE)
-		// 3. From a non-zero to a non-zero                         (CHANGE)
-		switch {
-		case current == (common.Hash{}) && y.Sign() != 0: // 0 => non 0
-			return configs.SstoreSetGas, nil
-		case current != (common.Hash{}) && y.Sign() == 0: // non 0 => 0
-			evm.StateDB.AddRefund(configs.SstoreRefundGas)
-			return configs.SstoreClearGas, nil
-		default: // non 0 => non 0 (or 0 => 0)
-			return configs.SstoreResetGas, nil
-		}
+
+	if val == (common.Hash{}) && y.Sign() != 0 { // 0 => non 0
+		return configs.SstoreSetGas, nil
+	} else if val != (common.Hash{}) && y.Sign() == 0 { // non 0 => 0
+		evm.StateDB.AddRefund(configs.SstoreRefundGas)
+		return configs.SstoreClearGas, nil
+	} else {
+		// non 0 => non 0 (or 0 => 0)
+		return configs.SstoreResetGas, nil
 	}
-	// The new gas metering is based on net gas costs (EIP-1283):
-	//
-	// 1. If current value equals new value (this is a no-op), 200 gas is deducted.
-	// 2. If current value does not equal new value
-	//   2.1. If original value equals current value (this storage slot has not been changed by the current execution context)
-	//     2.1.1. If original value is 0, 20000 gas is deducted.
-	// 	   2.1.2. Otherwise, 5000 gas is deducted. If new value is 0, add 15000 gas to refund counter.
-	// 	2.2. If original value does not equal current value (this storage slot is dirty), 200 gas is deducted. Apply both of the following clauses.
-	// 	  2.2.1. If original value is not 0
-	//       2.2.1.1. If current value is 0 (also means that new value is not 0), remove 15000 gas from refund counter. We can prove that refund counter will never go below 0.
-	//       2.2.1.2. If new value is 0 (also means that current value is not 0), add 15000 gas to refund counter.
-	// 	  2.2.2. If original value equals new value (this storage slot is reset)
-	//       2.2.2.1. If original value is 0, add 19800 gas to refund counter.
-	// 	     2.2.2.2. Otherwise, add 4800 gas to refund counter.
-	value := common.Hash(y.Bytes32())
-	if current == value { // noop (1)
-		return configs.NetSstoreNoopGas, nil
-	}
-	original := evm.StateDB.GetState(contract.Address(), x.Bytes32())
-	if original == current {
-		if original == (common.Hash{}) { // create slot (2.1.1)
-			return configs.NetSstoreInitGas, nil
-		}
-		if value == (common.Hash{}) { // delete slot (2.1.2b)
-			evm.StateDB.AddRefund(configs.NetSstoreClearRefund)
-		}
-		return configs.NetSstoreCleanGas, nil // write existing slot (2.1.2)
-	}
-	if original != (common.Hash{}) {
-		if current == (common.Hash{}) { // recreate slot (2.2.1.1)
-			evm.StateDB.SubRefund(configs.NetSstoreClearRefund)
-		} else if value == (common.Hash{}) { // delete slot (2.2.1.2)
-			evm.StateDB.AddRefund(configs.NetSstoreClearRefund)
-		}
-	}
-	if original == value {
-		if original == (common.Hash{}) { // reset to original inexistent slot (2.2.2.1)
-			evm.StateDB.AddRefund(configs.NetSstoreResetClearRefund)
-		} else { // reset to original existing slot (2.2.2.2)
-			evm.StateDB.AddRefund(configs.NetSstoreResetRefund)
-		}
-	}
-	return configs.NetSstoreDirtyGas, nil
 }
 
 // 0. If *gasleft* is less than or equal to 2300, fail the current call.
@@ -331,11 +279,10 @@ func gasCall(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySize
 		transfersValue = !stack.Back(2).IsZero()
 		address        = common.Address(stack.Back(1).Bytes20())
 	)
-	if evm.chainRules.IsGalaxias {
-		if transfersValue && evm.StateDB.Empty(address) {
-			gas += configs.CallNewAccountGas
-		}
-	} else if !evm.StateDB.Exist(address) {
+	if transfersValue && evm.StateDB.Empty(address) {
+		gas += configs.CallNewAccountGas
+	}
+	if !evm.StateDB.Exist(address) {
 		gas += configs.CallNewAccountGas
 	}
 	if transfersValue {
@@ -350,7 +297,7 @@ func gasCall(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySize
 		return 0, ErrGasUintOverflow
 	}
 
-	evm.callGasTemp, err = callGas(evm.chainRules.IsGalaxias, contract.Gas, gas, stack.Back(0))
+	evm.callGasTemp, err = callGas(contract.Gas, gas, stack.Back(0))
 	if err != nil {
 		return 0, err
 	}
@@ -375,7 +322,7 @@ func gasCallCode(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memory
 	if gas, overflow = math.SafeAdd(gas, memoryGas); overflow {
 		return 0, ErrGasUintOverflow
 	}
-	evm.callGasTemp, err = callGas(evm.chainRules.IsGalaxias, contract.Gas, gas, stack.Back(0))
+	evm.callGasTemp, err = callGas(contract.Gas, gas, stack.Back(0))
 	if err != nil {
 		return 0, err
 	}
@@ -390,7 +337,7 @@ func gasDelegateCall(evm *EVM, contract *Contract, stack *Stack, mem *Memory, me
 	if err != nil {
 		return 0, err
 	}
-	evm.callGasTemp, err = callGas(evm.chainRules.IsGalaxias, contract.Gas, gas, stack.Back(0))
+	evm.callGasTemp, err = callGas(contract.Gas, gas, stack.Back(0))
 	if err != nil {
 		return 0, err
 	}
@@ -406,7 +353,7 @@ func gasStaticCall(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memo
 	if err != nil {
 		return 0, err
 	}
-	evm.callGasTemp, err = callGas(evm.chainRules.IsGalaxias, contract.Gas, gas, stack.Back(0))
+	evm.callGasTemp, err = callGas(contract.Gas, gas, stack.Back(0))
 	if err != nil {
 		return 0, err
 	}
@@ -419,19 +366,12 @@ func gasStaticCall(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memo
 
 func gasSelfdestruct(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
 	var gas uint64
-	// EIP150 homestead gas reprice fork:
-	if evm.chainRules.IsGalaxias {
-		gas = configs.SelfdestructGasEIP150
-		var address = common.Address(stack.Back(0).Bytes20())
+	var address = common.Address(stack.Back(0).Bytes20())
 
-		if evm.chainRules.IsGalaxias {
-			// if empty and transfers value
-			if evm.StateDB.Empty(address) && evm.StateDB.GetBalance(contract.Address()).Sign() != 0 {
-				gas += configs.CreateBySelfdestructGas
-			}
-		} else if !evm.StateDB.Exist(address) {
-			gas += configs.CreateBySelfdestructGas
-		}
+	if evm.StateDB.Empty(address) && evm.StateDB.GetBalance(contract.Address()).Sign() != 0 {
+		gas += configs.CreateBySelfdestructGas
+	} else if !evm.StateDB.Exist(address) {
+		gas += configs.CreateBySelfdestructGas
 	}
 
 	if !evm.StateDB.HasSuicided(contract.Address()) {
