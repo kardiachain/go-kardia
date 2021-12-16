@@ -307,6 +307,12 @@ func (s *KardiaService) APIs() []rpc.API {
 			Public:    true,
 		},
 		{
+			Namespace: "txpool",
+			Version:   "1.0",
+			Service:   NewPublicTxPoolAPI(s),
+			Public:    true,
+		},
+		{
 			Namespace: "eth",
 			Version:   "1.0",
 			Service:   &publicWeb3API{s.nodeConfig},

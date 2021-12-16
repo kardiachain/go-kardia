@@ -46,6 +46,7 @@ var DefaultConfig = Config{
 	HTTPTimeouts:     rpc.DefaultHTTPTimeouts,
 	WSPort:           DefaultWSPort,
 	WSModules:        []string{"node", "kai", "tx", "account"},
+	WSOrigins:        []string{"*"},
 	P2P:              configs.DefaultP2PConfig(),
 	MainChainConfig: MainChainConfig{
 		ServiceName: KardiaServiceName,

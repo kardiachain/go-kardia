@@ -36,20 +36,22 @@ type (
 			InboundPeers  int    `yaml:"InboundPeers"`
 			OutboundPeers int    `yaml:"OutboundPeers"`
 		} `yaml:"P2P"`
-		LogLevel         string     `yaml:"LogLevel"`
-		Name             string     `yaml:"Name"`
-		DataDir          string     `yaml:"DataDir"`
-		HTTPHost         string     `yaml:"HTTPHost"`
-		HTTPPort         int        `yaml:"HTTPPort"`
-		HTTPModules      []string   `yaml:"HTTPModules"`
-		HTTPVirtualHosts []string   `yaml:"HTTPVirtualHosts"`
-		HTTPCors         []string   `yaml:"HTTPCors"`
-		WSHost           string     `yaml:"WSHost"`
-		WSPort           int        `yaml:"WSPort"`
-		Metrics          bool       `yaml:"Metrics"`
-		FastSync         *FastSync  `yaml:"FastSync"`
-		GasOracle        *GasOracle `yaml:"GasOracle"`
-		Genesis          *Genesis   `yaml:"Genesis,omitempty"`
+		LogLevel             string     `yaml:"LogLevel"`
+		Name                 string     `yaml:"Name"`
+		DataDir              string     `yaml:"DataDir"`
+		HTTPHost             string     `yaml:"HTTPHost"`
+		HTTPPort             int        `yaml:"HTTPPort"`
+		HTTPModules          []string   `yaml:"HTTPModules"`
+		HTTPVirtualHosts     []string   `yaml:"HTTPVirtualHosts"`
+		HTTPCors             []string   `yaml:"HTTPCors"`
+		WSHost               string     `yaml:"WSHost"`
+		WSPort               int        `yaml:"WSPort"`
+		WSOrigins            []string   `yaml:"WSOrigins"`
+		Metrics              bool       `yaml:"Metrics"`
+		FastSync             *FastSync  `yaml:"FastSync"`
+		GasOracle            *GasOracle `yaml:"GasOracle"`
+		Genesis              *Genesis   `yaml:"Genesis,omitempty"`
+		TimeOutForStaticCall int        `yaml:"TimeOutForStaticCall,omitempty"`
 	}
 	GasOracle struct {
 		Blocks     int    `yaml:"Blocks"`

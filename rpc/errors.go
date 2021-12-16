@@ -81,8 +81,11 @@ func (e *invalidMessageError) ErrorCode() int { return -32700 }
 func (e *invalidMessageError) Error() string { return e.message }
 
 // unable to decode supplied params, or an invalid number of parameters
-type invalidParamsError struct{ message string }
+type invalidParamsError struct {
+	method  string
+	message string
+}
 
 func (e *invalidParamsError) ErrorCode() int { return -32602 }
 
-func (e *invalidParamsError) Error() string { return e.message }
+func (e *invalidParamsError) Error() string { return "method: " + e.method + ", error: " + e.message }
