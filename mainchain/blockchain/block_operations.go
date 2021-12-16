@@ -57,7 +57,7 @@ type BlockOperations struct {
 	height     uint64
 	staking    *staking.StakingSmcUtil
 
-	bcs *blockConstructor
+	blockState *blockState
 }
 
 // NewBlockOperations returns a new BlockOperations with reference to the latest state of blockchain.
@@ -69,6 +69,7 @@ func NewBlockOperations(logger log.Logger, blockchain *BlockChain, txPool *tx_po
 		height:     blockchain.CurrentBlock().Height(),
 		evPool:     evpool,
 		staking:    staking,
+		blockState: &blockState{},
 	}
 }
 
@@ -118,7 +119,7 @@ func (bo *BlockOperations) CreateProposalBlock(
 	bo.logger.Info("Creates new header", "header", header)
 
 	if bo.blockchain.chainConfig.IsGalaxias(&bo.height) {
-		pb, err := bo.bcs.newProposalBlock()
+		pb, err := bo.newProposalBlock(header)
 		if err != nil {
 			bo.logger.Error("Failed to create new proposal block", "err", err)
 		}
@@ -211,30 +212,6 @@ func (bo *BlockOperations) organizeTransactions(pendingTxs map[common.Address]ty
 // New calculated state root is validated against the root field in block.
 // Transactions, new state and receipts are saved to storage.
 func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCommit stypes.LastCommitInfo, byzVals []stypes.Evidence) ([]*types.Validator, common.Hash, error) {
-	if bo.blockchain.chainConfig.IsGalaxias(&bo.height) {
-		if err := bo.bcs.commitTransactions(block.TransactionsByPriceAndNonce(bo.bcs.blockState.signer)); err != nil {
-			return nil, common.Hash{}, err
-		}
-		vals, root, blockInfo, err := bo.bcs.commitBlockInfo(bo.blockchain, bo.bcs.blockState.state, block.Header(), lastCommit, byzVals)
-		if err != nil {
-			return nil, common.Hash{}, err
-		}
-
-		bo.saveBlockInfo(blockInfo, block)
-		bo.blockchain.DB().WriteHeadBlockHash(block.Hash())
-		bo.blockchain.DB().WriteTxLookupEntries(block)
-		bo.blockchain.DB().WriteAppHash(block.Height(), root)
-		bo.blockchain.InsertHeadBlock(block)
-
-		// send logs of emitted events to logs feed for collecting
-		var logs []*types.Log
-		for _, r := range blockInfo.Receipts {
-			logs = append(logs, r.Logs...)
-		}
-		bo.blockchain.logsFeed.Send(logs)
-		return vals, root, nil
-	}
-
 	vals, root, blockInfo, err := bo.commitTransactions(block.Transactions(), block.Header(), lastCommit, byzVals)
 	if err != nil {
 		return nil, common.Hash{}, err

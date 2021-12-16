@@ -369,6 +369,9 @@ func CopyCommit(c *Commit) *Commit {
 func (b *Block) Transactions() Transactions { return b.transactions }
 
 func (b *Block) TransactionsByPriceAndNonce(signer Signer) *TransactionsByPriceAndNonce {
+	if b.Transactions() == nil {
+		return nil
+	}
 	txs := make(map[common.Address]Transactions)
 	for _, tx := range b.Transactions() {
 		acc, _ := Sender(signer, tx)
