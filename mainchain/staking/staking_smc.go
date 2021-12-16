@@ -133,7 +133,7 @@ func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *
 		maxChangeRate, // Maximum commission change rate
 	)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	msg := types.NewMessage(
@@ -148,7 +148,7 @@ func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *
 	)
 
 	if _, err = Apply(s.logger, bc, statedb, header, cfg, msg); err != nil {
-		panic(err)
+		return err
 	}
 
 	return nil

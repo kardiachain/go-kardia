@@ -211,7 +211,15 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database, staking *staking
 	}
 
 	block := types.NewBlock(head, nil, &types.Commit{}, nil)
-	if err := setupGenesisStaking(staking, statedb, block.Header(), kvm.Config{}, g.Validators); err != nil {
+	tracer := kvm.NewStructLogger(nil)
+
+	if err := setupGenesisStaking(staking, statedb, block.Header(), kvm.Config{
+		Tracer: tracer,
+		Debug:  true,
+	}, g.Validators); err != nil {
+
+		fmt.Println(tracer.Output(), err)
+
 		panic(err)
 	}
 	root := statedb.IntermediateRoot(false)
