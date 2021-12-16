@@ -176,6 +176,10 @@ type chainContext struct {
 	ctx context.Context
 }
 
+func (context *chainContext) Config() *configs.ChainConfig {
+	return context.api.b.Config()
+}
+
 func (context *chainContext) GetHeader(hash common.Hash, height uint64) *types.Header {
 	header := context.api.b.HeaderByHeight(context.ctx, rpc.BlockHeight(height))
 	if header.Hash() == hash {
@@ -185,7 +189,7 @@ func (context *chainContext) GetHeader(hash common.Hash, height uint64) *types.H
 	return header
 }
 
-// chainContext construts the context reader which is used by the KVM for reading
+// chainContext constructs the context reader which is used by the KVM for reading
 // the necessary chain context.
 func (t *TracerAPI) chainContext(ctx context.Context) vm.ChainContext {
 	return &chainContext{api: t, ctx: ctx}

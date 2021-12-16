@@ -21,7 +21,6 @@ package kai
 import (
 	"context"
 	"fmt"
-	"math/big"
 	"time"
 
 	"github.com/kardiachain/go-kardia/configs"

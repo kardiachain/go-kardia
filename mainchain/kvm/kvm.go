@@ -37,12 +37,11 @@ type ChainContext interface {
 }
 
 // NewKVMContext creates a new context for use in the KVM.
-func NewKVMContext(msg types.Message, header *types.Header, chain ChainContext) kvm.Context {
-	kvmContext := kvm.Context{
+func NewKVMContext(msg types.Message, header *types.Header, chain ChainContext) kvm.BlockContext {
+	kvmContext := kvm.BlockContext{
 		CanTransfer: CanTransfer,
 		Transfer:    Transfer,
 		GetHash:     GetHashFnLegacy(header, chain),
-		Origin:      msg.From(),
 		Coinbase:    header.ProposerAddress,
 		BlockHeight: new(big.Int).SetUint64(header.Height),
 		Time:        new(big.Int).SetInt64(header.Time.Unix()),
