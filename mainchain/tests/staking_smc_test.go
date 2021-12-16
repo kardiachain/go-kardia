@@ -24,8 +24,6 @@ import (
 	"strings"
 	"testing"
 
-	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
-
 	"github.com/stretchr/testify/assert"
 
 	"github.com/kardiachain/go-kardia/configs"
@@ -37,8 +35,8 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	g "github.com/kardiachain/go-kardia/mainchain/genesis"
-
 	"github.com/kardiachain/go-kardia/mainchain/staking"
+	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
 	"github.com/kardiachain/go-kardia/types"
 )
 

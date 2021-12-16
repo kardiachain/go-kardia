@@ -20,19 +20,16 @@ package kai
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math/big"
 	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/internal/kaiapi"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
-	"github.com/kardiachain/go-kardia/mainchain/blockchain"
-	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/types"
@@ -228,193 +225,39 @@ type CallArgs struct {
 	Gas      *common.Uint64  `json:"gas"`
 	GasPrice *common.Big     `json:"gasPrice"`
 	Value    *common.Big     `json:"value"`
-	Data     *common.Bytes   `json:"data"`
+	Nonce    *common.Uint64  `json:"nonce"`
+
+	// We accept "data" and "input" for backwards-compatibility reasons.
+	// "input" is the newer name and should be preferred by clients.
+	Data  *common.Bytes `json:"data"`
+	Input *common.Bytes `json:"input"`
+
+	ChainID *common.Big `json:"chainId,omitempty"`
 }
 
 // Call executes the given transaction on the state for the given block height.
 // Note, this function doesn't make and changes in the state/blockchain and is
 // useful to execute and retrieve values.
-func (s *PublicWeb3API) Call(ctx context.Context, args CallArgs, blockHeightOrHash rpc.BlockHeightOrHash) (common.Bytes, error) {
-	result, err := DoCall(ctx, s.kaiService, args, blockHeightOrHash, kvm.Config{}, configs.DefaultTimeOutForStaticCall*time.Second, configs.GasLimitCap)
+func (s *PublicWeb3API) Call(ctx context.Context, args kaiapi.TransactionArgs, blockHeightOrHash rpc.BlockHeightOrHash) (common.Bytes, error) {
+	result, err := kaiapi.DoCall(ctx, s.kaiService, args, blockHeightOrHash, kvm.Config{}, time.Duration(configs.TimeOutForStaticCall)*time.Millisecond)
 	if err != nil {
 		return nil, err
 	}
 	// If the result contains a revert reason, try to unpack and return it.
 	if len(result.Revert()) > 0 {
-		return nil, newRevertError(result)
+		return nil, kaiapi.NewRevertError(result)
 	}
 	return result.Return(), result.Err
 }
 
-func DoCall(ctx context.Context, s APIBackend, args CallArgs, blockHeightOrHash rpc.BlockHeightOrHash, kvmCfg kvm.Config,
-	timeout time.Duration, globalGasCap uint64) (*kvm.ExecutionResult, error) {
-	defer func(start time.Time) { log.Debug("Executing KVM call finished", "runtime", time.Since(start)) }(time.Now())
-
-	state, header, err := s.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
-	if state == nil || err != nil {
-		return nil, err
-	}
-
-	// Setup context so it may be cancelled the call has completed
-	// or, in case of unmetered gas, setup a context with a timeout.
-	var cancel context.CancelFunc
-	if timeout > 0 {
-		ctx, cancel = context.WithTimeout(ctx, timeout)
-	} else {
-		ctx, cancel = context.WithCancel(ctx)
-	}
-	// Make sure the context is cancelled when the call has completed
-	// this makes sure resources are cleaned up.
-	defer cancel()
-
-	// Get a new instance of the KVM.
-	msg := args.ToMessage(globalGasCap)
-	kvm, vmError, err := s.GetKVM(ctx, msg, state, header)
-	if err != nil {
-		return nil, err
-	}
-	// Wait for the context to be done and cancel the KVM. Even if the
-	// KVM has finished, cancelling may be done (repeatedly)
-	go func() {
-		<-ctx.Done()
-		kvm.Cancel()
-	}()
-
-	// Setup the gas pool (also for unmetered requests)
-	// and apply the message.
-	gp := new(types.GasPool).AddGas(common.MaxUint64)
-	result, err := blockchain.ApplyMessage(kvm, msg, gp)
-	if err := vmError(); err != nil {
-		return nil, err
-	}
-
-	// If the timer caused an abort, return an appropriate error message
-	if kvm.Cancelled() {
-		return nil, fmt.Errorf("execution aborted (timeout = %v)", timeout)
-	}
-	if err != nil {
-		return result, fmt.Errorf("err: %w (supplied gas %d)", err, msg.Gas())
-	}
-	return result, nil
-}
-
 // EstimateGas returns an estimate of the amount of gas needed to execute the
 // given transaction against the current pending block.
-func (s *PublicWeb3API) EstimateGas(ctx context.Context, args CallArgs, blockHeightOrHash *rpc.BlockHeightOrHash) (common.Uint64, error) {
+func (s *PublicWeb3API) EstimateGas(ctx context.Context, args kaiapi.TransactionArgs, blockHeightOrHash *rpc.BlockHeightOrHash) (common.Uint64, error) {
 	bHeightOrHash := rpc.BlockHeightOrHashWithHeight(rpc.PendingBlockHeight)
 	if blockHeightOrHash != nil {
 		bHeightOrHash = *blockHeightOrHash
 	}
-	return DoEstimateGas(ctx, s.kaiService, args, bHeightOrHash, configs.GasLimitCap)
-}
-
-func DoEstimateGas(ctx context.Context, b APIBackend, args CallArgs, blockHeightOrHash rpc.BlockHeightOrHash, gasCap uint64) (common.Uint64, error) {
-	// Binary search the gas requirement, as it may be higher than the amount used
-	var (
-		lo  uint64 = configs.TxGas - 1
-		hi  uint64
-		cap uint64
-	)
-	// Use zero address if sender unspecified.
-	if args.From == nil {
-		args.From = new(common.Address)
-	}
-	// Determine the highest gas limit can be used during the estimation.
-	if args.Gas != nil && uint64(*args.Gas) >= configs.TxGas {
-		hi = uint64(*args.Gas)
-	} else {
-		// Retrieve the block to act as the gas ceiling
-		block, err := b.BlockByHeightOrHash(ctx, blockHeightOrHash)
-		if err != nil {
-			return 0, err
-		}
-		if block == nil {
-			return 0, errors.New("block not found")
-		}
-		hi = block.GasLimit()
-	}
-	// Recap the highest gas limit with account's available balance.
-	if args.GasPrice != nil && args.GasPrice.ToInt().BitLen() != 0 {
-		state, _, err := b.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
-		if err != nil {
-			return 0, err
-		}
-		balance := state.GetBalance(*args.From) // from can't be nil
-		available := new(big.Int).Set(balance)
-		if args.Value != nil {
-			if args.Value.ToInt().Cmp(available) >= 0 {
-				return 0, errors.New("insufficient funds for transfer")
-			}
-			available.Sub(available, args.Value.ToInt())
-		}
-		allowance := new(big.Int).Div(available, args.GasPrice.ToInt())
-
-		// If the allowance is larger than maximum uint64, skip checking
-		if allowance.IsUint64() && hi > allowance.Uint64() {
-			transfer := args.Value
-			if transfer == nil {
-				transfer = new(common.Big)
-			}
-			log.Warn("Gas estimation capped by limited funds", "original", hi, "balance", balance,
-				"sent", transfer.ToInt(), "gasprice", args.GasPrice.ToInt(), "fundable", allowance)
-			hi = allowance.Uint64()
-		}
-	}
-	// Recap the highest gas allowance with specified gascap.
-	if gasCap != 0 && hi > gasCap {
-		log.Warn("Caller gas above allowance, capping", "requested", hi, "cap", gasCap)
-		hi = gasCap
-	}
-	cap = hi
-
-	// Create a helper to check if a gas allowance results in an executable transaction
-	executable := func(gas uint64) (bool, *kvm.ExecutionResult, error) {
-		args.Gas = (*common.Uint64)(&gas)
-
-		result, err := DoCall(ctx, b, args, blockHeightOrHash, kvm.Config{}, 0, gasCap)
-		if err != nil {
-			if errors.Is(err, tx_pool.ErrIntrinsicGas) {
-				return true, nil, nil // Special case, raise gas limit
-			}
-			return true, nil, err // Bail out
-		}
-		return result.Failed(), result, nil
-	}
-	// Execute the binary search and hone in on an executable gas limit
-	for lo+1 < hi {
-		mid := (hi + lo) / 2
-		failed, _, err := executable(mid)
-
-		// If the error is not nil(consensus error), it means the provided message
-		// call or transaction will never be accepted no matter how much gas it is
-		// assigned. Return the error directly, don't struggle any more.
-		if err != nil {
-			return 0, err
-		}
-		if failed {
-			lo = mid
-		} else {
-			hi = mid
-		}
-	}
-	// Reject the transaction as invalid if it still fails at the highest allowance
-	if hi == cap {
-		failed, result, err := executable(hi)
-		if err != nil {
-			return 0, err
-		}
-		if failed {
-			if result != nil && result.Err != kvm.ErrOutOfGas {
-				if len(result.Revert()) > 0 {
-					return 0, newRevertError(result)
-				}
-				return 0, result.Err
-			}
-			// Otherwise, the specified gas cap is too low
-			return 0, fmt.Errorf("gas required exceeds allowance (%d)", cap)
-		}
-	}
-	return common.Uint64(hi), nil
+	return kaiapi.DoEstimateGas(ctx, s.kaiService, args, bHeightOrHash, configs.GasLimitCap)
 }
 
 // RPCTransaction represents a transaction that will serialize to the RPC representation of a transaction

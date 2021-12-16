@@ -197,6 +197,7 @@ func (c *Config) getNodeConfig() (*node.Config, error) {
 		HTTPModules:      n.HTTPModules,
 		WSHost:           n.WSHost,
 		WSPort:           n.WSPort,
+		WSOrigins:        n.WSOrigins,
 		MainChainConfig:  node.MainChainConfig{},
 		Metrics:          n.Metrics,
 		FastSync:         c.getFastSyncConfig(),

@@ -11,6 +11,7 @@ Node:
     - debug
     - net
     - eth
+    - txpool
     - web3
   HTTPVirtualHosts:
     - 0.0.0.0
@@ -20,6 +21,8 @@ Node:
     - "*"
   WSHost: 0.0.0.0
   WSPort: 8546
+  WSOrigins: # cors, use "*" to accept all
+    - "*"
   P2P:
     PrivateKey: 77cfc693f7861a6e1ea817c593c04fbc9b63d4d3146c5753c008cfc67cffca79
     ListenAddress: tcp://0.0.0.0:3000
@@ -39,6 +42,7 @@ Node:
     Percentile: 10          # percent of gas price increasing based on highest gas of recent transactions. Type int
     Default: 1000000000     # default gas price. Type string
     MaxPrice: 500000000000  # maximum gas price this node will accept. Type string
+  TimeOutForStaticCall: 2000 # default timeout for static calls in milliseconds. Type int
 MainChain:
   ServiceName: KARDIA
   AcceptTxs: 1       # accept tx sync process or not (1 is yes, 0 is no)

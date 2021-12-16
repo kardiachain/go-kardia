@@ -34,6 +34,8 @@ type ChainConfig struct {
 
 	// Various consensus engines
 	Kaicon *KaiconConfig `json:"kaicon,omitempty" yaml:"KaiconConfig"`
+
+	ChainID *big.Int `json:"chainId,omitempty" yaml:"ChainID"`
 }
 
 // KaiconConfig is the consensus engine configs for Kardia BFT DPoS.

@@ -43,6 +43,8 @@ type APIBackend interface {
 	BlockByHeightOrHash(ctx context.Context, blockHeightOrHash rpc.BlockHeightOrHash) (*types.Block, error)
 	BlockInfoByBlockHash(ctx context.Context, hash common.Hash) *types.BlockInfo
 
+	ChainConfig() *configs.ChainConfig
+
 	GetKVM(ctx context.Context, msg types.Message, state *state.StateDB, header *types.Header) (*kvm.KVM, func() error, error)
 	GetValidators() ([]*staking.Validator, error)
 	GetValidator(valAddr common.Address) (*staking.Validator, error)
@@ -65,9 +67,17 @@ type APIBackend interface {
 	ServiceFilter(ctx context.Context, session *bloombits.MatcherSession)
 	SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription
 
-	// Tracer API
+	// KVMLogger API
 	GetTransaction(ctx context.Context, hash common.Hash) (*types.Transaction, common.Hash, uint64, uint64)
-	StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.Context, *state.StateDB, error)
+	RPCGasCap() uint64
+	StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, checkLive bool) (*state.StateDB, error)
+	StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.BlockContext, *state.StateDB, error)
+
+	// Txpool API
+	GetPoolNonce(ctx context.Context, addr common.Address) (uint64, error)
+	TxPoolContent() (map[common.Address]types.Transactions, map[common.Address]types.Transactions)
+	TxPoolContentFrom(addr common.Address) (types.Transactions, types.Transactions)
+	Stats() (pending int, queued int)
 }
 
 func (k *KardiaService) HeaderByHeight(ctx context.Context, height rpc.BlockHeight) *types.Header {
@@ -138,6 +148,14 @@ func (k *KardiaService) BlockInfoByBlockHash(ctx context.Context, hash common.Ha
 	if height == nil {
 		return nil
 	}
+	if *height == 0 {
+		return &types.BlockInfo{
+			GasUsed:  0,
+			Rewards:  new(big.Int).SetInt64(0),
+			Receipts: types.Receipts{},
+			Bloom:    types.Bloom{},
+		}
+	}
 	return k.DB().ReadBlockInfo(hash, *height)
 }
 
@@ -173,7 +191,7 @@ func (k *KardiaService) GetKVM(ctx context.Context, msg types.Message, state *st
 	vmError := func() error { return nil }
 
 	context := vm.NewKVMContext(msg, header, k.BlockChain())
-	return kvm.NewKVM(context, state, k.blockchain.Config(), *k.blockchain.GetVMConfig()), vmError, nil
+	return kvm.NewKVM(context, blockchain.NewKVMTxContext(msg), state, configs.MainnetChainConfig, *k.blockchain.GetVMConfig()), vmError, nil
 }
 
 // ValidatorsListFromStakingContract returns all validators on staking
@@ -314,6 +332,34 @@ func (k *KardiaService) GetTransaction(ctx context.Context, hash common.Hash) (*
 	return k.kaiDb.ReadTransaction(hash)
 }
 
-func (k *KardiaService) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.Context, *state.StateDB, error) {
+func (k *KardiaService) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.BlockContext, *state.StateDB, error) {
 	return k.stateAtTransaction(block, txIndex, reexec)
+}
+
+func (k *KardiaService) TxPoolContent() (map[common.Address]types.Transactions, map[common.Address]types.Transactions) {
+	return k.txPool.Content()
+}
+
+func (k *KardiaService) TxPoolContentFrom(addr common.Address) (types.Transactions, types.Transactions) {
+	return k.txPool.ContentFrom(addr)
+}
+
+func (k *KardiaService) Stats() (pending int, queued int) {
+	return k.txPool.Stats()
+}
+
+func (k *KardiaService) ChainConfig() *configs.ChainConfig {
+	return k.chainConfig
+}
+
+func (k *KardiaService) RPCGasCap() uint64 {
+	return configs.GasLimitCap
+}
+
+func (k *KardiaService) StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, checkLive bool) (*state.StateDB, error) {
+	return k.stateAtBlock(block, reexec, base, checkLive)
+}
+
+func (k *KardiaService) GetPoolNonce(ctx context.Context, addr common.Address) (uint64, error) {
+	return k.txPool.Nonce(addr), nil
 }
