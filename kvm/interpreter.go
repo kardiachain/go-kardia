@@ -17,7 +17,6 @@
 package kvm
 
 import (
-	"fmt"
 	"hash"
 	"sync/atomic"
 
