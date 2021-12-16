@@ -77,7 +77,7 @@ func NewEVMInterpreter(evm *EVM, cfg Config) *EVMInterpreter {
 		case evm.chainRules.IsGalaxias:
 			jt = londonInstructionSet
 		default:
-			jt = istanbulInstructionSet
+			jt = constantinopleInstructionSet
 		}
 		for i, eip := range cfg.ExtraEips {
 			if err := EnableEIP(eip, &jt); err != nil {
