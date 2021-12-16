@@ -211,7 +211,11 @@ func (c *Config) getNodeConfig() (*node.Config, error) {
 		return nil, fmt.Errorf("mainChainConfig is empty")
 	}
 	nodeConfig.MainChainConfig = *mainChainConfig
-
+	if c.TimeOutForStaticCall > 0 {
+		configs.TimeOutForStaticCall = c.TimeOutForStaticCall
+	} else {
+		configs.TimeOutForStaticCall = configs.DefaultTimeOutForStaticCall
+	}
 	return &nodeConfig, nil
 }
 
