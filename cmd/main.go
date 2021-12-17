@@ -46,6 +46,10 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/node"
 	kaiproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
+
+	// Force-load the tracer engines to trigger registration
+	_ "github.com/kardiachain/go-kardia/mainchain/tracers/js"
+	_ "github.com/kardiachain/go-kardia/mainchain/tracers/native"
 )
 
 var args flags
