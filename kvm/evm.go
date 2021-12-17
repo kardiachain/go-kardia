@@ -17,6 +17,7 @@
 package kvm
 
 import (
+	"fmt"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -43,12 +44,13 @@ type (
 
 func (evm *EVM) precompile(addr common.Address) (PrecompiledContract, bool) {
 	var precompiles map[common.Address]PrecompiledContract
-	switch {
-	case evm.chainRules.IsGalaxias:
-		precompiles = PrecompiledContractsBerlin
-	default:
-		precompiles = PrecompiledContractsIstanbul
-	}
+	// switch {
+	// case evm.chainRules.IsGalaxias:
+	// 	precompiles = PrecompiledContractsBerlin
+	// default:
+	// 	precompiles = PrecompiledContractsIstanbul
+	// }
+	precompiles = PrecompiledContractsByzantium
 	p, ok := precompiles[addr]
 	return p, ok
 }
@@ -465,6 +467,8 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	start := time.Now()
 
 	ret, err := evm.interpreter.Run(contract, nil, false)
+
+	fmt.Println("DDDD", len(ret), common.Bytes2Hex(ret), caller.Address().String(), address.String())
 
 	// Check whether the max code size has been exceeded, assign err if the case.
 	if err == nil && len(ret) > configs.MaxCodeSize {

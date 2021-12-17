@@ -129,12 +129,7 @@ func init() {
 
 // ActivePrecompiles returns the precompiles enabled with the current configuration.
 func ActivePrecompiles(rules configs.Rules) []common.Address {
-	switch {
-	case rules.IsGalaxias:
-		return PrecompiledAddressesBerlin
-	default:
-		return PrecompiledAddressesIstanbul
-	}
+	return PrecompiledAddressesByzantium
 }
 
 // RunPrecompiledContract runs and evaluates the output of a precompiled contract.

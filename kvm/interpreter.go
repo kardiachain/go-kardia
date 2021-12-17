@@ -73,12 +73,7 @@ func NewEVMInterpreter(evm *EVM, cfg Config) *EVMInterpreter {
 	// we'll set the default jump table.
 	if cfg.JumpTable[STOP] == nil {
 		var jt JumpTable
-		switch {
-		case evm.chainRules.IsGalaxias:
-			jt = londonInstructionSet
-		default:
-			jt = constantinopleInstructionSet
-		}
+		jt = frontierInstructionSet
 		for i, eip := range cfg.ExtraEips {
 			if err := EnableEIP(eip, &jt); err != nil {
 				// Disable it, so caller can check if it's activated or not
@@ -247,6 +242,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 
 		// execute the operation
 		res, err = operation.execute(&pc, in, callContext)
+
 		// if the operation clears the return data (e.g. it has returning data)
 		// set the last return to the result of the operation.
 		if operation.returns {
@@ -264,6 +260,5 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 			pc++
 		}
 	}
-
 	return nil, nil
 }
