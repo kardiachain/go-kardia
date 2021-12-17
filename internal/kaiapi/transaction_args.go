@@ -134,11 +134,10 @@ func (args *TransactionArgs) UnmarshalJSON(data []byte) error {
 	}
 
 	toAddressStr, ok := params["to"].(string)
-	if !ok {
-		return &parseError{param: "to"}
+	if ok {
+		toAddress := common.HexToAddress(toAddressStr)
+		args.To = &toAddress
 	}
-	toAddress := common.HexToAddress(toAddressStr)
-	args.To = &toAddress
 
 	fromAddressStr, ok := params["from"].(string)
 	if !ok {
