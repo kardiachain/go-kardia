@@ -73,7 +73,12 @@ func NewEVMInterpreter(evm *EVM, cfg Config) *EVMInterpreter {
 	// we'll set the default jump table.
 	if cfg.JumpTable[STOP] == nil {
 		var jt JumpTable
-		jt = frontierInstructionSet
+		switch {
+		case evm.chainRules.IsGalaxias:
+			cfg.JumpTable = v2InstructionSet
+		default:
+			cfg.JumpTable = v1InstructionSet
+		}
 		for i, eip := range cfg.ExtraEips {
 			if err := EnableEIP(eip, &jt); err != nil {
 				// Disable it, so caller can check if it's activated or not
@@ -81,7 +86,6 @@ func NewEVMInterpreter(evm *EVM, cfg Config) *EVMInterpreter {
 				log.Error("EIP activation failed", "eip", eip, "error", err)
 			}
 		}
-		cfg.JumpTable = jt
 	}
 
 	return &EVMInterpreter{
@@ -227,8 +231,14 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 			var dynamicCost uint64
 			dynamicCost, err = operation.dynamicGas(in.evm, contract, stack, mem, memorySize)
 			cost += dynamicCost // total cost, for debug tracing
-			if err != nil || !contract.UseGas(dynamicCost) {
-				return nil, ErrOutOfGas
+			if in.evm.chainRules.IsGalaxias {
+				if err != nil || !contract.UseGas(dynamicCost) {
+					return nil, ErrOutOfGas
+				}
+			} else {
+				if err != nil || !contract.UseGas(cost) {
+					return nil, ErrOutOfGas
+				}
 			}
 		}
 		if memorySize > 0 {

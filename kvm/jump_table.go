@@ -47,37 +47,24 @@ type operation struct {
 }
 
 var (
-	// frontierInstructionSet         = newFrontierInstructionSet()
-	// homesteadInstructionSet        = newHomesteadInstructionSet()
-	// tangerineWhistleInstructionSet = newTangerineWhistleInstructionSet()
-	// spuriousDragonInstructionSet   = newSpuriousDragonInstructionSet()
-	// byzantiumInstructionSet = newByzantiumInstructionSet()
-	frontierInstructionSet = newFrontierInstructionSet()
-	// istanbulInstructionSet = newIstanbulInstructionSet()
-	// berlinInstructionSet           = newBerlinInstructionSet()
-	// homesteadInstructionSet = newHomesteadInstructionSet()
-	londonInstructionSet = newLondonInstructionSet()
+	v2InstructionSet = newV2InstructionSet()
+	v1InstructionSet = newV1InstructionSet()
 )
 
 // JumpTable contains the EVM opcodes supported at a given fork.
 type JumpTable [256]*operation
 
-// newLondonInstructionSet returns the frontier, homestead, byzantium,
+// newV2InstructionSet returns the frontier, homestead, byzantium,
 // contantinople, istanbul, petersburg, berlin and london instructions.
-func newLondonInstructionSet() JumpTable {
-	instructionSet := newFrontierInstructionSet()
-	enable3529(&instructionSet) // EIP-3529: Reduction in refunds https://eips.ethereum.org/EIPS/eip-3529
-	enable3198(&instructionSet) // Base fee opcode https://eips.ethereum.org/EIPS/eip-3198
-	enable2929(&instructionSet) // Access lists for trie accesses https://eips.ethereum.org/EIPS/eip-2929
+func newV2InstructionSet() JumpTable {
+	instructionSet := newV1InstructionSet()
 	enable1344(&instructionSet) // ChainID opcode - https://eips.ethereum.org/EIPS/eip-1344
-	enable1884(&instructionSet) // Reprice reader opcodes - https://eips.ethereum.org/EIPS/eip-1884
-	enable2200(&instructionSet) // Net metered SSTORE - https://eips.ethereum.org/EIPS/eip-2200
 	return instructionSet
 }
 
-// newFrontierInstructionSet returns the frontier instructions
+// newV1InstructionSet returns the frontier instructions
 // that can be executed during the frontier phase.
-func newFrontierInstructionSet() JumpTable {
+func newV1InstructionSet() JumpTable {
 	return JumpTable{
 		STOP: {
 			execute:     opStop,

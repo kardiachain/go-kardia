@@ -17,7 +17,6 @@
 package kvm
 
 import (
-	"fmt"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -467,8 +466,6 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	start := time.Now()
 
 	ret, err := evm.interpreter.Run(contract, nil, false)
-
-	fmt.Println("DDDD", len(ret), common.Bytes2Hex(ret), caller.Address().String(), address.String())
 
 	// Check whether the max code size has been exceeded, assign err if the case.
 	if err == nil && len(ret) > configs.MaxCodeSize {

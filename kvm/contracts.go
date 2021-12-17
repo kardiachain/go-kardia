@@ -129,6 +129,9 @@ func init() {
 
 // ActivePrecompiles returns the precompiles enabled with the current configuration.
 func ActivePrecompiles(rules configs.Rules) []common.Address {
+	if rules.IsGalaxias {
+		return PrecompiledAddressesBerlin
+	}
 	return PrecompiledAddressesByzantium
 }
 
