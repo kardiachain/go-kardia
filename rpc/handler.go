@@ -331,7 +331,7 @@ func (h *handler) handleCall(cp *callProc, msg *jsonrpcMessage) *jsonrpcMessage 
 	}
 	args, err := parsePositionalArguments(msg.Params, callb.argTypes)
 	if err != nil {
-		return msg.errorResponse(&invalidParamsError{err.Error()})
+		return msg.errorResponse(&invalidParamsError{method: msg.Method, message: err.Error()})
 	}
 	start := time.Now()
 	answer := h.runMethod(cp.ctx, msg, callb, args)
@@ -360,7 +360,7 @@ func (h *handler) handleSubscribe(cp *callProc, msg *jsonrpcMessage) *jsonrpcMes
 	// Subscription method name is first argument.
 	name, err := parseSubscriptionName(msg.Params)
 	if err != nil {
-		return msg.errorResponse(&invalidParamsError{err.Error()})
+		return msg.errorResponse(&invalidParamsError{method: msg.Method, message: err.Error()})
 	}
 	namespace := msg.namespace()
 	callb := h.reg.subscription(namespace, name)
@@ -372,7 +372,7 @@ func (h *handler) handleSubscribe(cp *callProc, msg *jsonrpcMessage) *jsonrpcMes
 	argTypes := append([]reflect.Type{stringType}, callb.argTypes...)
 	args, err := parsePositionalArguments(msg.Params, argTypes)
 	if err != nil {
-		return msg.errorResponse(&invalidParamsError{err.Error()})
+		return msg.errorResponse(&invalidParamsError{method: msg.Method, message: err.Error()})
 	}
 	args = args[1:]
 

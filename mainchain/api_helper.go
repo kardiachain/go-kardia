@@ -182,8 +182,8 @@ func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockHeight
 		R:        (*common.Big)(r),
 		S:        (*common.Big)(s),
 	}
+	result.BlockHash = &blockHash
 	if blockHash != (common.Hash{}) {
-		result.BlockHash = &blockHash
 		result.BlockHeight = (*common.Big)(new(big.Int).SetUint64(blockHeight))
 		result.TransactionIndex = (*common.Uint64)(&index)
 	}

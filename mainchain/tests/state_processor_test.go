@@ -26,6 +26,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardia/kvm"
@@ -112,7 +113,7 @@ func execute(bc *blockchain.BlockChain, msg types.Message) ([]byte, error) {
 
 	// Create a new context to be used in the KVM environment
 	context := vm.NewKVMContext(msg, bc.CurrentBlock().Header(), bc)
-	vmenv := kvm.NewKVM(context, stateDb, nil, kvm.Config{})
+	vmenv := kvm.NewKVM(context, blockchain.NewKVMTxContext(msg), nil, configs.TestChainConfig, kvm.Config{})
 
 	res, err := blockchain.NewStateTransition(vmenv, msg, gasPool).TransitionDb()
 	if err != nil {
@@ -147,7 +148,7 @@ func executeWithFee(bc *blockchain.BlockChain, msg types.Message) ([]byte, error
 
 	// Create a new context to be used in the KVM environment
 	context := vm.NewKVMContext(msg, bc.CurrentBlock().Header(), bc)
-	vmenv := kvm.NewKVM(context, stateDb, nil, kvm.Config{})
+	vmenv := kvm.NewKVM(context, blockchain.NewKVMTxContext(msg), stateDb, configs.TestChainConfig, kvm.Config{})
 
 	res, err := blockchain.NewStateTransition(vmenv, msg, gasPool).TransitionDb()
 	if err != nil {

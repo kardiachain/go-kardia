@@ -48,7 +48,7 @@ const (
 	DefaultPublishedEndpoint  = "tcp://127.0.0.1:5554"
 
 	// default params for blockchain APIs
-	DefaultTimeOutForStaticCall = 5
+	DefaultTimeOutForStaticCall = 5000
 
 	// default params for configs
 	DefaultBcReactorServiceName = "BCR"
@@ -56,4 +56,6 @@ const (
 
 var (
 	ErrUnsupportedMethod = errors.New("method is not supported by dual logic")
+	// default params for blockchain APIs
+	TimeOutForStaticCall int
 )

@@ -10,6 +10,7 @@ Node:
     - account
     - net
     - eth
+    - txpool
     - web3
   HTTPVirtualHosts:       # virtual hosts connection
     - 0.0.0.0
@@ -18,6 +19,8 @@ Node:
     - "*"
   WSHost: 0.0.0.0
   WSPort: 8546
+  WSOrigins:              # cors, use "*" to accept all
+    - "*"
   P2P:
     PrivateKey:          # private key without 0x prefix, leave blank for joining as non-validator node
     ListenAddress: tcp://0.0.0.0:3000
@@ -32,6 +35,7 @@ Node:
     TargetPending: 20    # maximum number of blocks in a batch sync. Type int
     PeerTimeout: 15      # maximum response time from a peer in second. Type int
     MinRecvRate: 0       # minimum receive rate from peer, otherwise prune. Type int64
+  TimeOutForStaticCall: 5000 # default timeout for static calls in milliseconds. Type int
 MainChain:
   ServiceName: KARDIA    # mainchain service name
   ChainId: 7331          # default chainid

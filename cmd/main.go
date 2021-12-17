@@ -46,6 +46,10 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/node"
 	kaiproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
+
+	// Force-load the tracer engines to trigger registration
+	_ "github.com/kardiachain/go-kardia/mainchain/tracers/js"
+	_ "github.com/kardiachain/go-kardia/mainchain/tracers/native"
 )
 
 var args flags
@@ -197,6 +201,7 @@ func (c *Config) getNodeConfig() (*node.Config, error) {
 		HTTPModules:      n.HTTPModules,
 		WSHost:           n.WSHost,
 		WSPort:           n.WSPort,
+		WSOrigins:        n.WSOrigins,
 		MainChainConfig:  node.MainChainConfig{},
 		Metrics:          n.Metrics,
 		FastSync:         c.getFastSyncConfig(),
@@ -210,7 +215,11 @@ func (c *Config) getNodeConfig() (*node.Config, error) {
 		return nil, fmt.Errorf("mainChainConfig is empty")
 	}
 	nodeConfig.MainChainConfig = *mainChainConfig
-
+	if c.TimeOutForStaticCall > 0 {
+		configs.TimeOutForStaticCall = c.TimeOutForStaticCall
+	} else {
+		configs.TimeOutForStaticCall = configs.DefaultTimeOutForStaticCall
+	}
 	return &nodeConfig, nil
 }
 
