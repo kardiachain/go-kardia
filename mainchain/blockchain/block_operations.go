@@ -115,10 +115,11 @@ func (bo *BlockOperations) CreateProposalBlock(
 
 	header := bo.newHeader(timestamp, height, 0, lastState.LastBlockID, proposerAddr, lastState.Validators.Hash(),
 		lastState.NextValidators.Hash(), lastState.AppHash)
-	header.GasLimit = lastState.ConsensusParams.Block.MaxGas
+	header.GasLimit = configs.BlockGasLimit
 	bo.logger.Info("Creates new header", "header", header)
 
 	if bo.blockchain.chainConfig.IsGalaxias(&bo.height) {
+		header.GasLimit = configs.BlockGasLimitGalaxias
 		pb, err := bo.newProposalBlock(header)
 		if err != nil {
 			bo.logger.Error("Failed to create new proposal block", "err", err)
@@ -329,7 +330,6 @@ func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transacti
 func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *types.Header,
 	lastCommit stypes.LastCommitInfo, byzVals []stypes.Evidence) ([]*types.Validator, common.Hash, *types.BlockInfo, error) {
 	var (
-		newTxs   = types.Transactions{}
 		receipts = types.Receipts{}
 		usedGas  = new(uint64)
 	)
@@ -375,7 +375,6 @@ LOOP:
 		}
 		i++
 		receipts = append(receipts, receipt)
-		newTxs = append(newTxs, tx)
 	}
 
 	vals, err := bo.staking.ApplyAndReturnValidatorSets(state, header, bo.blockchain, kvmConfig)
