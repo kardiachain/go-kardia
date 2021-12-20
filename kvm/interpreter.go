@@ -76,7 +76,13 @@ func NewInterpreter(kvm *KVM, cfg Config) *Interpreter {
 	// the jump table was initialised. If it was not
 	// we'll set the default jump table.
 	if cfg.JumpTable[STOP] == nil {
-		cfg.JumpTable = newKardiaInstructionSet()
+		switch {
+		case kvm.chainRules.IsGalaxias:
+			cfg.JumpTable = v2InstructionSet
+		default:
+			cfg.JumpTable = v1InstructionSet
+		}
+
 	}
 	return &Interpreter{
 		kvm: kvm,
@@ -219,8 +225,14 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 			var dynamicCost uint64
 			dynamicCost, err = operation.dynamicGas(in.kvm, contract, stack, mem, memorySize)
 			cost += dynamicCost
-			if err != nil || !contract.UseGas(cost) {
-				return nil, ErrOutOfGas
+			if in.kvm.chainRules.IsGalaxias {
+				if err != nil || !contract.UseGas(dynamicCost) {
+					return nil, ErrOutOfGas
+				}
+			} else {
+				if err != nil || !contract.UseGas(cost) {
+					return nil, ErrOutOfGas
+				}
 			}
 		}
 		if memorySize > 0 {

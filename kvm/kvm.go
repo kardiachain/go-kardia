@@ -107,6 +107,9 @@ type KVM struct {
 
 	// chainConfig contains information about the current chain
 	chainConfig *configs.ChainConfig
+
+	chainRules configs.Rules
+
 	// virtual machine configuration options used to initialise the
 	// kvm.
 	vmConfig Config
@@ -131,6 +134,7 @@ func NewKVM(ctx BlockContext, txCtx TxContext, statedb StateDB, chainConfig *con
 		StateDB:      statedb,
 		vmConfig:     vmConfig,
 		chainConfig:  chainConfig,
+		chainRules:   chainConfig.Rules(ctx.BlockHeight),
 	}
 	kvm.interpreter = NewInterpreter(kvm, vmConfig)
 

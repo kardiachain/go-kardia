@@ -73,3 +73,26 @@ func isForked(s, head *uint64) bool {
 	}
 	return *s <= *head
 }
+
+// Rules wraps ChainConfig and is merely syntactic sugar or can be used for functions
+// that do not have or require information about the block.
+//
+// Rules is a one time interface meaning that it shouldn't be used in between transition
+// phases.
+type Rules struct {
+	ChainID    *big.Int
+	IsGalaxias bool
+}
+
+// Rules ensures c's ChainID is not nil.
+func (c *ChainConfig) Rules(num *big.Int) Rules {
+	chainID := c.ChainID
+	if chainID == nil {
+		chainID = new(big.Int)
+	}
+	_num := num.Uint64()
+	return Rules{
+		ChainID:    chainID,
+		IsGalaxias: c.IsGalaxias(&_num),
+	}
+}

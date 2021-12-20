@@ -50,11 +50,24 @@ type operation struct {
 	returns bool // determines whether the operations sets the return data content
 }
 
+var (
+	v2InstructionSet = newV2InstructionSet()
+	v1InstructionSet = newV1InstructionSet()
+)
+
 // JumpTable contains opcodes of KVM
 type JumpTable [256]*operation
 
+// newV2InstructionSet returns the frontier, homestead, byzantium,
+// contantinople, istanbul, petersburg, berlin and london instructions.
+func newV2InstructionSet() JumpTable {
+	instructionSet := newV1InstructionSet()
+	enable1344(&instructionSet) // ChainID opcode - https://eips.ethereum.org/EIPS/eip-1344
+	return instructionSet
+}
+
 // NewInstructionSet returns the instructions that are supported by Kardia interpreter.
-func newKardiaInstructionSet() JumpTable {
+func newV1InstructionSet() JumpTable {
 	return JumpTable{
 		STOP: {
 			execute:     opStop,
@@ -940,12 +953,6 @@ func newKardiaInstructionSet() JumpTable {
 			memorySize:  memoryCreate2,
 			writes:      true,
 			returns:     true,
-		},
-		CHAINID: {
-			execute:     opChainID,
-			constantGas: configs.GasQuickStep,
-			minStack:    minStack(0, 1),
-			maxStack:    maxStack(0, 1),
 		},
 		SELFBALANCE: {
 			execute:     opSelfBalance,
