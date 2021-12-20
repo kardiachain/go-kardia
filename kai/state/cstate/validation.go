@@ -82,11 +82,6 @@ func validateBlock(evidencePool EvidencePool, store Store, state LatestBlockStat
 			state.ChainID, state.LastBlockID, block.Height()-1, block.LastCommit()); err != nil {
 			return err
 		}
-		err := state.LastValidators.VerifyCommit(
-			state.ChainID, state.LastBlockID, uint64(block.Height()-1), block.LastCommit())
-		if err != nil {
-			return err
-		}
 	}
 
 	// Validate block Time
