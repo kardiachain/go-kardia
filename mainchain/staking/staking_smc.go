@@ -74,36 +74,6 @@ func NewSmcStakingUtil() (*StakingSmcUtil, error) {
 	return &StakingSmcUtil{Abi: &abi, ContractAddress: common.HexToAddress(configs.DefaultStakingContractAddress), Bytecode: bytecodeStaking}, nil
 }
 
-//SetParams set params
-func (s *StakingSmcUtil) SetParams(baseProposerReward int64, bonusProposerReward int64,
-	slashFractionDowntime int64, slashFractionDoubleSign int64, unBondingTime int64,
-	signedBlockWindow int64, minSignedBlockPerWindow int64,
-	SenderAddress common.Address) ([]byte, error) {
-
-	// stateDb, err := s.bc.State()
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// store, err := s.Abi.Pack("setParams", big.NewInt(100), big.NewInt(600), big.NewInt(baseProposerReward),
-	// 	big.NewInt(bonusProposerReward),
-	// 	big.NewInt(slashFractionDowntime), big.NewInt(slashFractionDoubleSign),
-	// 	big.NewInt(unBondingTime), big.NewInt(signedBlockWindow),
-	// 	big.NewInt(minSignedBlockPerWindow))
-
-	// if err != nil {
-	// 	log.Error("Error set params", "err", err)
-	// 	return nil, err
-	// }
-
-	// _, _, err = sample_kvm.Call(s.ContractAddress, store, &sample_kvm.Config{State: stateDb, Origin: SenderAddress})
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	return nil, nil
-}
-
 //CreateValidator create validator
 func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config,
 	valAddr common.Address,
@@ -403,4 +373,23 @@ func (s *StakingSmcUtil) CreateStakingContract(statedb *state.StateDB,
 	// Update the state with pending changes
 	statedb.Finalise(true)
 	return nil
+}
+
+// GetAllValContracts returns a list of current validators' contracts
+func (s *StakingSmcUtil) GetAllValContracts(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) ([]common.Address, error) {
+	numOfVals, err := s.GetAllValsLength(statedb, header, bc, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	var valsList []common.Address
+	for i := int64(0); i < numOfVals.Int64(); i++ {
+		valSMCAddress, err := s.GetValSmcAddr(statedb, header, bc, cfg, new(big.Int).SetInt64(i))
+		if err != nil {
+			return nil, err
+		}
+		valsList = append(valsList, valSMCAddress)
+	}
+
+	return valsList, nil
 }
