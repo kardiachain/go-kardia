@@ -31,7 +31,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/staking"
-	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -44,8 +43,8 @@ const (
 	chainHeadChanSize = 10
 )
 
-// blockState
-type blockState struct {
+// proposalBlock
+type proposalBlock struct {
 	logger log.Logger
 
 	signer types.Signer
@@ -66,9 +65,9 @@ type blockConstructor struct {
 	logger      log.Logger
 	chainConfig *configs.ChainConfig
 
-	blockState *blockState
-	blockchain *BlockChain
-	txPool     *tx_pool.TxPool
+	proposalBlock *proposalBlock
+	blockchain    *BlockChain
+	txPool        *tx_pool.TxPool
 
 	staking *staking.StakingSmcUtil
 
@@ -107,8 +106,8 @@ func newblockConstructor(blockchain *BlockChain, txPool *tx_pool.TxPool, cfg *co
 func (bcs *blockConstructor) renew() {
 	current := bcs.blockchain.CurrentBlock()
 	currentState, _ := bcs.blockchain.State()
-	bcs.logger.Info("Txs", "total", len(bcs.blockState.txs))
-	bcs.blockState = &blockState{
+	bcs.logger.Info("Txs", "total", len(bcs.proposalBlock.txs))
+	bcs.proposalBlock = &proposalBlock{
 		signer: types.LatestSigner(bcs.chainConfig),
 		state:  currentState.Copy(),
 		tcount: 0,
@@ -135,10 +134,10 @@ func (bcs *blockConstructor) constructionLoop() {
 			bcs.renew()
 		case ev := <-bcs.txsCh:
 			// System stopped
-			if bcs.blockState != nil {
+			if bcs.proposalBlock != nil {
 				txs := make(map[common.Address]types.Transactions)
 				for _, tx := range ev.Txs {
-					acc, _ := types.Sender(bcs.blockState.signer, tx)
+					acc, _ := types.Sender(bcs.proposalBlock.signer, tx)
 					txs[acc] = append(txs[acc], tx)
 				}
 				// txSet := types.NewTransactionsByPriceAndNonce(bcs.blockState.signer, txs)
@@ -155,14 +154,14 @@ func (bcs *blockConstructor) constructionLoop() {
 }
 
 // newProposalBlock prepare a new block state to propose
-func (bo *BlockOperations) newProposalBlock(header *types.Header) (*blockState, error) {
+func (bo *BlockOperations) newProposalBlock(header *types.Header) (*proposalBlock, error) {
 	state, err := bo.blockchain.State()
 	if err != nil {
 		bo.logger.Error("Failed to get blockchain head state", "err", err)
 		return nil, err
 	}
 
-	pb := &blockState{
+	pb := &proposalBlock{
 		logger:   log.New("ProposalBlock"),
 		signer:   types.LatestSigner(bo.blockchain.chainConfig),
 		state:    state,
@@ -182,7 +181,7 @@ func (bo *BlockOperations) newProposalBlock(header *types.Header) (*blockState, 
 }
 
 // organizeTransaction organize transactions in tx pool and try to apply into block state
-func (bs *blockState) organizeTransactions(bo *BlockOperations) error {
+func (bs *proposalBlock) organizeTransactions(bo *BlockOperations) error {
 	pending, err := bo.txPool.Pending()
 	if err != nil {
 		// @lewtran: panic here?
@@ -217,54 +216,8 @@ func (bs *blockState) organizeTransactions(bo *BlockOperations) error {
 	return nil
 }
 
-// commitBlockInfo commit block info to current state
-func (bo *BlockOperations) commitBlockInfo(bc *BlockChain, state *state.StateDB, header *types.Header, lastCommit stypes.LastCommitInfo, byzVals []stypes.Evidence) ([]*types.Validator, common.Hash, *types.BlockInfo, error) {
-	kvmConfig := kvm.Config{}
-	blockReward, err := bo.staking.Mint(state, header, bc, kvmConfig)
-	if err != nil {
-		bo.logger.Error("Fail to mint", "err", err)
-		return nil, common.Hash{}, nil, err
-	}
-
-	if err := bo.staking.FinalizeCommit(state, header, bc, kvmConfig, lastCommit); err != nil {
-		bo.logger.Error("Fail to finalize commit", "err", err)
-		return nil, common.Hash{}, nil, err
-	}
-
-	if err := bo.staking.DoubleSign(state, header, bc, kvmConfig, byzVals); err != nil {
-		bo.logger.Error("Fail to apply double sign", "err", err)
-		return nil, common.Hash{}, nil, err
-	}
-
-	vals, err := bo.staking.ApplyAndReturnValidatorSets(state, header, bc, kvmConfig)
-	if err != nil {
-		return nil, common.Hash{}, nil, err
-	}
-
-	root, err := state.Commit(true)
-
-	if err != nil {
-		bo.logger.Error("Fail to commit new statedb after txs", "err", err)
-		return nil, common.Hash{}, nil, err
-	}
-	err = bo.blockchain.CommitTrie(root)
-	if err != nil {
-		bo.logger.Error("Fail to write statedb trie to disk", "err", err)
-		return nil, common.Hash{}, nil, err
-	}
-
-	blockInfo := &types.BlockInfo{
-		GasUsed:  *bo.blockState.usedGas,
-		Receipts: bo.blockState.receipts,
-		Rewards:  blockReward,
-		Bloom:    types.CreateBloom(bo.blockState.receipts),
-	}
-
-	return vals, root, blockInfo, nil
-}
-
 // tryApplyTransaction attempts to appply a single transaction. If the transaction fails, it's modifications are reverted.
-func (bs *blockState) commitTransaction(bo *BlockOperations, tx *types.Transaction) error {
+func (bs *proposalBlock) commitTransaction(bo *BlockOperations, tx *types.Transaction) error {
 	snap := bs.state.Snapshot()
 	kvmConfig := kvm.Config{}
 
@@ -279,7 +232,7 @@ func (bs *blockState) commitTransaction(bo *BlockOperations, tx *types.Transacti
 }
 
 // tryCommitTransactions validate and try commit transactions into block to propose
-func (bs *blockState) commitTransactions(bo *BlockOperations, txs *types.TransactionsByPriceAndNonce) error {
+func (bs *proposalBlock) commitTransactions(bo *BlockOperations, txs *types.TransactionsByPriceAndNonce) error {
 	for {
 		// If we don't have enough gas for any further transactions then we're done
 		if bs.gasPool.Gas() < configs.TxGas {
