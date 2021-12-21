@@ -57,19 +57,19 @@ type BlockOperations struct {
 	height     uint64
 	staking    *staking.StakingSmcUtil
 
-	blockState *blockState
+	proposalBlock *proposalBlock
 }
 
 // NewBlockOperations returns a new BlockOperations with reference to the latest state of blockchain.
 func NewBlockOperations(logger log.Logger, blockchain *BlockChain, txPool *tx_pool.TxPool, evpool EvidencePool, staking *staking.StakingSmcUtil) *BlockOperations {
 	return &BlockOperations{
-		logger:     logger,
-		blockchain: blockchain,
-		txPool:     txPool,
-		height:     blockchain.CurrentBlock().Height(),
-		evPool:     evpool,
-		staking:    staking,
-		blockState: &blockState{},
+		logger:        logger,
+		blockchain:    blockchain,
+		txPool:        txPool,
+		height:        blockchain.CurrentBlock().Height(),
+		evPool:        evpool,
+		staking:       staking,
+		proposalBlock: &proposalBlock{},
 	}
 }
 
@@ -126,6 +126,8 @@ func (bo *BlockOperations) CreateProposalBlock(
 		}
 		block = bo.newBlock(pb.header, pb.txs, commit, evidence)
 		bo.logger.Trace("Make block to propose", "block", block)
+		// free up the GC memory
+		bo.proposalBlock = nil
 		return block, block.MakePartSet(types.BlockPartSizeBytes)
 	}
 
@@ -213,7 +215,7 @@ func (bo *BlockOperations) organizeTransactions(pendingTxs map[common.Address]ty
 // New calculated state root is validated against the root field in block.
 // Transactions, new state and receipts are saved to storage.
 func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCommit stypes.LastCommitInfo, byzVals []stypes.Evidence) ([]*types.Validator, common.Hash, error) {
-	vals, root, blockInfo, err := bo.commitTransactions(block.Transactions(), block.Header(), lastCommit, byzVals)
+	vals, root, blockInfo, err := bo.commitBlock(block.Transactions(), block.Header(), lastCommit, byzVals)
 	if err != nil {
 		return nil, common.Hash{}, err
 	}
@@ -327,7 +329,7 @@ func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transacti
 }
 
 // commitTransactions executes the given transactions and commits the result stateDB to disk.
-func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *types.Header,
+func (bo *BlockOperations) commitBlock(txs types.Transactions, header *types.Header,
 	lastCommit stypes.LastCommitInfo, byzVals []stypes.Evidence) ([]*types.Validator, common.Hash, *types.BlockInfo, error) {
 	var (
 		receipts = types.Receipts{}
