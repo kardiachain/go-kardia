@@ -19,6 +19,7 @@
 package types
 
 import (
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/kaidb"
 	"github.com/kardiachain/go-kardia/lib/abi"
@@ -33,7 +34,7 @@ type StoreDB interface {
 	WriteBlockInfo(hash common.Hash, height uint64, blockInfo *BlockInfo)
 	WriteCanonicalHash(hash common.Hash, height uint64)
 	WriteEvent(smartcontract *KardiaSmartcontract)
-	WriteTxLookupEntries(block *Block)
+	WriteTxLookupEntries(block *Block, txs types.Transactions)
 	WriteHeadBlockHash(common.Hash)
 	WriteAppHash(uint64, common.Hash)
 

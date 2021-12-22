@@ -283,8 +283,8 @@ func ReadTxLookupEntry(db kaidb.Reader, hash common.Hash) (common.Hash, uint64, 
 
 // WriteTxLookupEntries stores a positional metadata for every transaction from
 // a block, enabling hash based transaction and receipt lookups.
-func WriteTxLookupEntries(db kaidb.Writer, block *types.Block) {
-	for i, tx := range block.Transactions() {
+func WriteTxLookupEntries(db kaidb.Writer, block *types.Block, txs types.Transactions) {
+	for i, tx := range txs {
 		entry := TxLookupEntry{
 			BlockHash:  block.Hash(),
 			BlockIndex: block.Height(),

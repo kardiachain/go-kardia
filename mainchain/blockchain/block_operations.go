@@ -199,13 +199,13 @@ func (bo *BlockOperations) organizeTransactions(pendingTxs map[common.Address]ty
 // New calculated state root is validated against the root field in block.
 // Transactions, new state and receipts are saved to storage.
 func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCommit stypes.LastCommitInfo, byzVals []stypes.Evidence) ([]*types.Validator, common.Hash, error) {
-	vals, root, blockInfo, _, err := bo.commitTransactions(block.Transactions(), block.Header(), lastCommit, byzVals)
+	vals, root, blockInfo, txs, err := bo.commitTransactions(block.Transactions(), block.Header(), lastCommit, byzVals)
 	if err != nil {
 		return nil, common.Hash{}, err
 	}
 	bo.saveBlockInfo(blockInfo, block)
 	bo.blockchain.DB().WriteHeadBlockHash(block.Hash())
-	bo.blockchain.DB().WriteTxLookupEntries(block)
+	bo.blockchain.DB().WriteTxLookupEntries(block, txs)
 	bo.blockchain.DB().WriteAppHash(block.Height(), root)
 	bo.blockchain.InsertHeadBlock(block)
 
