@@ -365,9 +365,10 @@ func (bo *BlockOperations) commitBlock(txs types.Transactions, header *types.Hea
 		return nil, common.Hash{}, nil, err
 	}
 
+	tcount := 0
 LOOP:
-	for i, tx := range txs {
-		state.Prepare(tx.Hash(), header.Hash(), i)
+	for _, tx := range txs {
+		state.Prepare(tx.Hash(), header.Hash(), tcount)
 		snap := state.Snapshot()
 		receipt, _, err := ApplyTransaction(bo.blockchain.chainConfig, bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvmConfig)
 		if err != nil {
@@ -375,7 +376,7 @@ LOOP:
 			state.RevertToSnapshot(snap)
 			continue LOOP
 		}
-		i++
+		tcount++
 		receipts = append(receipts, receipt)
 	}
 
