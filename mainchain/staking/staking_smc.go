@@ -374,22 +374,3 @@ func (s *StakingSmcUtil) CreateStakingContract(statedb *state.StateDB,
 	statedb.Finalise(true)
 	return nil
 }
-
-// GetAllValContracts returns a list of current validators' contracts
-func (s *StakingSmcUtil) GetAllValContracts(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) ([]common.Address, error) {
-	numOfVals, err := s.GetAllValsLength(statedb, header, bc, cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	var valsList []common.Address
-	for i := int64(0); i < numOfVals.Int64(); i++ {
-		valSMCAddress, err := s.GetValSmcAddr(statedb, header, bc, cfg, new(big.Int).SetInt64(i))
-		if err != nil {
-			return nil, err
-		}
-		valsList = append(valsList, valSMCAddress)
-	}
-
-	return valsList, nil
-}
