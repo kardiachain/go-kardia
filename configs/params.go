@@ -21,9 +21,10 @@ package configs
 import "math/big"
 
 const (
-	GenesisGasLimit uint64 = 50000000  // Gas limit of the Genesis block.
-	BlockGasLimit   uint64 = 200000000 // Gas limit of one block.
-	BlockMaxBytes   int64  = 104857600 // Block max size bytes: 10mbs
+	GenesisGasLimit       uint64 = 50000000  // Gas limit of the Genesis block.
+	BlockGasLimit         uint64 = 200000000 // Gas limit of one block.
+	BlockGasLimitGalaxias uint64 = 100000000 // Gas limit for Galaxias block.
+	BlockMaxBytes         int64  = 104857600 // Block max size bytes: 10mbs
 
 	CallValueTransferGas  uint64 = 9000  // Paid for CALL when the value transfer is non-zero.
 	CallNewAccountGas     uint64 = 25000 // Paid for CALL when the destination address didn't exist prior.
@@ -111,7 +112,7 @@ const (
 
 var (
 	// Gas limit cap per transaction
-	GasLimitCap = uint64(20000000)
+	GasLimitCap = uint64(50000000)
 	// Minimum gas price cap
 	GasPriceCap = new(big.Int).Exp(big.NewInt(10), big.NewInt(9), nil) // Minimum accepted gas price 1 OXY = 1e9
 	// Maximum transaction fee cap in KAI

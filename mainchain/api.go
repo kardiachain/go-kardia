@@ -669,7 +669,7 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 				continue
 			} else {
 				// update the correct lookup entry and try again
-				a.s.kaiDb.WriteTxLookupEntries(block)
+				a.s.kaiDb.WriteTxLookupEntries(block, block.Transactions())
 				return a.GetTransactionReceipt(ctx, hash)
 			}
 		}

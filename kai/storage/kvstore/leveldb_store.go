@@ -81,8 +81,8 @@ func (s *StoreDB) WriteEvent(smc *types.KardiaSmartcontract) {
 
 // WriteTxLookupEntries stores a positional metadata for every transaction from
 // a block, enabling hash based transaction and receipt lookups.
-func (s *StoreDB) WriteTxLookupEntries(block *types.Block) {
-	WriteTxLookupEntries(s.db, block)
+func (s *StoreDB) WriteTxLookupEntries(block *types.Block, txs types.Transactions) {
+	WriteTxLookupEntries(s.db, block, txs)
 }
 
 // WriteHeadBlockHash stores head blockhash to db
