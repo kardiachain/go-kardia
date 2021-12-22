@@ -109,9 +109,9 @@ var DefaultTxPoolConfig = TxPoolConfig{
 	PriceLimit: 1,
 	PriceBump:  10,
 
-	AccountSlots: 32,
-	GlobalSlots:  4096,
-	AccountQueue: 128,
+	AccountSlots: 16,
+	GlobalSlots:  5120,
+	AccountQueue: 64,
 	GlobalQueue:  1024,
 
 	Lifetime: 1 * time.Hour,
@@ -1143,7 +1143,7 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	// If we're reorging an old state, reinject all dropped transactions
 	var reinject types.Transactions
 
-	if oldHead != nil && oldHead.Hash() != newHead.LastCommitHash {
+	if oldHead != nil && oldHead.Hash() != newHead.LastBlockID.Hash {
 		// If the reorg is too deep, avoid doing it (will happen during fast sync)
 		oldNum := oldHead.Height
 		newNum := newHead.Height
@@ -1175,27 +1175,26 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 			}
 			for rem.Height() > add.Height() {
 				discarded = append(discarded, rem.Transactions()...)
-				if rem = pool.chain.GetBlock(rem.LastCommitHash(), rem.Height()-1); rem == nil {
+				if rem = pool.chain.GetBlock(rem.LastBlockHash(), rem.Height()-1); rem == nil {
 					log.Error("Unrooted old chain seen by tx pool", "block", oldHead.Height, "hash", oldHead.Hash())
 					return
 				}
 			}
 			for add.Height() > rem.Height() {
 				included = append(included, add.Transactions()...)
-				//fmt.Println(add.Height(), rem.Height())
-				if add = pool.chain.GetBlock(add.LastCommitHash(), add.Height()-1); add == nil {
+				if add = pool.chain.GetBlock(add.LastBlockHash(), add.Height()-1); add == nil {
 					log.Error("Unrooted new chain seen by tx pool", "block", newHead.Height, "hash", newHead.Hash())
 					return
 				}
 			}
 			for rem.Hash() != add.Hash() {
 				discarded = append(discarded, rem.Transactions()...)
-				if rem = pool.chain.GetBlock(rem.LastCommitHash(), rem.Height()-1); rem == nil {
+				if rem = pool.chain.GetBlock(rem.LastBlockHash(), rem.Height()-1); rem == nil {
 					log.Error("Unrooted old chain seen by tx pool", "block", oldHead.Height, "hash", oldHead.Hash())
 					return
 				}
 				included = append(included, add.Transactions()...)
-				if add = pool.chain.GetBlock(add.LastCommitHash(), add.Height()-1); add == nil {
+				if add = pool.chain.GetBlock(add.LastBlockHash(), add.Height()-1); add == nil {
 					log.Error("Unrooted new chain seen by tx pool", "block", newHead.Height, "hash", newHead.Hash())
 					return
 				}

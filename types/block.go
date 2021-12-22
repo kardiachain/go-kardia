@@ -410,6 +410,7 @@ func (b *Block) Time() time.Time  { return b.header.Time }
 func (b *Block) NumTxs() uint64   { return b.header.NumTxs }
 
 func (b *Block) ProposerAddress() common.Address { return b.header.ProposerAddress }
+func (b *Block) LastBlockHash() common.Hash      { return b.header.LastBlockID.Hash }
 func (b *Block) LastCommitHash() common.Hash     { return b.header.LastCommitHash }
 func (b *Block) TxHash() common.Hash             { return b.header.TxHash }
 func (b *Block) ValidatorHash() common.Hash      { return b.header.ValidatorsHash }
