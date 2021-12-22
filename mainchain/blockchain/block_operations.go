@@ -27,7 +27,7 @@ import (
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/mainchain/staking"
 	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
-
+	"github.com/kardiachain/go-kardia/mainchain/staking/misc"
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -341,6 +341,12 @@ func (bo *BlockOperations) commitBlock(txs types.Transactions, header *types.Hea
 	if err != nil {
 		bo.logger.Error("Fail to get blockchain head state", "err", err)
 		return nil, common.Hash{}, nil, err
+	}
+
+	// Mutate the block and state according to any hard-fork specs
+	if bo.blockchain.chainConfig.GalaxiasBlock != nil && *bo.blockchain.chainConfig.GalaxiasBlock == header.Height {
+		misc.ApplyGalaxiasContracts(state)
+		bo.logger.Info("CHECKPOINT: Apply Galaxias hard fork successfully at", "block", header.Height)
 	}
 
 	// GasPool

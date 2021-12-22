@@ -24,13 +24,10 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 )
 
-// Apply modifies the state database according to the Galaxias Mainnet hardfork rules:
-// - Apply new staking, params, treasury, validator contracts' bytecode
-func ApplyGalaxiasStakingContracts(statedb *state.StateDB, valsList []common.Address) {
-	statedb.SetCode(configs.StakingContractAddress, common.FromHex(configs.GalaxiasStakingContractAddress))
-	statedb.SetCode(configs.ParamsSMCAddress, common.FromHex(configs.GalaxiasParamsSMCAddress))
-	statedb.SetCode(configs.TreasurySMCAddress, common.FromHex(configs.GalaxiasTreasurySMCAddress))
-	for i := range valsList {
-		statedb.SetCode(valsList[i], common.FromHex(configs.GalaxiasValidatorsSMCBytecode))
-	}
+// ApplyGalaxiasContracts modifies the state database according to the Galaxias Mainnet hardfork rules:
+// - Apply new staking, params, treasury contracts' bytecode
+func ApplyGalaxiasContracts(statedb *state.StateDB) {
+	statedb.SetCode(configs.StakingContractAddress, common.FromHex(configs.GalaxiasStakingSMCBytecode))
+	statedb.SetCode(configs.ParamsSMCAddress, common.FromHex(configs.GalaxiasParamsSMCBytecode))
+	statedb.SetCode(configs.TreasurySMCAddress, common.FromHex(configs.GalaxiasTreasurySMCBytecode))
 }
