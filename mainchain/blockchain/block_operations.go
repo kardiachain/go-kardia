@@ -24,13 +24,13 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/kvm"
-	"github.com/kardiachain/go-kardia/mainchain/staking"
-	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
-	"github.com/kardiachain/go-kardia/mainchain/staking/misc"
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
+	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/mainchain/staking"
+	"github.com/kardiachain/go-kardia/mainchain/staking/misc"
+	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -344,8 +344,11 @@ func (bo *BlockOperations) commitBlock(txs types.Transactions, header *types.Hea
 	}
 
 	// Mutate the block and state according to any hard-fork specs
-	if bo.blockchain.chainConfig.GalaxiasBlock != nil && *bo.blockchain.chainConfig.GalaxiasBlock == header.Height {
-		misc.ApplyGalaxiasContracts(state)
+	// if bo.blockchain.chainConfig.GalaxiasBlock != nil && *bo.blockchain.chainConfig.GalaxiasBlock == header.Height {
+	// for devnet testing
+	if bo.blockchain.chainConfig.GalaxiasBlock != nil && header.Height == 53100 {
+		valsList, _ := bo.staking.GetAllValContracts(state, header, bo.blockchain, bo.blockchain.vmConfig)
+		misc.ApplyGalaxiasContracts(state, valsList)
 		bo.logger.Info("CHECKPOINT: Apply Galaxias hard fork successfully at", "block", header.Height)
 	}
 

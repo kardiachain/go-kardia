@@ -7,6 +7,9 @@ import (
 
 var (
 	DefaultStakingContractAddress = "0x0000000000000000000000000000000000001337"
+	// Deployed at genesis
+	ParamsSMCAddress   = common.HexToAddress("0x910cBd665263306807e5ace0351e4358dc6164d8")
+	TreasurySMCAddress = common.HexToAddress("0x008326058f791258342925F0171aE555284e8741")
 
 	StakingContractKey           = "Staking"
 	ValidatorContractKey         = "Validator"
