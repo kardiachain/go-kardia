@@ -80,6 +80,10 @@ func (bo *BlockOperations) Base() uint64 {
 	return bo.base
 }
 
+func (bo *BlockOperations) Config() *configs.ChainConfig {
+	return bo.blockchain.chainConfig
+}
+
 // Height returns latest height of blockchain.
 func (bo *BlockOperations) Height() uint64 {
 	bo.mtx.RLock()
