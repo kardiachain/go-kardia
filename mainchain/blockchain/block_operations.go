@@ -345,9 +345,13 @@ func (bo *BlockOperations) commitBlock(txs types.Transactions, header *types.Hea
 
 	// Mutate the block and state according to any hard-fork specs
 	if bo.blockchain.chainConfig.GalaxiasBlock != nil && *bo.blockchain.chainConfig.GalaxiasBlock == header.Height {
-		valsList, _ := bo.staking.GetAllValContracts(state, header, bo.blockchain, bo.blockchain.vmConfig)
+		valsList, err := bo.staking.GetAllValContracts(state, header, bo.blockchain, bo.blockchain.vmConfig)
+		if err != nil {
+			bo.logger.Error("Failed to apply Galaxias Staking hardfork")
+			return nil, common.Hash{}, nil, err
+		}
 		misc.ApplyGalaxiasContracts(state, valsList)
-		bo.logger.Info("CHECKPOINT: Apply Galaxias hard fork successfully at", "block", header.Height)
+		bo.logger.Info("Applied Galaxias hardfork successfully at", "block", header.Height)
 	}
 
 	// GasPool
