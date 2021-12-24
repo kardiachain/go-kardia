@@ -344,9 +344,7 @@ func (bo *BlockOperations) commitBlock(txs types.Transactions, header *types.Hea
 	}
 
 	// Mutate the block and state according to any hard-fork specs
-	// if bo.blockchain.chainConfig.GalaxiasBlock != nil && *bo.blockchain.chainConfig.GalaxiasBlock == header.Height {
-	// for devnet testing
-	if bo.blockchain.chainConfig.GalaxiasBlock != nil && header.Height == 53100 {
+	if bo.blockchain.chainConfig.GalaxiasBlock != nil && *bo.blockchain.chainConfig.GalaxiasBlock == header.Height {
 		valsList, _ := bo.staking.GetAllValContracts(state, header, bo.blockchain, bo.blockchain.vmConfig)
 		misc.ApplyGalaxiasContracts(state, valsList)
 		bo.logger.Info("CHECKPOINT: Apply Galaxias hard fork successfully at", "block", header.Height)
@@ -374,10 +372,9 @@ func (bo *BlockOperations) commitBlock(txs types.Transactions, header *types.Hea
 		return nil, common.Hash{}, nil, err
 	}
 
-	tcount := 0
 LOOP:
-	for _, tx := range txs {
-		state.Prepare(tx.Hash(), header.Hash(), tcount)
+	for i, tx := range txs {
+		state.Prepare(tx.Hash(), header.Hash(), i)
 		snap := state.Snapshot()
 		receipt, _, err := ApplyTransaction(bo.blockchain.chainConfig, bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvmConfig)
 		if err != nil {
@@ -385,7 +382,7 @@ LOOP:
 			state.RevertToSnapshot(snap)
 			continue LOOP
 		}
-		tcount++
+		i++
 		receipts = append(receipts, receipt)
 	}
 
