@@ -61,7 +61,15 @@ func (c *ChainConfig) String() string {
 	)
 }
 
-// IsGalaxias returns the comparison head block height for Galaxias fork
+// Is1p5 returns the comparison head block height for v1.5 softfork
+func (c *ChainConfig) Is1p5(height *uint64) bool {
+	if *height >= 63005 && !c.IsGalaxias(height) {
+		return true
+	}
+	return false
+}
+
+// IsGalaxias returns the comparison head block height for Galaxias hardfork
 func (c *ChainConfig) IsGalaxias(height *uint64) bool {
 	return isForked(c.GalaxiasBlock, height)
 }

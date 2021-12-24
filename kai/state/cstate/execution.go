@@ -179,8 +179,6 @@ func getBeginBlockValidatorInfo(cfg *configs.ChainConfig, b *types.Block, store 
 				commitSize, valSetLen, b.Height(), lastCommit.Signatures, lastValSet.Validators))
 		}
 
-		isGalaxias := cfg.IsGalaxias(&b.Header().Height)
-
 		for i, val := range lastValSet.Validators {
 			commitSig := lastCommit.Signatures[i]
 			voteInfos[i] = stypes.VoteInfo{
@@ -188,8 +186,8 @@ func getBeginBlockValidatorInfo(cfg *configs.ChainConfig, b *types.Block, store 
 				VotingPower:     big.NewInt(int64(val.VotingPower)),
 				SignedLastBlock: commitSig.Signature != nil,
 			}
-
-			if b.Height() > 63004 && !isGalaxias {
+			// v1.5 ugly hacks
+			if cfg.Is1p5(&b.Header().Height) {
 				voteInfos[i].SignedLastBlock = true
 			}
 		}
