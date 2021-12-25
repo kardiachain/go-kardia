@@ -24,13 +24,13 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/kvm"
-	"github.com/kardiachain/go-kardia/mainchain/staking"
-	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
-
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
+	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/mainchain/staking"
+	"github.com/kardiachain/go-kardia/mainchain/staking/misc"
+	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -78,6 +78,10 @@ func (bo *BlockOperations) Base() uint64 {
 	bo.mtx.RLock()
 	defer bo.mtx.RUnlock()
 	return bo.base
+}
+
+func (bo *BlockOperations) Config() *configs.ChainConfig {
+	return bo.blockchain.chainConfig
 }
 
 // Height returns latest height of blockchain.
@@ -343,6 +347,17 @@ func (bo *BlockOperations) commitBlock(txs types.Transactions, header *types.Hea
 		return nil, common.Hash{}, nil, err
 	}
 
+	// Mutate the block and state according to any hard-fork specs
+	if bo.blockchain.chainConfig.GalaxiasBlock != nil && *bo.blockchain.chainConfig.GalaxiasBlock == header.Height {
+		valsList, err := bo.staking.GetAllValContracts(state, header, bo.blockchain, bo.blockchain.vmConfig)
+		if err != nil {
+			bo.logger.Error("Failed to apply Galaxias Staking hardfork")
+			return nil, common.Hash{}, nil, err
+		}
+		misc.ApplyGalaxiasContracts(state, valsList)
+		bo.logger.Info("Applied Galaxias hardfork successfully at", "block", header.Height)
+	}
+
 	// GasPool
 	bo.logger.Info("header gas limit", "limit", header.GasLimit)
 	gasPool := new(types.GasPool).AddGas(header.GasLimit)
@@ -365,10 +380,9 @@ func (bo *BlockOperations) commitBlock(txs types.Transactions, header *types.Hea
 		return nil, common.Hash{}, nil, err
 	}
 
-	tcount := 0
 LOOP:
-	for _, tx := range txs {
-		state.Prepare(tx.Hash(), header.Hash(), tcount)
+	for i, tx := range txs {
+		state.Prepare(tx.Hash(), header.Hash(), i)
 		snap := state.Snapshot()
 		receipt, _, err := ApplyTransaction(bo.blockchain.chainConfig, bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvmConfig)
 		if err != nil {
@@ -376,7 +390,7 @@ LOOP:
 			state.RevertToSnapshot(snap)
 			continue LOOP
 		}
-		tcount++
+		i++
 		receipts = append(receipts, receipt)
 	}
 

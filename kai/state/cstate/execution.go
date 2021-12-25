@@ -23,6 +23,7 @@ import (
 	"math/big"
 
 	fail "github.com/ebuchman/fail-test"
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
@@ -39,6 +40,7 @@ type EvidencePool interface {
 // BlockStore ...
 type BlockStore interface {
 	CommitAndValidateBlockTxs(*types.Block, stypes.LastCommitInfo, []stypes.Evidence) ([]*types.Validator, common.Hash, error)
+	Config() *configs.ChainConfig
 }
 
 //-----------------------------------------------------------------------------
@@ -95,7 +97,7 @@ func (blockExec *BlockExecutor) ApplyBlock(state LatestBlockState, blockID types
 		byzVals = append(byzVals, ev.VM()...)
 	}
 
-	commitInfo := getBeginBlockValidatorInfo(block, blockExec.store)
+	commitInfo := getBeginBlockValidatorInfo(blockExec.bc.Config(), block, blockExec.store)
 
 	valUpdates, appHash, err := blockExec.bc.CommitAndValidateBlockTxs(block, commitInfo, byzVals)
 	if err != nil {
@@ -154,7 +156,7 @@ func updateState(logger log.Logger, state LatestBlockState, blockID types.BlockI
 	}, nil
 }
 
-func getBeginBlockValidatorInfo(b *types.Block, store Store) stypes.LastCommitInfo {
+func getBeginBlockValidatorInfo(cfg *configs.ChainConfig, b *types.Block, store Store) stypes.LastCommitInfo {
 	lastCommit := b.LastCommit()
 	voteInfos := make([]stypes.VoteInfo, lastCommit.Size())
 	// block.Height=1 -> LastCommitInfo.Votes are empty.
@@ -184,8 +186,8 @@ func getBeginBlockValidatorInfo(b *types.Block, store Store) stypes.LastCommitIn
 				VotingPower:     big.NewInt(int64(val.VotingPower)),
 				SignedLastBlock: commitSig.Signature != nil,
 			}
-
-			if b.Height() > 63004 {
+			// v1.5 ugly hacks
+			if cfg.Is1p5(&b.Header().Height) {
 				voteInfos[i].SignedLastBlock = true
 			}
 		}

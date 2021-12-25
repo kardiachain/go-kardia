@@ -23,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
 
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
@@ -84,6 +85,11 @@ func (dbo *DualBlockOperations) Base() uint64 {
 	dbo.mtx.RLock()
 	defer dbo.mtx.RUnlock()
 	return dbo.base
+}
+
+// Height returns latest height of blockchain.
+func (dbo *DualBlockOperations) Config() *configs.ChainConfig {
+	return dbo.blockchain.chainConfig
 }
 
 // Height returns latest height of blockchain.
