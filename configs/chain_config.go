@@ -30,7 +30,7 @@ import (
 // set of configuration options.
 type ChainConfig struct {
 	ChainID       *big.Int `json:"chainId,omitempty" yaml:"ChainID"`             // chainId identifies the current chain and is used for replay protection
-	GalaxiasBlock *uint64  `json:"galaxiasBlock,omitempty" yaml:"galaxiasBlock"` // Mainnet V2 switch block (nil = no fork, 0 = already V2)
+	GalaxiasBlock *uint64  `json:"galaxiasBlock,omitempty" yaml:"galaxiasBlock"` // Mainnet Galaxias switch block (nil = no fork, 0 = already Galaxias)
 
 	// Various consensus engines
 	Kaicon *KaiconConfig `json:"kaicon,omitempty" yaml:"KaiconConfig"`

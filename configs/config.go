@@ -48,11 +48,14 @@ var (
 )
 
 var (
-	MainnetChainID    = big.NewInt(24)
-	TestnetChainID    = big.NewInt(242)
-	MainnetNetworkID  = uint64(100)
-	TestnetNetworkID  = uint64(1000)
-	galaxiasForkBlock = uint64(10)
+	// ChainID
+	MainnetChainID = big.NewInt(24)
+	TestnetChainID = big.NewInt(242)
+	// Network ID
+	MainnetNetworkID = uint64(100)
+	TestnetNetworkID = uint64(1000)
+	// scheduled block for Galaxias Hardfork
+	galaxiasForkBlock = uint64(6039393)
 
 	// MainnetChainConfig is the chain parameters to run a node on the main network.
 	MainnetChainConfig = &ChainConfig{
