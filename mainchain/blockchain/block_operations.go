@@ -140,10 +140,17 @@ func (bo *BlockOperations) CreateProposalBlock(
 // organizeTransactions sort and validate transactions in block to propose
 func (bo *BlockOperations) organizeTransactions(header *types.Header) []*types.Transaction {
 	pending, err := bo.txPool.Pending()
-	// @lewtran: panic here?
 	if err != nil {
 		bo.logger.Error("Cannot fetch pending transactions", "err", err)
+		return nil
 	}
+
+	state, err := bo.blockchain.State()
+	if err != nil {
+		log.Error("Failed to get blockchain head state", "err", err)
+		return nil
+	}
+
 	if len(pending) == 0 {
 		return nil
 	}
@@ -154,7 +161,6 @@ func (bo *BlockOperations) organizeTransactions(header *types.Header) []*types.T
 	signer := types.LatestSigner(bo.blockchain.chainConfig)
 	txSet := types.NewTransactionsByPriceAndNonce(signer, pending)
 	gasPool := new(types.GasPool).AddGas(header.GasLimit)
-	state := bo.txPool.State().Copy()
 	tcount := 0
 	var usedGas = new(uint64)
 	kvmConfig := kvm.Config{}

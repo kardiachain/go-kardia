@@ -166,7 +166,7 @@ func (bo *BlockOperations) newProposalBlock(header *types.Header) (*proposalBloc
 		signer:   types.LatestSigner(bo.blockchain.chainConfig),
 		state:    state,
 		tcount:   0,
-		gasLimit: configs.BlockGasLimit,
+		gasLimit: configs.BlockGasLimitGalaxias,
 		usedGas:  new(uint64),
 		header:   header,
 		txs:      []*types.Transaction{},
