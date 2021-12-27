@@ -243,8 +243,12 @@ func (st *StateTransition) TransitionDb() (*kvm.ExecutionResult, error) {
 
 	contractCreation := msg.To() == nil
 
+	var (
+		height = st.vm.BlockContext.BlockHeight.Uint64()
+	)
 	// Check clauses 4-5, subtract intrinsic gas if everything is correct
-	gas, err := tx_pool.IntrinsicGas(st.data, contractCreation)
+	isGalaxias := st.vm.ChainConfig().IsGalaxias(&height)
+	gas, err := tx_pool.IntrinsicGas(st.data, contractCreation, !isGalaxias)
 	if err != nil {
 		return nil, err
 	}

@@ -702,7 +702,7 @@ func (jst *jsTracer) CaptureStart(env *kvm.KVM, from common.Address, to common.A
 	jst.activePrecompiles = kvm.ActivePrecompiles()
 
 	// Compute intrinsic gas
-	intrinsicGas, err := tx_pool.IntrinsicGas(input, jst.ctx["type"] == "CREATE")
+	intrinsicGas, err := tx_pool.IntrinsicGas(input, jst.ctx["type"] == "CREATE", false)
 	if err != nil {
 		return
 	}
