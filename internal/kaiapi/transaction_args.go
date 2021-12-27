@@ -63,10 +63,10 @@ type TransactionArgs struct {
 
 // from retrieves the transaction sender address.
 func (arg *TransactionArgs) from() common.Address {
-	if arg.From != nil {
-		return *arg.From
+	if arg.From == nil {
+		return common.Address{}
 	}
-	return configs.GenesisDeployerAddr
+	return *arg.From
 }
 
 // data retrieves the transaction calldata. Input field is preferred.
