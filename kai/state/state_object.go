@@ -81,6 +81,7 @@ type stateObject struct {
 
 	cachedStorage Storage // Storage entry cache to avoid duplicate reads
 	dirtyStorage  Storage // Storage entries that need to be flushed to disk
+	fakeStorage   Storage // Fake storage which constructed by caller for debugging purpose.
 
 	// Cache flags.
 	// When an object is marked suicided it will be delete from the trie
@@ -267,6 +268,24 @@ func (so *stateObject) GetState(db Database, key common.Hash) common.Hash {
 	}
 	so.cachedStorage[key] = value
 	return value
+}
+
+// SetStorage replaces the entire state storage with the given one.
+//
+// After this function is called, all original state will be ignored and state
+// lookup only happens in the fake state storage.
+//
+// Note this function should only be used for debugging purpose.
+func (so *stateObject) SetStorage(storage map[common.Hash]common.Hash) {
+	// Allocate fake storage if it's nil.
+	if so.fakeStorage == nil {
+		so.fakeStorage = make(Storage)
+	}
+	for key, value := range storage {
+		so.fakeStorage[key] = value
+	}
+	// Don't bother journal since this function should only be used for
+	// debugging and the `fake` storage won't be committed to database.
 }
 
 // SetState updates a value in account storage.

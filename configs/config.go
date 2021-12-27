@@ -29,10 +29,8 @@ import (
 	kaiproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 )
 
-// TODO(huny): Get the proper genesis hash for Kardia when ready
 // Genesis hashes to enforce below configs on.
 var (
-	DefaultChainID  = uint64(1)
 	EthDualChainID  = uint64(2)
 	NeoDualChainID  = uint64(3)
 	TronDualChainID = uint64(4)
@@ -50,12 +48,23 @@ var (
 )
 
 var (
+	// ChainID
+	MainnetChainID = big.NewInt(24)
+	TestnetChainID = big.NewInt(242)
+	// Network ID
+	MainnetNetworkID = uint64(100)
+	TestnetNetworkID = uint64(1000)
+	// scheduled block for Galaxias Hardfork
+	galaxiasForkBlock = uint64(6039393)
+
 	// MainnetChainConfig is the chain parameters to run a node on the main network.
 	MainnetChainConfig = &ChainConfig{
 		Kaicon: &KaiconConfig{
 			Period: 15,
 			Epoch:  30000,
 		},
+		GalaxiasBlock: &galaxiasForkBlock,
+		ChainID:       MainnetChainID,
 	}
 
 	// TestnetChainConfig contains the chain parameters to run a node on the test network.
@@ -64,6 +73,8 @@ var (
 			Period: 15,
 			Epoch:  30000,
 		},
+		GalaxiasBlock: &galaxiasForkBlock,
+		ChainID:       TestnetChainID,
 	}
 
 	// TestChainConfig contains the chain parameters to run unit test.
@@ -72,18 +83,10 @@ var (
 			Period: 15,
 			Epoch:  30000,
 		},
+		GalaxiasBlock: &galaxiasForkBlock,
+		ChainID:       MainnetChainID,
 	}
 )
-
-func configNumEqual(x, y *big.Int) bool {
-	if x == nil {
-		return y == nil
-	}
-	if y == nil {
-		return x == nil
-	}
-	return x.Cmp(y) == 0
-}
 
 type Config struct {
 	Consensus *ConsensusConfig
@@ -100,9 +103,9 @@ func DefaultConsensusParams() *kaiproto.ConsensusParams {
 			TimeIotaMs: 1000,
 		},
 		Evidence: kaiproto.EvidenceParams{
-			MaxAgeNumBlocks: 100000, // 27.8 hrs at 1block/s
+			MaxAgeNumBlocks: 100000,
 			MaxAgeDuration:  48 * time.Hour,
-			MaxBytes:        1048576, // 1MB
+			MaxBytes:        1048576,
 		},
 	}
 }
@@ -116,9 +119,9 @@ func TestConsensusParams() *kaiproto.ConsensusParams {
 		TimeIotaMs: 1000,
 	}
 	csParams.Evidence = kaiproto.EvidenceParams{
-		MaxAgeNumBlocks: 100000, // 27.8 hrs at 1block/s
+		MaxAgeNumBlocks: 100000,
 		MaxAgeDuration:  48 * time.Hour,
-		MaxBytes:        1048576, // 1MB
+		MaxBytes:        1048576,
 	}
 	return csParams
 }

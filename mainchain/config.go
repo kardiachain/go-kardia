@@ -19,6 +19,8 @@
 package kai
 
 import (
+	"math/big"
+
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
@@ -38,9 +40,8 @@ var DefaultConfig = Config{
 
 type Config struct {
 	// Protocol options
-	NetworkId uint64 // Network
-
-	ChainId uint64
+	ChainId   *big.Int
+	NetworkId uint64
 
 	// The genesis block, which is inserted if the database is empty.
 	// If nil, the Kardia main net block is used.

@@ -21,17 +21,13 @@ package types
 import (
 	"container/heap"
 	"crypto/ecdsa"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"math/big"
-	"strconv"
 	"sync/atomic"
 	"time"
 
-	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/rlp"
@@ -121,6 +117,13 @@ func (tx *Transaction) DecodeRLP(s *rlp.Stream) error {
 	return err
 }
 
+// MarshalBinary returns the canonical encoding of the transaction.
+// For legacy transactions, it returns the RLP encoding. For EIP-2718 typed
+// transactions, it returns the type and payload.
+func (tx *Transaction) MarshalBinary() ([]byte, error) {
+	return rlp.EncodeToBytes(tx.data)
+}
+
 func (tx *Transaction) Data() []byte       { return common.CopyBytes(tx.data.Payload) }
 func (tx *Transaction) Gas() uint64        { return tx.data.GasLimit }
 func (tx *Transaction) GasPrice() *big.Int { return new(big.Int).Set(tx.data.Price) }
@@ -130,6 +133,7 @@ func (tx *Transaction) GasPriceCmp(other *Transaction) int {
 func (tx *Transaction) GasPriceIntCmp(other *big.Int) int {
 	return tx.data.Price.Cmp(other)
 }
+
 func (tx *Transaction) Value() *big.Int  { return new(big.Int).Set(tx.data.Amount) }
 func (tx *Transaction) Nonce() uint64    { return tx.data.AccountNonce }
 func (tx *Transaction) CheckNonce() bool { return true }
@@ -153,6 +157,25 @@ func (tx *Transaction) Hash() common.Hash {
 	v := rlpHash(tx)
 	tx.hash.Store(v)
 	return v
+}
+
+// ChainId returns which chain id this transaction was signed for (if at all)
+func (tx *Transaction) ChainId() *big.Int {
+	return deriveChainId(tx.data.V)
+}
+
+func isProtectedV(V *big.Int) bool {
+	if V.BitLen() <= 8 {
+		v := V.Uint64()
+		return v != 27 && v != 28
+	}
+	// anything not 27 or 28 is considered protected
+	return true
+}
+
+// Protected says whether the transaction is replay-protected.
+func (tx *Transaction) Protected() bool {
+	return tx.data.V != nil && isProtectedV(tx.data.V)
 }
 
 // Size returns the true RLP encoded storage size of the transaction, either by
@@ -449,10 +472,6 @@ func TxDifference(a, b Transactions) (keep Transactions) {
 //==============================================================================
 // Logic to handle transaction signing
 //==============================================================================
-// sigCache is used to cache the derived sender
-type sigCache struct {
-	from common.Address
-}
 
 // SignTx signs the transaction using the given signer and private key
 func SignTx(signer Signer, tx *Transaction, prv *ecdsa.PrivateKey) (*Transaction, error) {
@@ -477,21 +496,21 @@ func sigHash(tx *Transaction) common.Hash {
 	})
 }
 
-func recoverPlain(sighash common.Hash, R, S, Vb *big.Int) (common.Address, error) {
+func recoverPlain(sighash common.Hash, R, S, Vb *big.Int, homestead bool) (common.Address, error) {
 	if Vb.BitLen() > 8 {
 		return common.Address{}, ErrInvalidSig
 	}
 	V := byte(Vb.Uint64() - 27)
-	if !crypto.ValidateSignatureValues(V, R, S) {
+	if !crypto.ValidateSignatureValues(V, R, S, homestead) {
 		return common.Address{}, ErrInvalidSig
 	}
-	// encode the snature in uncompressed format
+	// encode the signature in uncompressed format
 	r, s := R.Bytes(), S.Bytes()
-	sig := make([]byte, 65)
+	sig := make([]byte, crypto.SignatureLength)
 	copy(sig[32-len(r):32], r)
 	copy(sig[64-len(s):64], s)
 	sig[64] = V
-	// recover the public key from the snature
+	// recover the public key from the signature
 	pub, err := crypto.Ecrecover(sighash[:], sig)
 	if err != nil {
 		return common.Address{}, err
@@ -539,118 +558,3 @@ func (m Message) Gas() uint64          { return m.gasLimit }
 func (m Message) Nonce() uint64        { return m.nonce }
 func (m Message) Data() []byte         { return m.data }
 func (m Message) CheckNonce() bool     { return m.checkNonce }
-
-// CallArgs represents the arguments for a call.
-type CallArgs struct {
-	From     *common.Address `json:"from"`
-	To       *common.Address `json:"to"`
-	Gas      uint64          `json:"gas"`
-	GasPrice *big.Int        `json:"gasPrice"`
-	Value    *big.Int        `json:"value"`
-	Data     common.Bytes    `json:"data"`
-}
-
-type CallArgsJSON struct {
-	From     string   `json:"from"`     // the sender of the 'transaction'
-	To       *string  `json:"to"`       // the destination contract (nil for contract creation)
-	Gas      uint64   `json:"gas"`      // if 0, the call executes with near-infinite gas
-	GasPrice *big.Int `json:"gasPrice"` // HYDRO <-> gas exchange ratio
-	Value    *big.Int `json:"value"`    // amount of HYDRO sent along with the call
-	Data     string   `json:"data"`     // input data, usually an ABI-encoded contract method invocation
-}
-
-// UnmarshalJSON parses request response to a CallArgsJSON
-func (args *CallArgsJSON) UnmarshalJSON(data []byte) error {
-	params := make(map[string]interface{})
-	err := json.Unmarshal(data, &params)
-	if err != nil {
-		return err
-	}
-
-	toAddress, ok := params["to"].(string)
-	if !ok {
-		return ErrParseError
-	}
-	args.To = &toAddress
-	args.From, ok = params["from"].(string)
-	if !ok {
-		args.From = configs.GenesisDeployerAddr.Hex() // default to Genesis Deployer address if nil
-	}
-	args.Data, ok = params["data"].(string)
-	if !ok {
-		return ErrParseError
-	}
-
-	if gas, ok := params["gas"].(float64); ok {
-		args.Gas = uint64(gas)
-	} else {
-		gasStr, ok := params["gas"].(string)
-		if !ok {
-			args.Gas = configs.GasLimitCap // default to gas limit cap of node
-		} else {
-			args.Gas, err = strconv.ParseUint(gasStr, 10, 64)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	if gasPrice, ok := params["gasPrice"].(float64); ok {
-		args.GasPrice = new(big.Int).SetUint64(uint64(gasPrice))
-	} else {
-		gasPriceStr, ok := params["gasPrice"].(string)
-		if !ok {
-			args.GasPrice = new(big.Int).SetUint64(0) // default to 0 OXY gas price
-		} else {
-			args.GasPrice, ok = new(big.Int).SetString(gasPriceStr, 10)
-			if !ok {
-				return ErrParseError
-			}
-		}
-	}
-	if value, ok := params["value"].(float64); ok {
-		args.Value = new(big.Int).SetUint64(uint64(value))
-	} else {
-		valueStr, ok := params["value"].(string)
-		if !ok {
-			args.Value = new(big.Int).SetUint64(0) // default to 0 KAI in value
-		} else {
-			args.Value, ok = new(big.Int).SetString(valueStr, 10)
-			if !ok {
-				return ErrParseError
-			}
-		}
-	}
-	return nil
-}
-
-// ToMessage converts CallArgs to the Message type used by the core evm
-func (args *CallArgsJSON) ToMessage() Message {
-	callArgs := new(CallArgs)
-
-	// Set receiver address or use zero address if none specified.
-	fromAddr := common.HexToAddress(args.From)
-	if fromAddr.Equal(common.Address{}) {
-		fromAddr = configs.GenesisDeployerAddr
-	}
-
-	// Set receiver address or use zero address if none specified.
-	toAddr := common.HexToAddress(*args.To)
-	if args.To != nil {
-		callArgs.To = &toAddr
-	}
-
-	callArgs.Gas = args.Gas
-	// Set default gas if none were set
-	if args.Gas == 0 {
-		callArgs.Gas = uint64(math.MaxUint64 / 2)
-	}
-
-	if args.Gas > configs.GasLimitCap {
-		args.Gas = configs.GasLimitCap
-	}
-
-	callArgs.Data = common.FromHex(args.Data)
-
-	msg := NewMessage(fromAddr, &toAddr, 0, args.Value, callArgs.Gas, args.GasPrice, callArgs.Data, false)
-	return msg
-}

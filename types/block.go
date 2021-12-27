@@ -368,6 +368,18 @@ func CopyCommit(c *Commit) *Commit {
 
 func (b *Block) Transactions() Transactions { return b.transactions }
 
+func (b *Block) TransactionsByPriceAndNonce(signer Signer) *TransactionsByPriceAndNonce {
+	if b.Transactions() == nil {
+		return nil
+	}
+	txs := make(map[common.Address]Transactions)
+	for _, tx := range b.Transactions() {
+		acc, _ := Sender(signer, tx)
+		txs[acc] = append(txs[acc], tx)
+	}
+	return NewTransactionsByPriceAndNonce(signer, txs)
+}
+
 func (b *Block) Transaction(hash common.Hash) *Transaction {
 	for _, transaction := range b.transactions {
 		if transaction.Hash() == hash {
@@ -398,6 +410,7 @@ func (b *Block) Time() time.Time  { return b.header.Time }
 func (b *Block) NumTxs() uint64   { return b.header.NumTxs }
 
 func (b *Block) ProposerAddress() common.Address { return b.header.ProposerAddress }
+func (b *Block) LastBlockHash() common.Hash      { return b.header.LastBlockID.Hash }
 func (b *Block) LastCommitHash() common.Hash     { return b.header.LastCommitHash }
 func (b *Block) TxHash() common.Hash             { return b.header.TxHash }
 func (b *Block) ValidatorHash() common.Hash      { return b.header.ValidatorsHash }

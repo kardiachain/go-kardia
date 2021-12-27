@@ -30,6 +30,10 @@ import (
 	"golang.org/x/crypto/ripemd160"
 )
 
+var (
+	PrecompiledAddressesV0 []common.Address
+)
+
 // PrecompiledContract is the basic interface for native Go contracts. The implementation
 // requires a deterministic gas count based on the input size of the Run method of the
 // contract.
@@ -40,7 +44,6 @@ type PrecompiledContract interface {
 
 // PrecompiledContractsV0 contains the default set of pre-compiled Kardia
 // contracts used in v0.
-// TODO(huny@): Watch these closely and add more precompiled contracts as needed
 var PrecompiledContractsV0 = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{1}): &ecrecover{},
 	common.BytesToAddress([]byte{2}): &sha256hash{},
@@ -50,6 +53,14 @@ var PrecompiledContractsV0 = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{6}): &bn256Add{},
 	common.BytesToAddress([]byte{7}): &bn256ScalarMul{},
 	common.BytesToAddress([]byte{8}): &bn256Pairing{},
+}
+
+// ActivePrecompiles returns the precompiles enabled with the current configuration.
+func ActivePrecompiles() []common.Address {
+	switch {
+	default:
+		return PrecompiledAddressesV0
+	}
 }
 
 // RunPrecompiledContract runs and evaluates the output of a precompiled contract.
@@ -86,7 +97,7 @@ func (c *ecrecover) Run(input []byte) ([]byte, error) {
 	v := input[63] - 27
 
 	// tighter sig s values input homestead only apply to tx sigs
-	if !allZero(input[32:63]) || !crypto.ValidateSignatureValues(v, r, s) {
+	if !allZero(input[32:63]) || !crypto.ValidateSignatureValues(v, r, s, true) {
 		return nil, nil
 	}
 

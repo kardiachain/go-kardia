@@ -307,6 +307,12 @@ func (s *KardiaService) APIs() []rpc.API {
 			Public:    true,
 		},
 		{
+			Namespace: "txpool",
+			Version:   "1.0",
+			Service:   NewPublicTxPoolAPI(s),
+			Public:    true,
+		},
+		{
 			Namespace: "eth",
 			Version:   "1.0",
 			Service:   &publicWeb3API{s.nodeConfig},
@@ -330,3 +336,4 @@ func (s *KardiaService) APIs() []rpc.API {
 func (s *KardiaService) TxPool() *tx_pool.TxPool            { return s.txPool }
 func (s *KardiaService) BlockChain() *blockchain.BlockChain { return s.blockchain }
 func (s *KardiaService) DB() types.StoreDB                  { return s.kaiDb }
+func (s *KardiaService) Config() *configs.ChainConfig       { return s.blockchain.Config() }

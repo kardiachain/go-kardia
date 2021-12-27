@@ -104,7 +104,7 @@ func (dbc *DualBlockChain) P2P() *configs.P2PConfig {
 }
 
 // Config retrieves the blockchain's chain configuration.
-func (dbc *DualBlockChain) Config() *configs.ChainConfig { return dbc.chainConfig }
+func (dbc *DualBlockChain) ChainConfig() *configs.ChainConfig { return dbc.chainConfig }
 
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database. It initialises the default Kardia Validator and Processor.

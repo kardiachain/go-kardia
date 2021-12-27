@@ -31,7 +31,6 @@ import (
 type flags struct {
 	genesis string
 	kardia  string
-	dual    string
 	network string
 }
 
@@ -46,17 +45,14 @@ var (
 		Mainnet: flags{
 			genesis: "./cfg/genesis.yaml",
 			kardia:  "./cfg/kai_config.yaml",
-			dual:    "",
 		},
 		Testnet: flags{
 			genesis: "./cfg/genesis_testnet.yaml",
 			kardia:  "./cfg/kai_config_testnet.yaml",
-			dual:    "",
 		},
 		Devnet: flags{
 			genesis: "./cfg/genesis_devnet.yaml",
 			kardia:  "./cfg/kai_config_devnet.yaml",
-			dual:    "",
 		},
 	}
 )
@@ -64,7 +60,6 @@ var (
 func initFlag(args *flags) {
 	flag.StringVar(&args.genesis, "genesis", "", "Path to genesis config file. Default: ${wd}/cfg/genesis.yaml")
 	flag.StringVar(&args.kardia, "node", "", "Path to Kardia node config file. Default: ${wd}/cfg/kai_config.yaml")
-	flag.StringVar(&args.dual, "dual", "", "Path to dual node config file. Default: \"\"")
 	flag.StringVar(&args.network, "network", "mainnet", "Target network, choose one [mainnet, testnet, devnet]. Default: \"mainnet\"")
 }
 
@@ -82,9 +77,6 @@ func finalizeConfigParams(args *flags) {
 	}
 	if args.kardia == "" {
 		args.kardia = defaultFlags[args.network].kardia
-	}
-	if args.dual == "" {
-		args.dual = defaultFlags[args.network].dual
 	}
 }
 
@@ -122,18 +114,6 @@ func LoadConfig(args flags) (*Config, error) {
 		return nil, errors.Wrap(err, "cannot unmarshal node config")
 	}
 	config.Genesis = config.MainChain.Genesis
-
-	if args.dual != "" {
-		chainCfgFile := filepath.Join(wd, args.dual)
-		chainCfg, err := ioutil.ReadFile(chainCfgFile)
-		if err != nil {
-			return nil, errors.Wrap(err, "cannot read dual node config")
-		}
-		err = yaml.Unmarshal(chainCfg, &config.DualChain)
-		if err != nil {
-			return nil, errors.Wrap(err, "cannot unmarshal dual node config")
-		}
-	}
 
 	return &config, nil
 }

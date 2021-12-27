@@ -11,6 +11,7 @@ Node:
     - debug
     - net
     - eth
+    - txpool
     - web3
   HTTPVirtualHosts:       # virtual hosts connection
     - 0.0.0.0
@@ -22,6 +23,10 @@ Node:
     - localhost
   WSHost: 0.0.0.0
   WSPort: 8546
+  WSOrigins:
+    - 0.0.0.0
+    - 127.0.0.1
+    - localhost
   P2P:
     PrivateKey:           # private key without 0x prefix, leave blank for joining as non-validator node
     ListenAddress: tcp://0.0.0.0:3000 # IP and Port for P2P connection
@@ -43,8 +48,6 @@ Node:
     MaxPrice: 500000000000  # maximum gas price this node will accept. Type string
 MainChain:
   ServiceName: KARDIA     # mainchain service name
-  ChainId: 0              # default chainid
-  NetworkId: 100          # default networkid
   AcceptTxs: 1            # accept tx sync process or not (1 is yes, 0 is no)
   Seeds:
     - faf0b7cbd8003dbef341a263cb9e1dd2a41e8acd@13.251.223.247:3000

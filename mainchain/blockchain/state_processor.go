@@ -21,6 +21,7 @@ package blockchain
 import (
 	"math/big"
 
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -37,7 +38,7 @@ import (
 // StateProcessor implements Processor.
 type StateProcessor struct {
 	logger log.Logger
-	bc     *BlockChain // Canonical block chain
+	bc     *BlockChain // Canonical blockchain
 }
 
 // NewStateProcessor initialises a new StateProcessor.
@@ -65,7 +66,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions() {
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
-		receipt, _, err := ApplyTransaction(p.logger, p.bc, gp, statedb, header, tx, usedGas, cfg)
+		receipt, _, err := ApplyTransaction(p.bc.chainConfig, p.logger, p.bc, gp, statedb, header, tx, usedGas, cfg)
 		if err != nil {
 			return nil, nil, 0, err
 		}
@@ -80,17 +81,19 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 // and uses the input parameters for its environment. It returns the receipt
 // for the transaction, gas used and an error if the transaction failed,
 // indicating the block was invalid.
-func ApplyTransaction(logger log.Logger, bc vm.ChainContext, gp *types.GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg kvm.Config) (*types.Receipt, uint64, error) {
-	msg, err := tx.AsMessage(types.HomesteadSigner{})
+func ApplyTransaction(config *configs.ChainConfig, logger log.Logger, bc vm.ChainContext, gp *types.GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg kvm.Config) (*types.Receipt, uint64, error) {
+	msg, err := tx.AsMessage(types.MakeSigner(config, &header.Height))
 	if err != nil {
 		return nil, 0, err
 	}
 	logger.Trace("Apply transaction", "hash", tx.Hash().Hex(), "nonce", msg.Nonce(), "from", msg.From().Hex())
 	// Create a new context to be used in the KVM environment
 	context := vm.NewKVMContext(msg, header, bc)
+	txContext := NewKVMTxContext(msg)
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
-	vmenv := kvm.NewKVM(context, statedb, cfg)
+	vmenv := kvm.NewKVM(context, txContext, statedb, configs.MainnetChainConfig, cfg)
+	vmenv.Reset(txContext, statedb)
 	// Apply the transaction to the current state (included in the env)
 	result, err := ApplyMessage(vmenv, msg, gp)
 	if err != nil {
@@ -107,7 +110,7 @@ func ApplyTransaction(logger log.Logger, bc vm.ChainContext, gp *types.GasPool, 
 	receipt.GasUsed = result.UsedGas
 	// if the transaction created a contract, store the creation address in the receipt.
 	if msg.To() == nil {
-		receipt.ContractAddress = crypto.CreateAddress(vmenv.Context.Origin, tx.Nonce())
+		receipt.ContractAddress = crypto.CreateAddress(vmenv.TxContext.Origin, tx.Nonce())
 	}
 	// Set the receipt logs and create a bloom for filtering
 	receipt.Logs = statedb.GetLogs(tx.Hash())
@@ -297,4 +300,25 @@ func (st *StateTransition) refundGas() {
 // gasUsed returns the amount of gas used up by the state transition.
 func (st *StateTransition) gasUsed() uint64 {
 	return st.initialGas - st.gas
+}
+
+// NewEVMBlockContext creates a new context for use in the EVM.
+func NewKVMBlockContext(header *types.Header, chain vm.ChainContext, author *common.Address) kvm.BlockContext {
+	return kvm.BlockContext{
+		CanTransfer: vm.CanTransfer,
+		Transfer:    vm.Transfer,
+		GetHash:     vm.GetHashFn(header, chain),
+		Coinbase:    *author,
+		BlockHeight: new(big.Int).SetUint64(header.Height),
+		Time:        new(big.Int).SetInt64(header.Time.Unix()),
+		GasLimit:    header.GasLimit,
+	}
+}
+
+// NewKVMTxContext creates a new transaction context for a single transaction.
+func NewKVMTxContext(msg Message) kvm.TxContext {
+	return kvm.TxContext{
+		Origin:   msg.From(),
+		GasPrice: new(big.Int).Set(msg.GasPrice()),
+	}
 }
