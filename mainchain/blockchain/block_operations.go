@@ -19,7 +19,6 @@
 package blockchain
 
 import (
-	"errors"
 	"sync"
 	"time"
 
@@ -130,94 +129,11 @@ func (bo *BlockOperations) CreateProposalBlock(
 		return block, block.MakePartSet(types.BlockPartSizeBytes)
 	}
 
-	txs := bo.organizeTransactions(header)
+	txs := bo.txPool.GetPendingData()
 
 	block = bo.newBlock(header, txs, commit, evidence)
 	bo.logger.Trace("Make block to propose", "block", block)
 	return block, block.MakePartSet(types.BlockPartSizeBytes)
-}
-
-// organizeTransactions sort and validate transactions in block to propose
-func (bo *BlockOperations) organizeTransactions(header *types.Header) []*types.Transaction {
-	pending, err := bo.txPool.Pending()
-	if err != nil {
-		bo.logger.Error("Cannot fetch pending transactions", "err", err)
-		return nil
-	}
-
-	state, err := bo.blockchain.State()
-	if err != nil {
-		log.Error("Failed to get blockchain head state", "err", err)
-		return nil
-	}
-
-	if len(pending) == 0 {
-		return nil
-	}
-	bo.logger.Info("Organizing transactions", "pending", len(pending))
-	var (
-		proposeTxs []*types.Transaction
-	)
-	signer := types.LatestSigner(bo.blockchain.chainConfig)
-	txSet := types.NewTransactionsByPriceAndNonce(signer, pending)
-	gasPool := new(types.GasPool).AddGas(header.GasLimit)
-	tcount := 0
-	var usedGas = new(uint64)
-	kvmConfig := kvm.Config{}
-	for {
-		// If we don't have enough gas for any further transactions then we're done
-		if gasPool.Gas() < configs.TxGas {
-			log.Error("Not enough gas for further transactions", "have", gasPool, "want", configs.TxGas)
-			break
-		}
-
-		// Retrieve the next transaction and abort if all done
-		tx := txSet.Peek()
-		if tx == nil {
-			break
-		}
-
-		// Error may be ignored here. The error has already been checked
-		// during transaction acceptance is the transaction pool.
-		from, _ := types.Sender(signer, tx)
-
-		state.Prepare(tx.Hash(), header.Hash(), tcount)
-		snap := state.Snapshot()
-		_, _, err := ApplyTransaction(bo.blockchain.chainConfig, bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvmConfig)
-		if err != nil {
-			state.RevertToSnapshot(snap)
-		} else {
-			proposeTxs = append(proposeTxs, tx)
-		}
-
-		switch {
-		case errors.Is(err, tx_pool.ErrGasLimitReached):
-			// Pop the current out-of-gas transaction without shifting in the next from the account
-			log.Error("Gas limit exceeded for current block", "sender", from)
-			txSet.Pop()
-
-		case errors.Is(err, tx_pool.ErrNonceTooLow):
-			// New head notification data race between the transaction pool and miner, shift
-			log.Error("Skipping transaction with low nonce", "sender", from, "nonce", tx.Nonce())
-			txSet.Shift()
-
-		case errors.Is(err, tx_pool.ErrNonceTooHigh):
-			// Reorg notification data race between the transaction pool and miner, skip account =
-			log.Error("Skipping account with hight nonce", "sender", from, "nonce", tx.Nonce())
-			txSet.Pop()
-
-		case errors.Is(err, nil):
-			tcount++
-			txSet.Shift()
-
-		default:
-			// Strange error, discard the transaction and get the next in line (note, the
-			// nonce-too-high clause will prevent us from executing in vain).
-			log.Error("Transaction failed, account skipped", "hash", tx.Hash(), "err", err)
-			txSet.Shift()
-		}
-	}
-	return proposeTxs
 }
 
 // CommitAndValidateBlockTxs executes and commits the transactions in the given block.
