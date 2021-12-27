@@ -126,7 +126,7 @@ func TestTracer(t *testing.T) {
 			want: `["PUSH1","PUSH1","STOP"]`,
 		}, { // tests intrinsic gas
 			code: "{depths: [], step: function() {}, fault: function() {}, result: function(ctx) { return ctx.gasPrice+'.'+ctx.gasUsed+'.'+ctx.intrinsicGas; }}",
-			want: `"100000.6.29000"`,
+			want: `"100000.6.21000"`,
 		}, { // tests too deep object / serialization crash
 			code: "{step: function() {}, fault: function() {}, result: function() { var o={}; var x=o; for (var i=0; i<1000; i++){	o.foo={}; o=o.foo; } return x; }}",
 			fail: "RangeError: json encode recursion limit    in server-side tracer function 'result'",

@@ -84,7 +84,7 @@ var (
 			Epoch:  30000,
 		},
 		GalaxiasBlock: &galaxiasForkBlock,
-		ChainID:       MainnetChainID,
+		ChainID:       TestnetChainID,
 	}
 )
 
