@@ -103,11 +103,6 @@ func (bo *BlockOperations) CreateProposalBlock(
 	// Fetch a limited amount of valid evidence
 	maxNumEvidence, _ := types.MaxEvidencePerBlock(lastState.ConsensusParams.Evidence.MaxBytes)
 	evidence, _ := bo.evPool.PendingEvidence(maxNumEvidence)
-	pending, err := bo.txPool.Pending()
-	// @lewtran: panic here?
-	if err != nil {
-		bo.logger.Error("Cannot fetch pending transactions", "err", err)
-	}
 
 	// Set time.
 	var timestamp time.Time
@@ -135,11 +130,7 @@ func (bo *BlockOperations) CreateProposalBlock(
 		return block, block.MakePartSet(types.BlockPartSizeBytes)
 	}
 
-	var txs []*types.Transaction
-	if len(pending) > 0 {
-		bo.logger.Info("Organizing transactions", "pending txs", len(pending))
-		txs = bo.organizeTransactions(pending, header)
-	}
+	txs := bo.organizeTransactions(header)
 
 	block = bo.newBlock(header, txs, commit, evidence)
 	bo.logger.Trace("Make block to propose", "block", block)
@@ -147,12 +138,21 @@ func (bo *BlockOperations) CreateProposalBlock(
 }
 
 // organizeTransactions sort and validate transactions in block to propose
-func (bo *BlockOperations) organizeTransactions(pendingTxs map[common.Address]types.Transactions, header *types.Header) []*types.Transaction {
-	proposeTxs := make([]*types.Transaction, 0)
-
+func (bo *BlockOperations) organizeTransactions(header *types.Header) []*types.Transaction {
+	pending, err := bo.txPool.Pending()
+	// @lewtran: panic here?
+	if err != nil {
+		bo.logger.Error("Cannot fetch pending transactions", "err", err)
+	}
+	if len(pending) == 0 {
+		return nil
+	}
+	bo.logger.Info("Organizing transactions", "pending", len(pending))
+	var (
+		proposeTxs []*types.Transaction
+	)
 	signer := types.LatestSigner(bo.blockchain.chainConfig)
-	txSet := types.NewTransactionsByPriceAndNonce(signer, pendingTxs)
-
+	txSet := types.NewTransactionsByPriceAndNonce(signer, pending)
 	gasPool := new(types.GasPool).AddGas(header.GasLimit)
 	state := bo.txPool.State().Copy()
 	tcount := 0
@@ -210,7 +210,6 @@ func (bo *BlockOperations) organizeTransactions(pendingTxs map[common.Address]ty
 			log.Error("Transaction failed, account skipped", "hash", tx.Hash(), "err", err)
 			txSet.Shift()
 		}
-
 	}
 	return proposeTxs
 }
@@ -314,7 +313,6 @@ func (bo *BlockOperations) LoadSeenCommit(height uint64) *types.Commit {
 func (bo *BlockOperations) newHeader(time time.Time, height uint64, numTxs uint64, blockID types.BlockID,
 	proposer common.Address, validatorsHash common.Hash, nextValidatorHash common.Hash, appHash common.Hash) *types.Header {
 	return &types.Header{
-		// ChainID: state.ChainID, TODO(huny/namdoh): confims that ChainID is replaced by network id.
 		Height:             height,
 		Time:               time,
 		NumTxs:             numTxs,
