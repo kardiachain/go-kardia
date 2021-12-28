@@ -21,6 +21,7 @@ package kai
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
@@ -68,7 +69,7 @@ func (s *PublicWeb3API) GasPrice(ctx context.Context) (*common.Big, error) {
 
 // ChainId returns chain ID for the current KardiaChain config.
 func (s *PublicWeb3API) ChainId() *common.Big {
-	return (*common.Big)(s.kaiService.chainConfig.ChainID)
+	return (*common.Big)(big.NewInt(0))
 }
 
 // BlockNumber returns the block height of the chain head.
