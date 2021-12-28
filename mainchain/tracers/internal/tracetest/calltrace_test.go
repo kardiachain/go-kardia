@@ -336,7 +336,7 @@ func TestZeroValueToNotExitCall(t *testing.T) {
 		CanTransfer: vm.CanTransfer,
 		Transfer:    vm.Transfer,
 		Coinbase:    common.Address{},
-		BlockHeight: new(big.Int).SetUint64(8000000),
+		BlockHeight: new(big.Int).SetUint64(999),
 		Time:        new(big.Int).SetUint64(5),
 		GasLimit:    uint64(6000000),
 	}
@@ -361,7 +361,7 @@ func TestZeroValueToNotExitCall(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create call tracer: %v", err)
 	}
-	env := kvm.NewKVM(context, txContext, statedb, configs.TestChainConfig, kvm.Config{Debug: true, Tracer: tracer})
+	env := kvm.NewKVM(context, txContext, statedb, configs.MainnetChainConfig, kvm.Config{Debug: true, Tracer: tracer})
 	msg, err := tx.AsMessage(signer)
 	if err != nil {
 		t.Fatalf("failed to prepare transaction for tracing: %v", err)
