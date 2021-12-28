@@ -2,6 +2,7 @@ package fetcher
 
 import "errors"
 
+// TODO(@lew): move these errors to universal package
 var (
 	// ErrNonceTooLow is returned if the nonce of a transaction is lower than the
 	// one present in the local chain.
