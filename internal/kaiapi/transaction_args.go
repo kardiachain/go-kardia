@@ -63,8 +63,8 @@ type TransactionArgs struct {
 
 // from retrieves the transaction sender address.
 func (arg *TransactionArgs) from() common.Address {
-	if arg.From == nil {
-		return common.Address{}
+	if arg.From == nil || arg.From.Equal(common.HexToAddress("0x0")) {
+		return configs.GenesisDeployerAddr
 	}
 	return *arg.From
 }
