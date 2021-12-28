@@ -52,8 +52,8 @@ var (
 	MainnetChainID = big.NewInt(24)
 	TestnetChainID = big.NewInt(242)
 	// Network ID
-	MainnetNetworkID = uint64(100)
-	TestnetNetworkID = uint64(1000)
+	MainnetNetworkID = uint64(0)
+	TestnetNetworkID = uint64(69)
 	// scheduled block for Galaxias Hardfork
 	galaxiasForkBlock = uint64(6039393)
 
