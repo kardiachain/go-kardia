@@ -22,10 +22,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"testing"
 
 	"github.com/holiman/uint256"
-
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 )
@@ -92,7 +92,9 @@ func init() {
 
 func testTwoOperandOp(t *testing.T, tests []TwoOperandTestcase, opFn executionFunc, name string) {
 	var (
-		env   = NewKVM(BlockContext{}, TxContext{}, nil, configs.TestChainConfig, Config{})
+		env = NewKVM(BlockContext{
+			BlockHeight: big.NewInt(10),
+		}, TxContext{}, nil, configs.TestChainConfig, Config{})
 		stack = newstack()
 		pc    = uint64(0)
 	)
@@ -130,7 +132,9 @@ func TestByteOp(t *testing.T) {
 
 func TestAddMod(t *testing.T) {
 	var (
-		env   = NewKVM(BlockContext{}, TxContext{}, nil, configs.TestChainConfig, Config{})
+		env = NewKVM(BlockContext{
+			BlockHeight: big.NewInt(10),
+		}, TxContext{}, nil, configs.TestChainConfig, Config{})
 		stack = newstack()
 		pc    = uint64(0)
 	)
@@ -264,7 +268,9 @@ func TestSLT(t *testing.T) {
 // getResult is a convenience function to generate the expected values
 func getResult(args []*twoOperandParams, opFn executionFunc) []TwoOperandTestcase {
 	var (
-		env   = NewKVM(BlockContext{}, TxContext{}, nil, configs.TestChainConfig, Config{})
+		env = NewKVM(BlockContext{
+			BlockHeight: big.NewInt(10),
+		}, TxContext{}, nil, configs.TestChainConfig, Config{})
 		stack = newstack()
 		pc    = uint64(0)
 	)
@@ -312,7 +318,9 @@ func TestJsonTestcases(t *testing.T) {
 
 func opBenchmark(bench *testing.B, op executionFunc, args ...string) {
 	var (
-		env   = NewKVM(BlockContext{}, TxContext{}, nil, configs.TestChainConfig, Config{})
+		env = NewKVM(BlockContext{
+			BlockHeight: big.NewInt(10),
+		}, TxContext{}, nil, configs.TestChainConfig, Config{})
 		stack = newstack()
 	)
 	// convert args
@@ -543,7 +551,9 @@ func BenchmarkOpIsZero(b *testing.B) {
 
 func TestOpMstore(t *testing.T) {
 	var (
-		env   = NewKVM(BlockContext{}, TxContext{}, nil, configs.TestChainConfig, Config{})
+		env = NewKVM(BlockContext{
+			BlockHeight: big.NewInt(10),
+		}, TxContext{}, nil, configs.TestChainConfig, Config{})
 		stack = newstack()
 		mem   = NewMemory()
 	)
@@ -564,7 +574,9 @@ func TestOpMstore(t *testing.T) {
 
 func BenchmarkOpMstore(bench *testing.B) {
 	var (
-		env   = NewKVM(BlockContext{}, TxContext{}, nil, configs.TestChainConfig, Config{})
+		env = NewKVM(BlockContext{
+			BlockHeight: big.NewInt(10),
+		}, TxContext{}, nil, configs.TestChainConfig, Config{})
 		stack = newstack()
 		mem   = NewMemory()
 	)
@@ -582,7 +594,9 @@ func BenchmarkOpMstore(bench *testing.B) {
 
 func BenchmarkOpSHA3(bench *testing.B) {
 	var (
-		env   = NewKVM(BlockContext{}, TxContext{}, nil, configs.TestChainConfig, Config{})
+		env = NewKVM(BlockContext{
+			BlockHeight: big.NewInt(10),
+		}, TxContext{}, nil, configs.TestChainConfig, Config{})
 		stack = newstack()
 		mem   = NewMemory()
 	)
