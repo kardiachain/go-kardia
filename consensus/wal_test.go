@@ -147,7 +147,7 @@ func TestWALWrite(t *testing.T) {
 }
 
 func TestWALSearchForEndHeight(t *testing.T) {
-	walBody, err := WALWithNBlocks(t, 6)
+	walBody, err := WALWithNBlocks(t, 3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +157,7 @@ func TestWALSearchForEndHeight(t *testing.T) {
 	require.NoError(t, err)
 	wal.SetLogger(log.TestingLogger())
 
-	h := int64(3)
+	h := int64(2)
 	gr, found, err := wal.SearchForEndHeight(h, &WALSearchOptions{})
 	assert.NoError(t, err, "expected not to err on height %d", h)
 	assert.True(t, found, "expected to find end height for %d", h)
