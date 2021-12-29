@@ -341,6 +341,7 @@ func (bc *BlockChain) SetHead(head uint64) error {
 
 	// Rewind the header chain, deleting all block bodies until then
 	delFn := func(db types.StoreDB, height uint64) {
+		db.DeleteBlockMeta(height)
 		db.DeleteBlockPart(height)
 	}
 	bc.hc.SetHead(head, delFn)
