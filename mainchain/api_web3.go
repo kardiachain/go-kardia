@@ -360,7 +360,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 				continue
 			} else {
 				// update the correct lookup entry and try again
-				s.kaiService.kaiDb.WriteTxLookupEntries(block)
+				s.kaiService.kaiDb.WriteTxLookupEntries(block, blockInfo.Receipts)
 				return s.GetTransactionReceipt(ctx, hash)
 			}
 		}

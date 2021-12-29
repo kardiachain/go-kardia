@@ -33,7 +33,7 @@ type StoreDB interface {
 	WriteBlockInfo(hash common.Hash, height uint64, blockInfo *BlockInfo)
 	WriteCanonicalHash(hash common.Hash, height uint64)
 	WriteEvent(smartcontract *KardiaSmartcontract)
-	WriteTxLookupEntries(block *Block)
+	WriteTxLookupEntries(block *Block, receipts Receipts)
 	WriteHeadBlockHash(common.Hash)
 	WriteAppHash(uint64, common.Hash)
 

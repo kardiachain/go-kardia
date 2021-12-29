@@ -373,7 +373,7 @@ func (dbc *DualBlockChain) WriteBlockWithoutState(block *types.Block) error {
 	dbc.db.WriteBlock(block, block.MakePartSet(types.BlockPartSizeBytes), &types.Commit{})
 
 	// Convert all txs into txLookupEntries and store to db
-	dbc.db.WriteTxLookupEntries(block)
+	dbc.db.WriteTxLookupEntries(block, nil)
 
 	// StateDb for this block should be already written.
 

@@ -147,7 +147,7 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCom
 
 	bo.saveBlockInfo(blockInfo, block)
 	bo.blockchain.DB().WriteHeadBlockHash(block.Hash())
-	bo.blockchain.DB().WriteTxLookupEntries(block)
+	bo.blockchain.DB().WriteTxLookupEntries(block, blockInfo.Receipts)
 	bo.blockchain.DB().WriteAppHash(block.Height(), root)
 	bo.blockchain.InsertHeadBlock(block)
 
@@ -256,7 +256,7 @@ func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transacti
 func (bo *BlockOperations) commitBlock(txs types.Transactions, header *types.Header,
 	lastCommit stypes.LastCommitInfo, byzVals []stypes.Evidence) ([]*types.Validator, common.Hash, *types.BlockInfo, error) {
 	var (
-		receipts = types.Receipts{}
+		receipts = make(types.Receipts, len(txs))
 		usedGas  = new(uint64)
 	)
 
@@ -300,7 +300,6 @@ func (bo *BlockOperations) commitBlock(txs types.Transactions, header *types.Hea
 		return nil, common.Hash{}, nil, err
 	}
 
-LOOP:
 	for i, tx := range txs {
 		state.Prepare(tx.Hash(), header.Hash(), i)
 		snap := state.Snapshot()
@@ -308,10 +307,9 @@ LOOP:
 		if err != nil {
 			bo.logger.Error("ApplyTransaction failed", "tx", tx.Hash().Hex(), "nonce", tx.Nonce(), "err", err)
 			state.RevertToSnapshot(snap)
-			continue LOOP
+			receipt = &types.Receipt{}
 		}
-		i++
-		receipts = append(receipts, receipt)
+		receipts[i] = receipt
 	}
 
 	vals, err := bo.staking.ApplyAndReturnValidatorSets(state, header, bo.blockchain, kvmConfig)
