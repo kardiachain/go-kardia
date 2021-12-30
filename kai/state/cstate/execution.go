@@ -58,7 +58,7 @@ type BlockExecutor struct {
 	logger log.Logger
 
 	// cache the verification results over a single height
-	cache map[string]struct{}
+	cache map[common.Hash]struct{}
 }
 
 // NewBlockExecutor returns a new BlockExecutor with a NopEventBus.
@@ -69,7 +69,7 @@ func NewBlockExecutor(stateStore Store, logger log.Logger, evpool EvidencePool, 
 		bc:     bc,
 		store:  stateStore,
 		logger: logger,
-		cache:  make(map[string]struct{}),
+		cache:  make(map[common.Hash]struct{}),
 	}
 }
 
@@ -84,15 +84,14 @@ func (blockExec *BlockExecutor) SetEventBus(b *types.EventBus) {
 // ie. to verify evidence from a validator at an old height.
 func (blockExec *BlockExecutor) ValidateBlock(state LatestBlockState, block *types.Block) error {
 	hash := block.Hash()
-	if _, ok := blockExec.cache[hash.String()]; ok {
+	if _, ok := blockExec.cache[hash]; ok {
 		return nil
 	}
 
-	err := validateBlock(blockExec.evpool, blockExec.store, state, block)
-	if err != nil {
+	if err := validateBlock(blockExec.evpool, blockExec.store, state, block); err != nil {
 		return err
 	}
-	blockExec.cache[hash.String()] = struct{}{}
+	blockExec.cache[hash] = struct{}{}
 	return nil
 }
 
@@ -131,8 +130,8 @@ func (blockExec *BlockExecutor) ApplyBlock(state LatestBlockState, blockID types
 	blockExec.evpool.Update(state, block.Evidence().Evidence)
 	fail.Fail() // XXX
 
-	// reset the verification cache
-	blockExec.cache = make(map[string]struct{})
+	// clear the verification cache
+	blockExec.cache = make(map[common.Hash]struct{})
 
 	// Events are fired after everything else.
 	// NOTE: if we crash between Commit and Save, events wont be fired during replay
