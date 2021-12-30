@@ -117,8 +117,6 @@ func (blockExec *BlockExecutor) ApplyBlock(state LatestBlockState, blockID types
 	state.AppHash = appHash
 	blockExec.store.Save(state)
 
-	fmt.Println(state.AppHash.String())
-
 	// Update evpool with the block and state.
 	blockExec.evpool.Update(state, block.Evidence().Evidence)
 	fail.Fail() // XXX
