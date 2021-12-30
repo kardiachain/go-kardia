@@ -99,6 +99,14 @@ func (dbo *DualBlockOperations) Height() uint64 {
 	return dbo.height
 }
 
+func (dbo *DualBlockOperations) WriteHeadBlockHash(hash common.Hash) {
+
+}
+
+func (dbo *DualBlockOperations) WriteAppHash(height uint64, hash common.Hash) {
+
+}
+
 // Proposes a new block for dual's blockchain.
 func (dbo *DualBlockOperations) CreateProposalBlock(height uint64, lastState cstate.LatestBlockState, proposerAddr common.Address, commit *types.Commit) (block *types.Block, blockParts *types.PartSet) {
 	// Gets all transactions in pending pools and execute them to get new account states.

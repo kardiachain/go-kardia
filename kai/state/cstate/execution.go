@@ -41,6 +41,10 @@ type EvidencePool interface {
 type BlockStore interface {
 	CommitAndValidateBlockTxs(*types.Block, stypes.LastCommitInfo, []stypes.Evidence) ([]*types.Validator, common.Hash, error)
 	Config() *configs.ChainConfig
+	Height() uint64
+	LoadBlockMeta(height uint64) *types.BlockMeta
+	WriteHeadBlockHash(common.Hash)
+	// WriteAppHash(uint64, common.Hash)
 }
 
 //-----------------------------------------------------------------------------
@@ -112,6 +116,8 @@ func (blockExec *BlockExecutor) ApplyBlock(state LatestBlockState, blockID types
 	}
 	state.AppHash = appHash
 	blockExec.store.Save(state)
+
+	fmt.Println(state.AppHash.String())
 
 	// Update evpool with the block and state.
 	blockExec.evpool.Update(state, block.Evidence().Evidence)

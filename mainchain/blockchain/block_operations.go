@@ -83,6 +83,14 @@ func (bo *BlockOperations) Config() *configs.ChainConfig {
 	return bo.blockchain.chainConfig
 }
 
+func (bo *BlockOperations) WriteHeadBlockHash(hash common.Hash) {
+	bo.blockchain.DB().WriteHeadBlockHash(hash)
+}
+
+// func (bo *BlockOperations) WriteAppHash(height uint64, hash common.Hash) {
+// 	bo.blockchain.DB().WriteAppHash(height, hash)
+// }
+
 // Height returns latest height of blockchain.
 func (bo *BlockOperations) Height() uint64 {
 	bo.mtx.RLock()
