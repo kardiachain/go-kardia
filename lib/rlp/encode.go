@@ -51,34 +51,7 @@ type Encoder interface {
 // perform many small writes in some cases. Consider making w
 // buffered.
 //
-// Encode uses the following type-dependent encoding rules:
-//
-// If the type implements the Encoder interface, Encode calls
-// EncodeRLP. This is true even for nil pointers, please see the
-// documentation for Encoder.
-//
-// To encode a pointer, the value being pointed to is encoded. For nil
-// pointers, Encode will encode the zero value of the type. A nil
-// pointer to a struct type always encodes as an empty RLP list.
-// A nil pointer to an array encodes as an empty list (or empty string
-// if the array has element type byte).
-//
-// Struct values are encoded as an RLP list of all their encoded
-// public fields. Recursive struct types are supported.
-//
-// To encode slices and arrays, the elements are encoded as an RLP
-// list of the value's elements. Note that arrays and slices with
-// element type uint8 or byte are always encoded as an RLP string.
-//
-// A Go string is encoded as an RLP string.
-//
-// An unsigned integer value is encoded as an RLP string. Zero always
-// encodes as an empty RLP string. Encode also supports *big.Int.
-//
-// An interface value encodes as the value contained in the interface.
-//
-// Boolean values are not supported, nor are signed integers, floating
-// point numbers, maps, channels and functions.
+// Please see package-level documentation of encoding rules.
 func Encode(w io.Writer, val interface{}) error {
 	if outer, ok := w.(*encbuf); ok {
 		// Encode was called by some type's EncodeRLP.
@@ -95,7 +68,7 @@ func Encode(w io.Writer, val interface{}) error {
 }
 
 // EncodeToBytes returns the RLP encoding of val.
-// Please see the documentation of Encode for the encoding rules.
+// Please see package-level documentation for the encoding rules.
 func EncodeToBytes(val interface{}) ([]byte, error) {
 	eb := encbufPool.Get().(*encbuf)
 	defer encbufPool.Put(eb)
@@ -118,14 +91,6 @@ func EncodeToReader(val interface{}) (size int, r io.Reader, err error) {
 		return 0, nil, err
 	}
 	return eb.size(), &encReader{buf: eb}, nil
-}
-
-type encbuf struct {
-	str      []byte        // string data, contains everything except list headers
-	lheads   []listhead    // all list headers
-	lhsize   int           // sum of sizes of all encoded list headers
-	sizebuf  [9]byte       // 9-byte auxiliary buffer for uint encoding
-	bufvalue reflect.Value // used in writeByteArrayCopy
 }
 
 type listhead struct {
@@ -160,12 +125,16 @@ func puthead(buf []byte, smalltag, largetag byte, size uint64) int {
 	return sizesize + 1
 }
 
+type encbuf struct {
+	str     []byte     // string data, contains everything except list headers
+	lheads  []listhead // all list headers
+	lhsize  int        // sum of sizes of all encoded list headers
+	sizebuf [9]byte    // auxiliary buffer for uint encoding
+}
+
 // encbufs are pooled.
 var encbufPool = sync.Pool{
-	New: func() interface{} {
-		var bytes []byte
-		return &encbuf{bufvalue: reflect.ValueOf(&bytes).Elem()}
-	},
+	New: func() interface{} { return new(encbuf) },
 }
 
 func (w *encbuf) reset() {
@@ -193,7 +162,6 @@ func (w *encbuf) encodeStringHeader(size int) {
 	if size < 56 {
 		w.str = append(w.str, 0x80+byte(size))
 	} else {
-		// TODO: encode to w.str directly
 		sizesize := putint(w.sizebuf[1:], uint64(size))
 		w.sizebuf[0] = 0xB7 + byte(sizesize)
 		w.str = append(w.str, w.sizebuf[:sizesize+1]...)
@@ -459,21 +427,27 @@ func writeBytes(val reflect.Value, w *encbuf) error {
 	return nil
 }
 
-var byteType = reflect.TypeOf(byte(0))
-
 func makeByteArrayWriter(typ reflect.Type) writer {
-	length := typ.Len()
-	if length == 0 {
+	switch typ.Len() {
+	case 0:
 		return writeLengthZeroByteArray
-	} else if length == 1 {
+	case 1:
 		return writeLengthOneByteArray
-	}
-	if typ.Elem() != byteType {
-		return writeNamedByteArray
-	}
-	return func(val reflect.Value, w *encbuf) error {
-		writeByteArrayCopy(length, val, w)
-		return nil
+	default:
+		length := typ.Len()
+		return func(val reflect.Value, w *encbuf) error {
+			if !val.CanAddr() {
+				// Getting the byte slice of val requires it to be addressable. Make it
+				// addressable by copying.
+				copy := reflect.New(val.Type()).Elem()
+				copy.Set(val)
+				val = copy
+			}
+			slice := byteArrayBytes(val, length)
+			w.encodeStringHeader(len(slice))
+			w.str = append(w.str, slice...)
+			return nil
+		}
 	}
 }
 
@@ -490,32 +464,6 @@ func writeLengthOneByteArray(val reflect.Value, w *encbuf) error {
 		w.str = append(w.str, 0x81, b)
 	}
 	return nil
-}
-
-// writeNamedByteArray encodes byte arrays with named element type.
-// This exists because reflect.Copy can't be used with such types.
-func writeNamedByteArray(val reflect.Value, w *encbuf) error {
-	if !val.CanAddr() {
-		// Slice requires the value to be addressable.
-		// Make it addressable by copying.
-		copy := reflect.New(val.Type()).Elem()
-		copy.Set(val)
-		val = copy
-	}
-	size := val.Len()
-	slice := val.Slice(0, size).Bytes()
-	w.encodeString(slice)
-	return nil
-}
-
-// writeByteArrayCopy encodes byte arrays using reflect.Copy. This is
-// the fast path for [N]byte where N > 1.
-func writeByteArrayCopy(length int, val reflect.Value, w *encbuf) {
-	w.encodeStringHeader(length)
-	offset := len(w.str)
-	w.str = append(w.str, make([]byte, length)...)
-	w.bufvalue.SetBytes(w.str[offset:])
-	reflect.Copy(w.bufvalue, val)
 }
 
 func writeString(val reflect.Value, w *encbuf) error {
@@ -547,23 +495,43 @@ func writeInterface(val reflect.Value, w *encbuf) error {
 }
 
 func makeSliceWriter(typ reflect.Type, ts tags) (writer, error) {
-	etypeinfo := cachedTypeInfo1(typ.Elem(), tags{})
+	etypeinfo := theTC.infoWhileGenerating(typ.Elem(), tags{})
 	if etypeinfo.writerErr != nil {
 		return nil, etypeinfo.writerErr
 	}
-	writer := func(val reflect.Value, w *encbuf) error {
-		if !ts.tail {
-			defer w.listEnd(w.list())
-		}
-		vlen := val.Len()
-		for i := 0; i < vlen; i++ {
-			if err := etypeinfo.writer(val.Index(i), w); err != nil {
-				return err
+
+	var wfn writer
+	if ts.tail {
+		// This is for struct tail slices.
+		// w.list is not called for them.
+		wfn = func(val reflect.Value, w *encbuf) error {
+			vlen := val.Len()
+			for i := 0; i < vlen; i++ {
+				if err := etypeinfo.writer(val.Index(i), w); err != nil {
+					return err
+				}
 			}
+			return nil
 		}
-		return nil
+	} else {
+		// This is for regular slices and arrays.
+		wfn = func(val reflect.Value, w *encbuf) error {
+			vlen := val.Len()
+			if vlen == 0 {
+				w.str = append(w.str, 0xC0)
+				return nil
+			}
+			listOffset := w.list()
+			for i := 0; i < vlen; i++ {
+				if err := etypeinfo.writer(val.Index(i), w); err != nil {
+					return err
+				}
+			}
+			w.listEnd(listOffset)
+			return nil
+		}
 	}
-	return writer, nil
+	return wfn, nil
 }
 
 func makeStructWriter(typ reflect.Type) (writer, error) {
@@ -571,33 +539,51 @@ func makeStructWriter(typ reflect.Type) (writer, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	for _, f := range fields {
 		if f.info.writerErr != nil {
 			return nil, structFieldError{typ, f.index, f.info.writerErr}
 		}
 	}
 
-	writer := func(val reflect.Value, w *encbuf) error {
-		lh := w.list()
-		for _, f := range fields {
-			if err := f.info.writer(val.Field(f.index), w); err != nil {
-				return err
+	var writer writer
+	firstOptionalField := firstOptionalField(fields)
+	if firstOptionalField == len(fields) {
+		// This is the writer function for structs without any optional fields.
+		writer = func(val reflect.Value, w *encbuf) error {
+			lh := w.list()
+			for _, f := range fields {
+				if err := f.info.writer(val.Field(f.index), w); err != nil {
+					return err
+				}
 			}
+			w.listEnd(lh)
+			return nil
 		}
-		w.listEnd(lh)
-		return nil
+	} else {
+		// If there are any "optional" fields, the writer needs to perform additional
+		// checks to determine the output list length.
+		writer = func(val reflect.Value, w *encbuf) error {
+			lastField := len(fields) - 1
+			for ; lastField >= firstOptionalField; lastField-- {
+				if !val.Field(fields[lastField].index).IsZero() {
+					break
+				}
+			}
+			lh := w.list()
+			for i := 0; i <= lastField; i++ {
+				if err := fields[i].info.writer(val.Field(fields[i].index), w); err != nil {
+					return err
+				}
+			}
+			w.listEnd(lh)
+			return nil
+		}
 	}
 	return writer, nil
 }
 
-func makePtrWriter(typ reflect.Type, ts tags) (writer, error) {
-	etypeinfo := cachedTypeInfo1(typ.Elem(), tags{})
-	if etypeinfo.writerErr != nil {
-		return nil, etypeinfo.writerErr
-	}
-
-	// determine nil pointer handler
+// nilEncoding returns the encoded value of a nil pointer.
+func nilEncoding(typ reflect.Type, ts tags) uint8 {
 	var nilKind Kind
 	if ts.nilOK {
 		nilKind = ts.nilKind // use struct tag if provided
@@ -605,16 +591,29 @@ func makePtrWriter(typ reflect.Type, ts tags) (writer, error) {
 		nilKind = defaultNilKind(typ.Elem())
 	}
 
+	switch nilKind {
+	case String:
+		return 0x80
+	case List:
+		return 0xC0
+	default:
+		panic(fmt.Errorf("rlp: invalid nil kind %d", nilKind))
+	}
+}
+
+func makePtrWriter(typ reflect.Type, ts tags) (writer, error) {
+	etypeinfo := theTC.infoWhileGenerating(typ.Elem(), tags{})
+	if etypeinfo.writerErr != nil {
+		return nil, etypeinfo.writerErr
+	}
+	nilEncoding := nilEncoding(typ, ts)
+
 	writer := func(val reflect.Value, w *encbuf) error {
-		if val.IsNil() {
-			if nilKind == String {
-				w.str = append(w.str, 0x80)
-			} else {
-				w.listEnd(w.list())
-			}
-			return nil
+		if ev := val.Elem(); ev.IsValid() {
+			return etypeinfo.writer(ev, w)
 		}
-		return etypeinfo.writer(val.Elem(), w)
+		w.str = append(w.str, nilEncoding)
+		return nil
 	}
 	return writer, nil
 }
