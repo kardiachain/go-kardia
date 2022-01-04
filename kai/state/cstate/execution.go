@@ -26,9 +26,9 @@ import (
 	fail "github.com/ebuchman/fail-test"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/types"
-
+	"github.com/kardiachain/go-kardia/lib/metrics"
 	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 // EvidencePool defines the EvidencePool interface used by the ConsensusState.
@@ -55,8 +55,6 @@ type BlockExecutor struct {
 	eventBus *types.EventBus
 
 	logger log.Logger
-
-	metrics bool
 }
 
 // NewBlockExecutor returns a new BlockExecutor with a NopEventBus.
@@ -115,7 +113,7 @@ func (blockExec *BlockExecutor) ApplyBlock(state LatestBlockState, blockID types
 	subStart := time.Now()
 	blockExec.store.Save(state)
 
-	if blockExec.metrics {
+	if metrics.Enabled {
 		saveStateTimer.UpdateSince(subStart)
 		stateBytesLength.Update(int64(len(state.Bytes())))
 		lastHeightValidatorsChangedGauge.Update(int64(state.LastHeightConsensusParamsChanged))

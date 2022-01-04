@@ -20,20 +20,21 @@ package blockchain
 
 import (
 	"errors"
-	"github.com/gogo/protobuf/proto"
-	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
-	"github.com/kardiachain/go-kardia/lib/rlp"
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/kvm"
-	"github.com/kardiachain/go-kardia/mainchain/staking"
-	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
+	"github.com/gogo/protobuf/proto"
 
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
+	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
+	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/metrics"
+	"github.com/kardiachain/go-kardia/lib/rlp"
+	"github.com/kardiachain/go-kardia/mainchain/staking"
+	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -59,8 +60,6 @@ type BlockOperations struct {
 	base       uint64
 	height     uint64
 	staking    *staking.StakingSmcUtil
-
-	metrics bool
 }
 
 // NewBlockOperations returns a new BlockOperations with reference to the latest state of blockchain.
@@ -219,7 +218,7 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCom
 	bo.blockchain.DB().WriteAppHash(block.Height(), root)
 	bo.blockchain.InsertHeadBlock(block)
 
-	if bo.metrics {
+	if metrics.Enabled {
 		// block write timer
 		blockWriteTimer.UpdateSince(opStart)
 		// block height
@@ -283,7 +282,7 @@ func (bo *BlockOperations) SaveBlock(block *types.Block, blockParts *types.PartS
 	opStart := time.Now()
 	bo.blockchain.SaveBlock(block, blockParts, seenCommit)
 
-	if bo.metrics {
+	if metrics.Enabled {
 		blockSaveTimer.UpdateSince(opStart)
 
 		bc, _ := proto.Marshal(block.LastCommit().ToProto())
