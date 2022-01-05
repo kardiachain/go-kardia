@@ -13,8 +13,15 @@ rule_files:
 # A scrape configuration containing exactly one endpoint to scrape:
 # Here it's Prometheus itself.
 scrape_configs:
-  - job_name: prometheus
+  - job_name: node1
     scrape_interval: 10s
     static_configs:
-      - targets:
-          - node1:8545
+      - targets: ['localhost:6000']
+  - job_name: node2
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['node2:6001']
+  - job_name: node3
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['node3:6002']

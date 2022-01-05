@@ -72,13 +72,9 @@ services:
       - '--storage.tsdb.path=/prometheus'
     ports:
       - 9090:9090
-    depends_on:
-      - node1
-      - node2
-      - node3
   grafana:
     image: grafana/grafana:latest
     ports:
-      - 5000:5000
+      - 5000:3000
     depends_on:
       - prometheus
