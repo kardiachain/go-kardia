@@ -30,12 +30,12 @@ func TestWALTruncate(t *testing.T) {
 
 	walFile := filepath.Join(walDir, "wal")
 
-	// this magic number 4K can truncate the content when RotateFile.
+	// simulate truncate the content when RotateFile.
 	// defaultHeadSizeLimit(10M) is hard to simulate.
 	// this magic number 1 * time.Millisecond make RotateFile check frequently.
 	// defaultGroupCheckDuration(5s) is hard to simulate.
 	wal, err := NewWAL(walFile,
-		autofile.GroupHeadSizeLimit(4096),
+		autofile.GroupHeadSizeLimit(32),
 		autofile.GroupCheckDuration(1*time.Millisecond),
 	)
 	require.NoError(t, err)
@@ -54,7 +54,7 @@ func TestWALTruncate(t *testing.T) {
 	// 60 block's size nearly 70K, greater than group's headBuf size(4096 * 10),
 	// when headBuf is full, truncate content will Flush to the file. at this
 	// time, RotateFile is called, truncate content exist in each file.
-	err = WALGenerateNBlocks(t, wal.Group(), 60)
+	err = WALGenerateNBlocks(t, wal.Group(), 3)
 	require.NoError(t, err)
 	time.Sleep(1 * time.Millisecond) // wait groupCheckDuration, make sure RotateFile run
 
@@ -62,7 +62,7 @@ func TestWALTruncate(t *testing.T) {
 		t.Error(err)
 	}
 
-	h := int64(50)
+	h := int64(2)
 	gr, found, err := wal.SearchForEndHeight(h, &WALSearchOptions{})
 	assert.NoError(t, err, "expected not to err on height %d", h)
 	assert.True(t, found, "expected to find end height for %d", h)
@@ -147,7 +147,7 @@ func TestWALWrite(t *testing.T) {
 }
 
 func TestWALSearchForEndHeight(t *testing.T) {
-	walBody, err := WALWithNBlocks(t, 6)
+	walBody, err := WALWithNBlocks(t, 3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +157,7 @@ func TestWALSearchForEndHeight(t *testing.T) {
 	require.NoError(t, err)
 	wal.SetLogger(log.TestingLogger())
 
-	h := int64(3)
+	h := int64(2)
 	gr, found, err := wal.SearchForEndHeight(h, &WALSearchOptions{})
 	assert.NoError(t, err, "expected not to err on height %d", h)
 	assert.True(t, found, "expected to find end height for %d", h)
@@ -185,7 +185,7 @@ func TestWALPeriodicSync(t *testing.T) {
 	wal.SetLogger(log.TestingLogger())
 
 	// Generate some data
-	err = WALGenerateNBlocks(t, wal.Group(), 5)
+	err = WALGenerateNBlocks(t, wal.Group(), 3)
 	require.NoError(t, err)
 
 	// We should have data in the buffer now
@@ -204,7 +204,7 @@ func TestWALPeriodicSync(t *testing.T) {
 	// The data should have been flushed by the periodic sync
 	assert.Zero(t, wal.Group().Buffered())
 
-	h := int64(4)
+	h := int64(2)
 	gr, found, err := wal.SearchForEndHeight(h, &WALSearchOptions{})
 	assert.NoError(t, err, "expected not to err on height %d", h)
 	assert.True(t, found, "expected to find end height for %d", h)

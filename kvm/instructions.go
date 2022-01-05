@@ -543,38 +543,6 @@ func opJumpdest(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error)
 	return nil, nil
 }
 
-func opBeginSub(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error) {
-	return nil, ErrInvalidSubroutineEntry
-}
-
-func opJumpSub(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error) {
-	if len(callContext.Rstack.data) >= 1023 {
-		return nil, ErrReturnStackExceeded
-	}
-	pos := callContext.Stack.pop()
-	if !pos.IsUint64() {
-		return nil, ErrInvalidJump
-	}
-	posU64 := pos.Uint64()
-	if !callContext.Contract.validJumpSubdest(posU64) {
-		return nil, ErrInvalidJump
-	}
-	callContext.Rstack.push(uint32(*pc))
-	*pc = posU64 + 1
-	return nil, nil
-}
-
-func opReturnSub(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error) {
-	if len(callContext.Rstack.data) == 0 {
-		return nil, ErrInvalidRetsub
-	}
-	// Other than the check that the return stack is not empty, there is no
-	// need to validate the pc from 'returns', since we only ever push valid
-	//values onto it via jumpsub.
-	*pc = uint64(callContext.Rstack.pop()) + 1
-	return nil, nil
-}
-
 func opPc(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error) {
 	callContext.Stack.push(new(uint256.Int).SetUint64(*pc))
 	return nil, nil
@@ -814,16 +782,12 @@ func opSuicide(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error) 
 	balance := kvm.StateDB.GetBalance(callContext.Contract.Address())
 	kvm.StateDB.AddBalance(common.Address(beneficiary.Bytes20()), balance)
 	kvm.StateDB.Suicide(callContext.Contract.Address())
+	if kvm.interpreter.cfg.Debug {
+		kvm.interpreter.cfg.Tracer.CaptureEnter(SELFDESTRUCT, callContext.Contract.Address(), beneficiary.Bytes20(), []byte{}, 0, balance)
+		kvm.interpreter.cfg.Tracer.CaptureExit([]byte{}, 0, nil)
+	}
 	return nil, nil
 }
-
-// NOT SUPPPORT ChainID yet
-// opChainID implements CHAINID opcode
-// func opChainID(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error) {
-// 	chainId, _ := uint256.FromBig(kvm.vmConfig.ChainID)
-// 	callContext.Stack.push(chainId)
-// 	return nil, nil
-// }
 
 func opSelfBalance(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error) {
 	balance, _ := uint256.FromBig(kvm.StateDB.GetBalance(callContext.Contract.Address()))

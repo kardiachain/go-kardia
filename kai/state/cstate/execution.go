@@ -20,10 +20,12 @@ package cstate
 
 import (
 	"fmt"
+	"github.com/kardiachain/go-kardia/lib/metrics"
 	"math/big"
 	"time"
 
 	fail "github.com/ebuchman/fail-test"
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
@@ -40,6 +42,7 @@ type EvidencePool interface {
 // BlockStore ...
 type BlockStore interface {
 	CommitAndValidateBlockTxs(*types.Block, stypes.LastCommitInfo, []stypes.Evidence) ([]*types.Validator, common.Hash, error)
+	Config() *configs.ChainConfig
 }
 
 //-----------------------------------------------------------------------------
@@ -56,7 +59,8 @@ type BlockExecutor struct {
 
 	logger log.Logger
 
-	metrics bool
+	// cache the verification results over a single height
+	cache map[common.Hash]struct{}
 }
 
 // NewBlockExecutor returns a new BlockExecutor with a NopEventBus.
@@ -67,6 +71,7 @@ func NewBlockExecutor(stateStore Store, logger log.Logger, evpool EvidencePool, 
 		bc:     bc,
 		store:  stateStore,
 		logger: logger,
+		cache:  make(map[common.Hash]struct{}),
 	}
 }
 
@@ -80,7 +85,16 @@ func (blockExec *BlockExecutor) SetEventBus(b *types.EventBus) {
 // Validation does not mutate state, but does require historical information from the stateDB,
 // ie. to verify evidence from a validator at an old height.
 func (blockExec *BlockExecutor) ValidateBlock(state LatestBlockState, block *types.Block) error {
-	return validateBlock(blockExec.evpool, blockExec.store, state, block)
+	hash := block.Hash()
+	if _, ok := blockExec.cache[hash]; ok {
+		return nil
+	}
+
+	if err := validateBlock(blockExec.evpool, blockExec.store, state, block); err != nil {
+		return err
+	}
+	blockExec.cache[hash] = struct{}{}
+	return nil
 }
 
 // ApplyBlock Validates the block against the state, and saves the new state.
@@ -98,7 +112,7 @@ func (blockExec *BlockExecutor) ApplyBlock(state LatestBlockState, blockID types
 		byzVals = append(byzVals, ev.VM()...)
 	}
 
-	commitInfo := getBeginBlockValidatorInfo(block, blockExec.store)
+	commitInfo := getBeginBlockValidatorInfo(blockExec.bc.Config(), block, blockExec.store)
 
 	valUpdates, appHash, err := blockExec.bc.CommitAndValidateBlockTxs(block, commitInfo, byzVals)
 	if err != nil {
@@ -115,7 +129,7 @@ func (blockExec *BlockExecutor) ApplyBlock(state LatestBlockState, blockID types
 	subStart := time.Now()
 	blockExec.store.Save(state)
 
-	if blockExec.metrics {
+	if metrics.Enabled {
 		saveStateTimer.UpdateSince(subStart)
 		stateBytesLength.Update(int64(len(state.Bytes())))
 		lastHeightValidatorsChangedGauge.Update(int64(state.LastHeightConsensusParamsChanged))
@@ -125,6 +139,10 @@ func (blockExec *BlockExecutor) ApplyBlock(state LatestBlockState, blockID types
 	// Update evpool with the block and state.
 	blockExec.evpool.Update(state, block.Evidence().Evidence)
 	fail.Fail() // XXX
+
+	// clear the verification cache
+	blockExec.cache = make(map[common.Hash]struct{})
+
 	// Events are fired after everything else.
 	// NOTE: if we crash between Commit and Save, events wont be fired during replay
 	fireEvents(blockExec.logger, blockExec.eventBus, block, valUpdates)
@@ -165,7 +183,7 @@ func updateState(logger log.Logger, state LatestBlockState, blockID types.BlockI
 	}, nil
 }
 
-func getBeginBlockValidatorInfo(b *types.Block, store Store) stypes.LastCommitInfo {
+func getBeginBlockValidatorInfo(cfg *configs.ChainConfig, b *types.Block, store Store) stypes.LastCommitInfo {
 	lastCommit := b.LastCommit()
 	voteInfos := make([]stypes.VoteInfo, lastCommit.Size())
 	// block.Height=1 -> LastCommitInfo.Votes are empty.
@@ -195,8 +213,8 @@ func getBeginBlockValidatorInfo(b *types.Block, store Store) stypes.LastCommitIn
 				VotingPower:     big.NewInt(int64(val.VotingPower)),
 				SignedLastBlock: commitSig.Signature != nil,
 			}
-
-			if b.Height() > 63004 {
+			// v1.5 ugly hacks
+			if cfg.Is1p5(&b.Header().Height) {
 				voteInfos[i].SignedLastBlock = true
 			}
 		}

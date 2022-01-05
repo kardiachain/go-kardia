@@ -21,6 +21,7 @@ package node
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"math/big"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -45,9 +46,8 @@ const (
 	datadirNodeDatabase    = "nodes"    // Path within the datadir to store the node infos
 )
 
+// Mainchain configs
 type MainChainConfig struct {
-	// Mainchain
-
 	// DbInfo stores configuration information to setup database
 	DBInfo storage.DbInfo
 
@@ -57,12 +57,12 @@ type MainChainConfig struct {
 	// Transaction pool options
 	TxPool tx_pool.TxPoolConfig
 
-	// AcceptTxs accept tx sync process or not (1 is yes and 0 is no)
-	AcceptTxs uint32
-
+	// Metwork configs
+	ChainId   *big.Int
 	NetworkId uint64
 
-	ChainId uint64
+	// AcceptTxs accept tx sync process or not (1 is yes and 0 is no)
+	AcceptTxs uint32
 
 	// ServiceName is used as log's prefix
 	ServiceName string
@@ -79,9 +79,8 @@ type MainChainConfig struct {
 	GasOracle *oracles.Config
 }
 
+// Dualchain configs
 type DualChainConfig struct {
-	// Dualchain
-
 	ChainId uint64 // ID of dual chain unique to a dualnode group, such as for dual eth.
 
 	// DbInfo stores configuration information to setup database
@@ -212,10 +211,6 @@ type Config struct {
 
 	// Logger is a custom logger to use with the p2p.Server.
 	Logger log.Logger `toml:",omitempty"`
-
-	staticNodesWarning     bool
-	trustedNodesWarning    bool
-	oldGethResourceWarning bool
 
 	// Configuration of the Kardia's blockchain (or main chain).
 	MainChainConfig MainChainConfig

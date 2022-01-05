@@ -15,6 +15,7 @@
  *  You should have received a copy of the GNU Lesser General Public License
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
+
 package kvm
 
 import (
@@ -26,8 +27,8 @@ import (
 
 // Config are the configuration options for the Interpreter
 type Config struct {
-	Debug  bool   // Enables debugging
-	Tracer Tracer // Opcode logger
+	Debug  bool      // Enables debugging
+	Tracer KVMLogger // Opcode logger
 	// NoRecursion disabled Interpreter call, callcode,
 	// delegate call and create.
 	NoRecursion             bool
@@ -66,7 +67,6 @@ type Interpreter struct {
 type ScopeContext struct {
 	Memory   *Memory
 	Stack    *Stack
-	Rstack   *ReturnStack
 	Contract *Contract
 }
 
@@ -76,7 +76,13 @@ func NewInterpreter(kvm *KVM, cfg Config) *Interpreter {
 	// the jump table was initialised. If it was not
 	// we'll set the default jump table.
 	if cfg.JumpTable[STOP] == nil {
-		cfg.JumpTable = newKardiaInstructionSet()
+		switch {
+		case kvm.chainRules.IsGalaxias:
+			cfg.JumpTable = v2InstructionSet
+		default:
+			cfg.JumpTable = v1InstructionSet
+		}
+
 	}
 	return &Interpreter{
 		kvm: kvm,
@@ -112,10 +118,9 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 	}
 
 	var (
-		op          OpCode             // current opcode
-		mem         = NewMemory()      // bound memory
-		stack       = newstack()       // local stack
-		returns     = newReturnStack() // local returns stack
+		op          OpCode        // current opcode
+		mem         = NewMemory() // bound memory
+		stack       = newstack()  // local stack
 		callContext = &ScopeContext{
 			Memory:   mem,
 			Stack:    stack,
@@ -127,18 +132,16 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 		pc   = uint64(0) // program counter
 		cost uint64
 		// copies used by tracer
-		pcCopy  uint64 // needed for the deferred Tracer
-		gasCopy uint64 // for Tracer to log gas remaining before execution
-		logged  bool   // deferred Tracer should ignore already logged steps
+		pcCopy  uint64 // needed for the deferred KVMLogger
+		gasCopy uint64 // for KVMLogger to log gas remaining before execution
+		logged  bool   // deferred KVMLogger should ignore already logged steps
 		res     []byte // result of the opcode execution function
-
 	)
 	// Don't move this deferrred function, it's placed before the capturestate-deferred method,
 	// so that it get's executed _after_: the capturestate needs the stacks before
 	// they are returned to the pools
 	defer func() {
 		returnStack(stack)
-		returnRStack(returns)
 	}()
 	contract.Input = input
 
@@ -146,19 +149,9 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 		defer func() {
 			if err != nil {
 				if !logged {
-					in.cfg.Tracer.CaptureState(in.kvm, pcCopy, op, gasCopy, cost, &ScopeContext{
-						Memory:   mem,
-						Stack:    stack,
-						Rstack:   returns,
-						Contract: contract,
-					}, in.returnData, in.kvm.depth, err)
+					in.cfg.Tracer.CaptureState(pcCopy, op, gasCopy, cost, callContext, in.returnData, in.kvm.depth, err)
 				} else {
-					in.cfg.Tracer.CaptureFault(in.kvm, pcCopy, op, gasCopy, cost, &ScopeContext{
-						Memory:   mem,
-						Stack:    stack,
-						Rstack:   returns,
-						Contract: contract,
-					}, in.kvm.depth, err)
+					in.cfg.Tracer.CaptureFault(pcCopy, op, gasCopy, cost, callContext, in.kvm.depth, err)
 				}
 			}
 		}()
@@ -232,23 +225,25 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 			var dynamicCost uint64
 			dynamicCost, err = operation.dynamicGas(in.kvm, contract, stack, mem, memorySize)
 			cost += dynamicCost
-			if err != nil || !contract.UseGas(cost) {
-				return nil, ErrOutOfGas
+			if in.kvm.chainRules.IsGalaxias {
+				if err != nil || !contract.UseGas(dynamicCost) {
+					return nil, ErrOutOfGas
+				}
+			} else {
+				if err != nil || !contract.UseGas(cost) {
+					return nil, ErrOutOfGas
+				}
 			}
 		}
 		if memorySize > 0 {
 			mem.Resize(memorySize)
 		}
-		/* TODO(huny@): Add tracer later
+
 		if in.cfg.Debug {
-			in.cfg.Tracer.CaptureState(in.kvm, pc, op, gasCopy, cost, &ScopeContext{
-						Memory:   mem,
-						Stack:    stack,
-						Contract: contract,
-					}, in.kvm.depth, err)
+			in.cfg.Tracer.CaptureState(pc, op, gasCopy, cost, callContext, in.returnData, in.kvm.depth, err)
 			logged = true
 		}
-		*/
+
 		// execute the operation
 		res, err = operation.execute(&pc, in.kvm, callContext)
 

@@ -33,13 +33,16 @@ import (
 )
 
 // IntrinsicGas computes the 'intrinsic gas' for a message with the given data.
-func IntrinsicGas(data []byte, contractCreation bool) (uint64, error) {
+func IntrinsicGas(data []byte, contractCreation bool, legacy bool) (uint64, error) {
 	// Set the starting gas for the raw transaction
 	var gas uint64
 	if contractCreation {
 		gas = configs.TxGasContractCreation
 	} else {
 		gas = configs.TxGas
+		if legacy {
+			gas = configs.TxGasLegacy
+		}
 	}
 	// Bump the required gas by the amount of transactional data
 	if len(data) > 0 {

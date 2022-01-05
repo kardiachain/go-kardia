@@ -22,9 +22,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"testing"
 
 	"github.com/holiman/uint256"
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 )
 
@@ -90,10 +92,11 @@ func init() {
 
 func testTwoOperandOp(t *testing.T, tests []TwoOperandTestcase, opFn executionFunc, name string) {
 	var (
-		env    = NewKVM(Context{}, nil, Config{})
-		stack  = newstack()
-		rstack = newReturnStack()
-		pc     = uint64(0)
+		env = NewKVM(BlockContext{
+			BlockHeight: big.NewInt(10),
+		}, TxContext{}, nil, configs.TestChainConfig, Config{})
+		stack = newstack()
+		pc    = uint64(0)
 	)
 
 	for i, test := range tests {
@@ -102,7 +105,7 @@ func testTwoOperandOp(t *testing.T, tests []TwoOperandTestcase, opFn executionFu
 		expected := new(uint256.Int).SetBytes(common.Hex2Bytes(test.Expected))
 		stack.push(x)
 		stack.push(y)
-		opFn(&pc, env, &ScopeContext{nil, stack, rstack, nil})
+		opFn(&pc, env, &ScopeContext{nil, stack, nil})
 		if len(stack.data) != 1 {
 			t.Errorf("Expected one item on stack after %v, got %d: ", name, len(stack.data))
 		}
@@ -129,10 +132,11 @@ func TestByteOp(t *testing.T) {
 
 func TestAddMod(t *testing.T) {
 	var (
-		env    = NewKVM(Context{}, nil, Config{})
-		stack  = newstack()
-		rstack = newReturnStack()
-		pc     = uint64(0)
+		env = NewKVM(BlockContext{
+			BlockHeight: big.NewInt(10),
+		}, TxContext{}, nil, configs.TestChainConfig, Config{})
+		stack = newstack()
+		pc    = uint64(0)
 	)
 	tests := []struct {
 		x        string
@@ -157,7 +161,7 @@ func TestAddMod(t *testing.T) {
 		stack.push(z)
 		stack.push(y)
 		stack.push(x)
-		opAddmod(&pc, env, &ScopeContext{nil, stack, rstack, nil})
+		opAddmod(&pc, env, &ScopeContext{nil, stack, nil})
 		actual := stack.pop()
 		if actual.Cmp(expected) != 0 {
 			t.Errorf("Testcase %d, expected  %x, got %x", i, expected, actual)
@@ -264,10 +268,11 @@ func TestSLT(t *testing.T) {
 // getResult is a convenience function to generate the expected values
 func getResult(args []*twoOperandParams, opFn executionFunc) []TwoOperandTestcase {
 	var (
-		env    = NewKVM(Context{}, nil, Config{})
-		stack  = newstack()
-		rstack = newReturnStack()
-		pc     = uint64(0)
+		env = NewKVM(BlockContext{
+			BlockHeight: big.NewInt(10),
+		}, TxContext{}, nil, configs.TestChainConfig, Config{})
+		stack = newstack()
+		pc    = uint64(0)
 	)
 	result := make([]TwoOperandTestcase, len(args))
 	for i, param := range args {
@@ -275,7 +280,7 @@ func getResult(args []*twoOperandParams, opFn executionFunc) []TwoOperandTestcas
 		y := new(uint256.Int).SetBytes(common.Hex2Bytes(param.y))
 		stack.push(x)
 		stack.push(y)
-		opFn(&pc, env, &ScopeContext{nil, stack, rstack, nil})
+		opFn(&pc, env, &ScopeContext{nil, stack, nil})
 		actual := stack.pop()
 		result[i] = TwoOperandTestcase{param.x, param.y, fmt.Sprintf("%064x", actual)}
 	}
@@ -313,9 +318,10 @@ func TestJsonTestcases(t *testing.T) {
 
 func opBenchmark(bench *testing.B, op executionFunc, args ...string) {
 	var (
-		env    = NewKVM(Context{}, nil, Config{})
-		stack  = newstack()
-		rstack = newReturnStack()
+		env = NewKVM(BlockContext{
+			BlockHeight: big.NewInt(10),
+		}, TxContext{}, nil, configs.TestChainConfig, Config{})
+		stack = newstack()
 	)
 	// convert args
 	byteArgs := make([][]byte, len(args))
@@ -330,7 +336,7 @@ func opBenchmark(bench *testing.B, op executionFunc, args ...string) {
 			a.SetBytes(arg)
 			stack.push(a)
 		}
-		op(&pc, env, &ScopeContext{nil, stack, rstack, nil})
+		op(&pc, env, &ScopeContext{nil, stack, nil})
 		stack.pop()
 	}
 }
@@ -545,21 +551,22 @@ func BenchmarkOpIsZero(b *testing.B) {
 
 func TestOpMstore(t *testing.T) {
 	var (
-		env    = NewKVM(Context{}, nil, Config{})
-		stack  = newstack()
-		rstack = newReturnStack()
-		mem    = NewMemory()
+		env = NewKVM(BlockContext{
+			BlockHeight: big.NewInt(10),
+		}, TxContext{}, nil, configs.TestChainConfig, Config{})
+		stack = newstack()
+		mem   = NewMemory()
 	)
 	mem.Resize(64)
 	pc := uint64(0)
 	v := "abcdef00000000000000abba000000000deaf000000c0de00100000000133700"
 	stack.pushN(*new(uint256.Int).SetBytes(common.Hex2Bytes(v)), *new(uint256.Int))
-	opMstore(&pc, env, &ScopeContext{mem, stack, rstack, nil})
+	opMstore(&pc, env, &ScopeContext{mem, stack, nil})
 	if got := common.Bytes2Hex(mem.GetCopy(0, 32)); got != v {
 		t.Fatalf("Mstore fail, got %v, expected %v", got, v)
 	}
 	stack.pushN(*new(uint256.Int).SetUint64(0x1), *new(uint256.Int))
-	opMstore(&pc, env, &ScopeContext{mem, stack, rstack, nil})
+	opMstore(&pc, env, &ScopeContext{mem, stack, nil})
 	if common.Bytes2Hex(mem.GetCopy(0, 32)) != "0000000000000000000000000000000000000000000000000000000000000001" {
 		t.Fatalf("Mstore failed to overwrite previous value")
 	}
@@ -567,10 +574,11 @@ func TestOpMstore(t *testing.T) {
 
 func BenchmarkOpMstore(bench *testing.B) {
 	var (
-		env    = NewKVM(Context{}, nil, Config{})
-		stack  = newstack()
-		rstack = newReturnStack()
-		mem    = NewMemory()
+		env = NewKVM(BlockContext{
+			BlockHeight: big.NewInt(10),
+		}, TxContext{}, nil, configs.TestChainConfig, Config{})
+		stack = newstack()
+		mem   = NewMemory()
 	)
 	mem.Resize(64)
 	pc := uint64(0)
@@ -580,16 +588,17 @@ func BenchmarkOpMstore(bench *testing.B) {
 	bench.ResetTimer()
 	for i := 0; i < bench.N; i++ {
 		stack.pushN(*value, *memStart)
-		opMstore(&pc, env, &ScopeContext{nil, stack, rstack, nil})
+		opMstore(&pc, env, &ScopeContext{nil, stack, nil})
 	}
 }
 
 func BenchmarkOpSHA3(bench *testing.B) {
 	var (
-		env    = NewKVM(Context{}, nil, Config{})
-		stack  = newstack()
-		rstack = newReturnStack()
-		mem    = NewMemory()
+		env = NewKVM(BlockContext{
+			BlockHeight: big.NewInt(10),
+		}, TxContext{}, nil, configs.TestChainConfig, Config{})
+		stack = newstack()
+		mem   = NewMemory()
 	)
 	mem.Resize(32)
 	pc := uint64(0)
@@ -598,6 +607,6 @@ func BenchmarkOpSHA3(bench *testing.B) {
 	bench.ResetTimer()
 	for i := 0; i < bench.N; i++ {
 		stack.pushN(*uint256.NewInt().SetUint64(32), *start)
-		opSha3(&pc, env, &ScopeContext{nil, stack, rstack, nil})
+		opSha3(&pc, env, &ScopeContext{nil, stack, nil})
 	}
 }

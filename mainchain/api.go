@@ -21,19 +21,16 @@ package kai
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/big"
 	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/internal/kaiapi"
 	"github.com/kardiachain/go-kardia/kvm"
-	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
-	"github.com/kardiachain/go-kardia/mainchain/blockchain"
-	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -141,7 +138,7 @@ func NewBlockHeaderJSON(header *types.Header, blockInfo *types.BlockInfo) *Block
 }
 
 // NewBlockJSON creates a new Block JSON data from Block
-func NewBlockJSON(block *types.Block, blockInfo *types.BlockInfo) *BlockJSON {
+func NewBlockJSON(config *configs.ChainConfig, block *types.Block, blockInfo *types.BlockInfo) *BlockJSON {
 	if block == nil {
 		return nil
 	}
@@ -159,7 +156,7 @@ func NewBlockJSON(block *types.Block, blockInfo *types.BlockInfo) *BlockJSON {
 
 	for index, transaction := range txs {
 		idx := uint64(index)
-		tx := NewPublicTransaction(transaction, block.Hash(), block.Height(), idx)
+		tx := NewPublicTransaction(config, transaction, block.Hash(), block.Height(), idx)
 		// add time for tx
 		tx.Time = block.Header().Time
 		transactions = append(transactions, tx)
@@ -215,7 +212,7 @@ func (s *PublicKaiAPI) GetBlockHeaderByHash(ctx context.Context, blockHash rpc.B
 func (s *PublicKaiAPI) GetBlockByNumber(ctx context.Context, blockHeight rpc.BlockHeight) *BlockJSON {
 	block := s.kaiService.BlockByHeight(ctx, blockHeight)
 	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, block.Hash())
-	return NewBlockJSON(block, blockInfo)
+	return NewBlockJSON(s.kaiService.chainConfig, block, blockInfo)
 }
 
 // GetBlockByHash returns block by block hash
@@ -225,7 +222,7 @@ func (s *PublicKaiAPI) GetBlockByHash(ctx context.Context, blockHash rpc.BlockHe
 		return nil
 	}
 	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, block.Hash())
-	return NewBlockJSON(block, blockInfo)
+	return NewBlockJSON(s.kaiService.chainConfig, block, blockInfo)
 }
 
 type Validator struct {
@@ -395,8 +392,8 @@ type BasicReceipt struct {
 
 // NewPublicTransaction returns a transaction that will serialize to the RPC
 // representation, with the given location metadata set (if available).
-func NewPublicTransaction(tx *types.Transaction, blockHash common.Hash, blockHeight uint64, index uint64) *PublicTransaction {
-	from, _ := types.Sender(types.FrontierSigner{}, tx)
+func NewPublicTransaction(config *configs.ChainConfig, tx *types.Transaction, blockHash common.Hash, blockHeight uint64, index uint64) *PublicTransaction {
+	from, _ := types.Sender(types.LatestSigner(config), tx)
 	v, r, s := tx.RawSignatureValues()
 	result := &PublicTransaction{
 		From:     from.Hex(),
@@ -454,36 +451,17 @@ func (a *PublicTransactionAPI) SendRawTransaction(ctx context.Context, txs strin
 	return tx.Hash().Hex(), a.s.TxPool().AddLocal(tx)
 }
 
-// revertError is an API error that encompassas an KVM revertal with JSON error
-// code and a binary data blob.
-type revertError struct {
-	error
-	reason string // revert reason hex encoded
-}
-
-func newRevertError(result *kvm.ExecutionResult) *revertError {
-	reason, errUnpack := abi.UnpackRevert(result.Revert())
-	err := errors.New("execution reverted")
-	if errUnpack == nil {
-		err = fmt.Errorf("execution reverted: %v", reason)
-	}
-	return &revertError{
-		error:  err,
-		reason: common.Encode(result.Revert()),
-	}
-}
-
 // KardiaCall execute a contract method call only against
 // state on the local node. No tx is generated and submitted
 // onto the blockchain
-func (s *PublicKaiAPI) KardiaCall(ctx context.Context, args types.CallArgsJSON, blockHeightOrHash rpc.BlockHeightOrHash) (common.Bytes, error) {
-	result, err := s.doCall(ctx, args, blockHeightOrHash, kvm.Config{}, configs.DefaultTimeOutForStaticCall*time.Second)
+func (s *PublicKaiAPI) KardiaCall(ctx context.Context, args kaiapi.TransactionArgs, blockHeightOrHash rpc.BlockHeightOrHash) (common.Bytes, error) {
+	result, err := kaiapi.DoCall(ctx, s.kaiService, args, blockHeightOrHash, kvm.Config{}, time.Duration(configs.TimeOutForStaticCall)*time.Millisecond)
 	if err != nil {
 		return nil, err
 	}
 	// If the result contains a revert reason, try to unpack and return it.
 	if len(result.Revert()) > 0 {
-		return nil, newRevertError(result)
+		return nil, kaiapi.NewRevertError(result)
 	}
 	return result.Return(), result.Err
 }
@@ -570,7 +548,7 @@ func (a *PublicTransactionAPI) PendingTransactions() ([]*PublicTransaction, erro
 	transactions := make([]*PublicTransaction, 0, len(pendingTxs))
 
 	for _, tx := range pendingTxs {
-		jsonData := NewPublicTransaction(tx, common.Hash{}, 0, 0)
+		jsonData := NewPublicTransaction(a.s.Config(), tx, common.Hash{}, 0, 0)
 		transactions = append(transactions, jsonData)
 	}
 	return transactions, nil
@@ -585,7 +563,7 @@ func (a *PublicTransactionAPI) GetTransaction(hash string) (*PublicTransaction, 
 		return nil, errors.New("tx for hash not found")
 	}
 
-	publicTx := NewPublicTransaction(tx, blockHash, height, index)
+	publicTx := NewPublicTransaction(a.s.Config(), tx, blockHash, height, index)
 	// get block by block height
 	block := a.s.blockchain.GetBlockByHeight(height)
 	// get block time from block
@@ -620,8 +598,8 @@ func getReceiptLogs(receipt types.Receipt) []Log {
 }
 
 // getTransactionReceipt gets transaction receipt from transaction, blockHash, blockHeight and index.
-func getPublicReceipt(receipt types.Receipt, tx *types.Transaction, blockHash common.Hash, blockHeight, index uint64) *PublicReceipt {
-	from, _ := types.Sender(types.HomesteadSigner{}, tx)
+func getPublicReceipt(config *configs.ChainConfig, receipt types.Receipt, tx *types.Transaction, blockHash common.Hash, blockHeight, index uint64) *PublicReceipt {
+	from, _ := types.Sender(types.LatestSigner(config), tx)
 	logs := getReceiptLogs(receipt)
 
 	publicReceipt := &PublicReceipt{
@@ -666,7 +644,7 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 	// return the receipt if tx and receipt hashes at index are the same
 	if len(blockInfo.Receipts) > int(index) && blockInfo.Receipts[index].TxHash.Equal(txHash) {
 		receipt := blockInfo.Receipts[index]
-		return getPublicReceipt(*receipt, tx, blockHash, height, index), nil
+		return getPublicReceipt(a.s.chainConfig, *receipt, tx, blockHash, height, index), nil
 	}
 	// else traverse receipts list to find the corresponding receipt of txHash
 	for _, r := range blockInfo.Receipts {
@@ -674,7 +652,7 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 			continue
 		} else {
 			receipt := r
-			return getPublicReceipt(*receipt, tx, blockHash, height, index), nil
+			return getPublicReceipt(a.s.chainConfig, *receipt, tx, blockHash, height, index), nil
 		}
 	}
 
@@ -698,6 +676,20 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 	}
 	// return nil if not found
 	return nil, nil
+}
+
+// GetRawTransactionByHash returns the bytes of the transaction for the given hash.
+func (a *PublicTransactionAPI) GetRawTransactionByHash(ctx context.Context, hash common.Hash) (common.Bytes, error) {
+	// Retrieve a finalized transaction, or a pooled otherwise
+	tx, _, _, _ := a.s.GetTransaction(ctx, hash)
+	if tx == nil {
+		if tx = a.s.TxPool().Get(hash); tx == nil {
+			// Transaction not found anywhere, abort
+			return nil, nil
+		}
+	}
+	// Serialize to RLP and return
+	return tx.MarshalBinary()
 }
 
 // PublicAccountAPI provides APIs support getting account's info
@@ -763,63 +755,6 @@ func (a *PublicAccountAPI) GetStorageAt(ctx context.Context, address common.Addr
 	return res[:], state.Error()
 }
 
-// doCall is an interface to make smart contract call against the state of local node
-// No tx is generated or submitted to the blockchain
-func (s *PublicKaiAPI) doCall(ctx context.Context, args types.CallArgsJSON, blockHeightOrHash rpc.BlockHeightOrHash, vmCfg kvm.Config, timeout time.Duration) (*kvm.ExecutionResult, error) {
-	defer func(start time.Time) { log.Debug("Executing KVM call finished", "runtime", time.Since(start)) }(time.Now())
-
-	state, header, err := s.kaiService.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
-	if state == nil || err != nil {
-		return nil, err
-	}
-
-	// Setup context so it may be cancelled the call has completed
-	// or, in case of unmetered gas, setup a context with a timeout.
-	var cancel context.CancelFunc
-	if timeout > 0 {
-		ctx, cancel = context.WithTimeout(ctx, timeout)
-	} else {
-		ctx, cancel = context.WithCancel(ctx)
-	}
-	// Make sure the context is cancelled when the call has completed
-	// this makes sure resources are cleaned up.
-	defer cancel()
-
-	// Create new call message
-	msg := args.ToMessage()
-
-	// Get a new instance of the KVM.
-	kvm, vmError, err := s.kaiService.GetKVM(ctx, msg, state, header)
-	if err != nil {
-		return nil, err
-	}
-
-	// Wait for the context to be done and cancel the KVM. Even if the
-	// KVM has finished, cancelling may be done (repeatedly)
-	go func() {
-		<-ctx.Done()
-		kvm.Cancel()
-	}()
-
-	// Setup the gas pool (also for unmetered requests)
-	// and apply the message.
-	gp := new(types.GasPool).AddGas(common.MaxUint64)
-	result, err := blockchain.ApplyMessage(kvm, msg, gp)
-	if err := vmError(); err != nil {
-		return nil, err
-	}
-
-	// If the timer caused an abort, return an appropriate error message
-	if kvm.Cancelled() {
-		return nil, fmt.Errorf("execution aborted (timeout = %v)", timeout)
-	}
-	if err != nil {
-		return result, fmt.Errorf("err: %w (supplied gas %d)", err, msg.Gas())
-	}
-
-	return result, nil
-}
-
 // GasPrice returns a suggestion for a gas price.
 func (s *PublicKaiAPI) GasPrice(ctx context.Context) (string, error) {
 	price, err := s.kaiService.SuggestPrice(ctx)
@@ -828,88 +763,13 @@ func (s *PublicKaiAPI) GasPrice(ctx context.Context) (string, error) {
 
 // EstimateGas returns an estimate of the amount of gas needed to execute the
 // given transaction against the current pending block.
-func (s *PublicKaiAPI) EstimateGas(ctx context.Context, args types.CallArgsJSON, blockHeightOrHash rpc.BlockHeightOrHash) (uint64, error) {
-	// Binary search the gas requirement, as it may be higher than the amount used
-	var (
-		lo  = configs.TxGas - 1
-		hi  uint64
-		cap uint64
-	)
-	// Use zero address if sender unspecified.
-	if (args.From == "") || (common.HexToAddress(args.From) == common.Address{}) {
-		args.From = configs.GenesisDeployerAddr.Hex()
+func (s *PublicKaiAPI) EstimateGas(ctx context.Context, args kaiapi.TransactionArgs, blockHeightOrHash *rpc.BlockHeightOrHash) (uint64, error) {
+	bHeightOrHash := rpc.BlockHeightOrHashWithHeight(rpc.PendingBlockHeight)
+	if blockHeightOrHash != nil {
+		bHeightOrHash = *blockHeightOrHash
 	}
-
-	if args.Gas >= configs.TxGas {
-		hi = args.Gas
-	} else {
-		// Retrieve the block to act as the gas ceiling
-		block, err := s.kaiService.BlockByHeightOrHash(ctx, blockHeightOrHash)
-		if err != nil {
-			return 0, err
-		}
-		if block == nil {
-			return 0, ErrBlockNotFound
-		}
-		hi = block.GasLimit()
-	}
-	cap = hi
-
-	// Create a helper to check if a gas allowance results in an executable transaction
-	executable := func(gas uint64) (bool, *kvm.ExecutionResult, error) {
-		args.Gas = gas
-
-		result, err := s.doCall(ctx, args, blockHeightOrHash, kvm.Config{}, 0)
-		if err != nil {
-			if errors.Is(err, tx_pool.ErrIntrinsicGas) {
-				return true, nil, nil // Special case, raise gas limit
-			}
-			return true, nil, err // Bail out
-		}
-		return result.Failed(), result, nil
-	}
-	// Execute the binary search and hone in on an executable gas limit
-	for lo+1 < hi {
-		mid := (hi + lo) / 2
-		failed, _, err := executable(mid)
-
-		// If the error is not nil(consensus error), it means the provided message
-		// call or transaction will never be accepted no matter how much gas it is
-		// assigned. Return the error directly, don't struggle any more.
-		if err != nil {
-			return 0, err
-		}
-		if failed {
-			lo = mid
-		} else {
-			hi = mid
-		}
-	}
-	// Reject the transaction as invalid if it still fails at the highest allowance
-	if hi == cap {
-		failed, result, err := executable(hi)
-		if err != nil {
-			return 0, err
-		}
-		if failed {
-			if result != nil && result.Err != kvm.ErrOutOfGas {
-				if len(result.Revert()) > 0 {
-					return 0, newRevertError(result)
-				}
-				return 0, result.Err
-			}
-			// Otherwise, the specified gas cap is too low
-			return 0, fmt.Errorf("gas required exceeds allowance (%d)", cap)
-		}
-	}
-
-	// Recap gas to highest gas cap
-	gasCap := configs.GasLimitCap
-	if gasCap != 0 && hi > gasCap {
-		hi = gasCap
-	}
-
-	return hi, nil
+	estimatedGas, err := kaiapi.DoEstimateGas(ctx, s.kaiService, args, bHeightOrHash, configs.GasLimitCap)
+	return uint64(estimatedGas), err
 }
 
 // checkGas is a function used to check whether the fee of

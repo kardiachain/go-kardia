@@ -37,11 +37,6 @@ import (
 	"github.com/rs/cors"
 
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/dualchain/blockchain"
-	"github.com/kardiachain/go-kardia/dualchain/event_pool"
-	"github.com/kardiachain/go-kardia/dualchain/service"
-	"github.com/kardiachain/go-kardia/dualnode/dual_proxy"
-	"github.com/kardiachain/go-kardia/dualnode/kardia"
 	"github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -53,7 +48,10 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/node"
 	kaiproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
-	"github.com/kardiachain/go-kardia/types"
+
+	// Force-load the tracer engines to trigger registration
+	_ "github.com/kardiachain/go-kardia/mainchain/tracers/js"
+	_ "github.com/kardiachain/go-kardia/mainchain/tracers/native"
 )
 
 var args flags
@@ -83,11 +81,8 @@ func (c *Config) getP2PConfig() (*configs.P2PConfig, error) {
 }
 
 // getDbInfo gets database information from config. Currently, it only supports levelDb
-func (c *Config) getDbInfo(isDual bool) storage.DbInfo {
+func (c *Config) getDbInfo() storage.DbInfo {
 	database := c.MainChain.Database
-	if isDual {
-		database = c.DualChain.Database
-	}
 	nodeDir := filepath.Join(c.DataDir, c.Name, database.Dir)
 	if database.Drop == 1 {
 		// Clear all contents within data dir
@@ -114,15 +109,12 @@ func (c *Config) getTxPoolConfig() tx_pool.TxPoolConfig {
 }
 
 // getGenesisConfig gets node data from config
-func (c *Config) getGenesisConfig(isDual bool) (*genesis.Genesis, error) {
+func (c *Config) getGenesisConfig() (*genesis.Genesis, error) {
 	var (
 		ga  genesis.GenesisAlloc
 		err error
 	)
 	g := c.MainChain.Genesis
-	if isDual {
-		g = c.DualChain.Genesis
-	}
 
 	if g == nil {
 		ga = make(genesis.GenesisAlloc, 0)
@@ -164,11 +156,11 @@ func (c *Config) getGenesisConfig(isDual bool) (*genesis.Genesis, error) {
 // getMainChainConfig gets mainchain's config from config
 func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 	chain := c.MainChain
-	dbInfo := c.getDbInfo(false)
+	dbInfo := c.getDbInfo()
 	if dbInfo == nil {
 		return nil, fmt.Errorf("cannot get dbInfo")
 	}
-	genesisData, err := c.getGenesisConfig(false)
+	genesisData, err := c.getGenesisConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -177,51 +169,19 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 		Genesis:     genesisData,
 		TxPool:      c.getTxPoolConfig(),
 		AcceptTxs:   chain.AcceptTxs,
-		NetworkId:   chain.NetworkID,
-		ChainId:     chain.ChainID,
 		ServiceName: chain.ServiceName,
 		Consensus:   genesisData.Consensus,
 		FastSync:    c.getFastSyncConfig(),
 		GasOracle:   c.getGasOracleConfig(),
 	}
 	if args.network == Mainnet {
+		mainChainConfig.ChainId = configs.MainnetChainID
 		mainChainConfig.NetworkId = configs.MainnetNetworkID
 	} else {
+		mainChainConfig.ChainId = configs.TestnetChainID
 		mainChainConfig.NetworkId = configs.TestnetNetworkID
 	}
 	return &mainChainConfig, nil
-}
-
-// getMainChainConfig gets mainchain's config from config
-func (c *Config) getDualChainConfig() (*node.DualChainConfig, error) {
-	dbInfo := c.getDbInfo(true)
-	if dbInfo == nil {
-		return nil, fmt.Errorf("cannot get dbInfo")
-	}
-	genesisData, err := c.getGenesisConfig(true)
-	if err != nil {
-		return nil, err
-	}
-	eventPool := event_pool.Config{
-		GlobalSlots: c.DualChain.EventPool.GlobalSlots,
-		GlobalQueue: c.DualChain.EventPool.GlobalQueue,
-		BlockSize:   c.DualChain.EventPool.BlockSize,
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	dualChainConfig := node.DualChainConfig{
-		DBInfo:           dbInfo,
-		DualGenesis:      genesisData,
-		DualEventPool:    eventPool,
-		DualNetworkID:    c.DualChain.NetworkID,
-		ChainId:          c.DualChain.ChainID,
-		DualProtocolName: *c.DualChain.Protocol,
-		FastSync:         c.getFastSyncConfig(),
-	}
-	return &dualChainConfig, nil
 }
 
 // getNodeConfig gets NodeConfig from config
@@ -243,8 +203,8 @@ func (c *Config) getNodeConfig() (*node.Config, error) {
 		HTTPModules:      n.HTTPModules,
 		WSHost:           n.WSHost,
 		WSPort:           n.WSPort,
+		WSOrigins:        n.WSOrigins,
 		MainChainConfig:  node.MainChainConfig{},
-		DualChainConfig:  node.DualChainConfig{},
 		Metrics:          n.Metrics,
 		FastSync:         c.getFastSyncConfig(),
 		GasOracle:        c.getGasOracleConfig(),
@@ -257,12 +217,10 @@ func (c *Config) getNodeConfig() (*node.Config, error) {
 		return nil, fmt.Errorf("mainChainConfig is empty")
 	}
 	nodeConfig.MainChainConfig = *mainChainConfig
-	if c.DualChain != nil {
-		if dualChainConfig, err := c.getDualChainConfig(); err != nil {
-			return nil, err
-		} else {
-			nodeConfig.DualChainConfig = *dualChainConfig
-		}
+	if c.TimeOutForStaticCall > 0 {
+		configs.TimeOutForStaticCall = c.TimeOutForStaticCall
+	} else {
+		configs.TimeOutForStaticCall = configs.DefaultTimeOutForStaticCall
 	}
 	return &nodeConfig, nil
 }
@@ -382,7 +340,7 @@ func (c *Config) Start() {
 		return
 	}
 
-	genesisCfg, err := c.getGenesisConfig(false)
+	genesisCfg, err := c.getGenesisConfig()
 	if err != nil {
 		panic(err)
 	}
@@ -400,29 +358,9 @@ func (c *Config) Start() {
 		return
 	}
 
-	if c.DualChain != nil {
-		if err := n.Register(service.NewDualService); err != nil {
-			logger.Error("error while adding dual service", "err", err)
-			return
-		}
-	}
-
 	if err := n.Start(); err != nil {
 		logger.Error("error while starting node", "err", err)
 		return
-	}
-
-	if c.MainChain.Events != nil {
-		var kardiaService *kai.KardiaService
-		if err := n.Service(&kardiaService); err != nil {
-			logger.Error("cannot get Kardia service", "err", err)
-			return
-		}
-		// save watchers to db
-		c.SaveWatchers(kardiaService, c.MainChain.Events)
-	}
-
-	if c.DualChain != nil {
 	}
 
 	if c.Metrics {
@@ -436,71 +374,7 @@ func (c *Config) Start() {
 		}
 	}
 
-	if err := c.StartDual(n); err != nil {
-		logger.Error("error while starting dual", "err", err)
-		return
-	}
-
-	//httpServer := http.Server{Handler: prometheus.Handler()}
-
 	waitForever()
-}
-
-// StartDual reads dual config and start dual service
-func (c *Config) StartDual(n *node.Node) error {
-	if c.DualChain != nil {
-		var kardiaService *kai.KardiaService
-		var dualService *service.DualService
-		var dualProxy *dual_proxy.Proxy
-		var err error
-
-		if err = n.Service(&kardiaService); err != nil {
-			return fmt.Errorf("cannot get Kardia service: %v", err)
-		}
-
-		if err = n.Service(&dualService); err != nil {
-			return fmt.Errorf("cannot get Dual service: %v", err)
-		}
-
-		// save watchers to db
-		if c.DualChain.Events != nil {
-			c.SaveWatchers(dualService, c.DualChain.Events)
-		}
-
-		// init kardia proxy
-		kardiaProxy := &kardia.KardiaProxy{}
-		if err = kardiaProxy.Init(kardiaService.BlockChain(), kardiaService.TxPool(),
-			dualService.BlockChain(), dualService.EventPool(), nil, nil); err != nil {
-			panic(err)
-		}
-
-		if dualProxy, err = dual_proxy.NewProxy(
-			c.DualChain.ServiceName,
-			kardiaService.BlockChain(),
-			kardiaService.TxPool(),
-			dualService.BlockChain(),
-			dualService.EventPool(),
-			*c.DualChain.PublishedEndpoint,
-			*c.DualChain.SubscribedEndpoint,
-		); err != nil {
-			log.Error("Fail to initialize proxy", "error", err, "proxy", c.DualChain.ServiceName)
-			return err
-		}
-
-		// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
-		// submit tx to either internal or external blockchain.
-		bcManager := blockchain.NewDualBlockChainManager(kardiaProxy, dualProxy)
-		dualService.SetDualBlockChainManager(bcManager)
-
-		// Register the 'other' blockchain to each internal/external blockchain. This is needed
-		// for generate Tx to submit to the other blockchain.
-		kardiaProxy.RegisterExternalChain(dualProxy)
-		dualProxy.RegisterInternalChain(kardiaProxy)
-
-		dualProxy.Start()
-		kardiaProxy.Start()
-	}
-	return nil
 }
 
 func (c *Config) StartDebug() error {
@@ -524,28 +398,6 @@ func (c *Config) StartDebug() error {
 		}
 	}()
 	return nil
-}
-
-func (c *Config) SaveWatchers(service node.Service, events []Event) {
-	if events != nil {
-		for _, event := range events {
-			abi := ""
-			masterAbi := ""
-			if event.ABI != nil {
-				abi = *event.ABI
-			}
-			if event.MasterABI != nil {
-				masterAbi = *event.MasterABI
-			}
-			smc := &types.KardiaSmartcontract{
-				MasterSmc:  event.MasterSmartContract,
-				MasterAbi:  masterAbi,
-				SmcAddress: event.ContractAddress,
-				SmcAbi:     abi,
-			}
-			service.DB().WriteEvent(smc)
-		}
-	}
 }
 
 // removeDirContents deletes old local node directory

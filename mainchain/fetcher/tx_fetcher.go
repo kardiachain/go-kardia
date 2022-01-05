@@ -25,7 +25,6 @@ import (
 	"time"
 
 	mapset "github.com/deckarep/golang-set"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/mclock"
@@ -295,10 +294,10 @@ func (f *TxFetcher) Enqueue(peer string, txs []*types.Transaction, direct bool) 
 		switch {
 		case err == nil: // Noop, but need to handle to not count these
 
-		case errors.Is(err, core.ErrAlreadyKnown):
+		case errors.Is(err, ErrAlreadyKnown):
 			duplicate++
 
-		case errors.Is(err, core.ErrUnderpriced) || errors.Is(err, ErrReplaceUnderpriced):
+		case errors.Is(err, ErrUnderpriced) || errors.Is(err, ErrReplaceUnderpriced):
 			underpriced++
 
 		default:

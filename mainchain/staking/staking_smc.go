@@ -74,36 +74,6 @@ func NewSmcStakingUtil() (*StakingSmcUtil, error) {
 	return &StakingSmcUtil{Abi: &abi, ContractAddress: common.HexToAddress(configs.DefaultStakingContractAddress), Bytecode: bytecodeStaking}, nil
 }
 
-//SetParams set params
-func (s *StakingSmcUtil) SetParams(baseProposerReward int64, bonusProposerReward int64,
-	slashFractionDowntime int64, slashFractionDoubleSign int64, unBondingTime int64,
-	signedBlockWindow int64, minSignedBlockPerWindow int64,
-	SenderAddress common.Address) ([]byte, error) {
-
-	// stateDb, err := s.bc.State()
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// store, err := s.Abi.Pack("setParams", big.NewInt(100), big.NewInt(600), big.NewInt(baseProposerReward),
-	// 	big.NewInt(bonusProposerReward),
-	// 	big.NewInt(slashFractionDowntime), big.NewInt(slashFractionDoubleSign),
-	// 	big.NewInt(unBondingTime), big.NewInt(signedBlockWindow),
-	// 	big.NewInt(minSignedBlockPerWindow))
-
-	// if err != nil {
-	// 	log.Error("Error set params", "err", err)
-	// 	return nil, err
-	// }
-
-	// _, _, err = sample_kvm.Call(s.ContractAddress, store, &sample_kvm.Config{State: stateDb, Origin: SenderAddress})
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	return nil, nil
-}
-
 //CreateValidator create validator
 func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config,
 	valAddr common.Address,
@@ -366,7 +336,7 @@ func (s *StakingSmcUtil) SetRoot(statedb *state.StateDB, header *types.Header, b
 func Apply(logger log.Logger, bc vm.ChainContext, statedb *state.StateDB, header *types.Header, cfg kvm.Config, msg types.Message) ([]byte, error) {
 	// Create a new context to be used in the KVM environment
 	context := vm.NewKVMContext(msg, header, bc)
-	vmenv := kvm.NewKVM(context, statedb, cfg)
+	vmenv := kvm.NewKVM(context, kvm.TxContext{}, statedb, configs.MainnetChainConfig, cfg)
 	sender := kvm.AccountRef(msg.From())
 	ret, _, vmerr := vmenv.Call(sender, *msg.To(), msg.Data(), msg.Gas(), msg.Value())
 	if vmerr != nil {
@@ -395,7 +365,7 @@ func (s *StakingSmcUtil) CreateStakingContract(statedb *state.StateDB,
 
 	// Create a new context to be used in the KVM environment
 	context := vm.NewKVMContext(msg, header, nil)
-	vmenv := kvm.NewKVM(context, statedb, cfg)
+	vmenv := kvm.NewKVM(context, kvm.TxContext{}, statedb, configs.MainnetChainConfig, cfg)
 	sender := kvm.AccountRef(msg.From())
 	if err := vmenv.CreateGenesisContractAddress(sender, msg.Data(), msg.Gas(), msg.Value(), s.ContractAddress); err != nil {
 		return err
@@ -403,4 +373,24 @@ func (s *StakingSmcUtil) CreateStakingContract(statedb *state.StateDB,
 	// Update the state with pending changes
 	statedb.Finalise(true)
 	return nil
+}
+
+// GetAllVals returns a list of current validators
+func (s *StakingSmcUtil) GetAllValContracts(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) ([]common.Address, error) {
+	numOfVals, err := s.GetAllValsLength(statedb, header, bc, cfg)
+	if err != nil {
+		return nil, err
+	}
+	var (
+		one      = big.NewInt(1)
+		valsList []common.Address
+	)
+	for i := new(big.Int).SetInt64(0); i.Cmp(numOfVals) < 0; i.Add(i, one) {
+		valSMCAddress, err := s.GetValSmcAddr(statedb, header, bc, cfg, i)
+		if err != nil {
+			return nil, err
+		}
+		valsList = append(valsList, valSMCAddress)
+	}
+	return valsList, nil
 }
