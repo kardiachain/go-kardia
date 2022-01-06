@@ -216,7 +216,7 @@ func (bs *proposalBlock) organizeTransactions(bo *BlockOperations) error {
 	return nil
 }
 
-// tryApplyTransaction attempts to appply a single transaction. If the transaction fails, it's modifications are reverted.
+// commitTransaction attempts to appply a single transaction. If the transaction fails, it's modifications are reverted.
 func (bs *proposalBlock) commitTransaction(bo *BlockOperations, tx *types.Transaction) error {
 	snap := bs.state.Snapshot()
 	kvmConfig := kvm.Config{}
@@ -231,7 +231,7 @@ func (bs *proposalBlock) commitTransaction(bo *BlockOperations, tx *types.Transa
 	return nil
 }
 
-// tryCommitTransactions validate and try commit transactions into block to propose
+// commitTransactions validate and commit transactions into block to propose
 func (bs *proposalBlock) commitTransactions(bo *BlockOperations, txs *types.TransactionsByPriceAndNonce) error {
 	for {
 		// If we don't have enough gas for any further transactions then we're done
