@@ -16,7 +16,7 @@ scrape_configs:
   - job_name: node1
     scrape_interval: 10s
     static_configs:
-      - targets: ['localhost:6000']
+      - targets: ['node1:6000']
   - job_name: node2
     scrape_interval: 10s
     static_configs:
