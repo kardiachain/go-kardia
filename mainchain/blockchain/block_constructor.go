@@ -181,11 +181,11 @@ func (bo *BlockOperations) newProposalBlock(header *types.Header) (*proposalBloc
 }
 
 // organizeTransaction organize transactions in tx pool and try to apply into block state
-func (bs *proposalBlock) organizeTransactions(bo *BlockOperations) error {
+func (pb *proposalBlock) organizeTransactions(bo *BlockOperations) error {
 	pending, err := bo.txPool.Pending()
 	if err != nil {
 		// @lewtran: panic here?
-		bs.logger.Error("Cannot fetch pending transactions", "err", err)
+		pb.logger.Error("Cannot fetch pending transactions", "err", err)
 		return nil
 	}
 
@@ -202,14 +202,14 @@ func (bs *proposalBlock) organizeTransactions(bo *BlockOperations) error {
 		}
 	}
 	if len(localTxs) > 0 {
-		txs := types.NewTransactionsByPriceAndNonce(bs.signer, localTxs)
-		if err := bs.commitTransactions(bo, txs); err != nil {
+		txs := types.NewTransactionsByPriceAndNonce(pb.signer, localTxs)
+		if err := pb.commitTransactions(bo, txs); err != nil {
 			return fmt.Errorf("failed to commit local transactions: %w", err)
 		}
 	}
 	if len(remoteTxs) > 0 {
-		txs := types.NewTransactionsByPriceAndNonce(bs.signer, remoteTxs)
-		if err := bs.commitTransactions(bo, txs); err != nil {
+		txs := types.NewTransactionsByPriceAndNonce(pb.signer, remoteTxs)
+		if err := pb.commitTransactions(bo, txs); err != nil {
 			return fmt.Errorf("failed to commit remote transactions: %w", err)
 		}
 	}
@@ -217,26 +217,26 @@ func (bs *proposalBlock) organizeTransactions(bo *BlockOperations) error {
 }
 
 // commitTransaction attempts to appply a single transaction. If the transaction fails, it's modifications are reverted.
-func (bs *proposalBlock) commitTransaction(bo *BlockOperations, tx *types.Transaction) error {
-	snap := bs.state.Snapshot()
+func (pb *proposalBlock) commitTransaction(bo *BlockOperations, tx *types.Transaction) error {
+	snap := pb.state.Snapshot()
 	kvmConfig := kvm.Config{}
 
-	receipt, _, err := ApplyTransaction(bo.blockchain.chainConfig, bs.logger, bo.blockchain, bs.gasPool, bs.state, bs.header, tx, bs.usedGas, kvmConfig)
+	receipt, _, err := ApplyTransaction(bo.blockchain.chainConfig, pb.logger, bo.blockchain, pb.gasPool, pb.state, pb.header, tx, pb.usedGas, kvmConfig)
 	if err != nil {
-		bs.state.RevertToSnapshot(snap)
+		pb.state.RevertToSnapshot(snap)
 		return err
 	}
-	bs.txs = append(bs.txs, tx)
-	bs.receipts = append(bs.receipts, receipt)
+	pb.txs = append(pb.txs, tx)
+	pb.receipts = append(pb.receipts, receipt)
 	return nil
 }
 
 // commitTransactions validate and commit transactions into block to propose
-func (bs *proposalBlock) commitTransactions(bo *BlockOperations, txs *types.TransactionsByPriceAndNonce) error {
+func (pb *proposalBlock) commitTransactions(bo *BlockOperations, txs *types.TransactionsByPriceAndNonce) error {
 	for {
 		// If we don't have enough gas for any further transactions then we're done
-		if bs.gasPool.Gas() < configs.TxGas {
-			log.Error("Not enough gas for further transactions", "have", bs.gasPool, "want", configs.TxGas)
+		if pb.gasPool.Gas() < configs.TxGas {
+			log.Error("Not enough gas for further transactions", "have", pb.gasPool, "want", configs.TxGas)
 			break
 		}
 
@@ -246,18 +246,18 @@ func (bs *proposalBlock) commitTransactions(bo *BlockOperations, txs *types.Tran
 			break
 		}
 
-		if bs.gasPool.Gas() < configs.TxGas {
-			log.Trace("Skipping transaction which requires more gas than is left in the block", "hash", tx.Hash(), "gas", bs.gasPool.Gas(), "txgas", tx.Gas())
+		if pb.gasPool.Gas() < configs.TxGas {
+			log.Trace("Skipping transaction which requires more gas than is left in the block", "hash", tx.Hash(), "gas", pb.gasPool.Gas(), "txgas", tx.Gas())
 			txs.Pop()
 			continue
 		}
 
 		// Error may be ignored here. The error has already been checked
 		// during transaction acceptance is the transaction pool.
-		from, _ := types.Sender(bs.signer, tx)
+		from, _ := types.Sender(pb.signer, tx)
 
-		bs.state.Prepare(tx.Hash(), common.Hash{}, bs.tcount)
-		err := bs.commitTransaction(bo, tx)
+		pb.state.Prepare(tx.Hash(), common.Hash{}, pb.tcount)
+		err := pb.commitTransaction(bo, tx)
 		switch {
 		case errors.Is(err, tx_pool.ErrGasLimitReached):
 			// Pop the current out-of-gas transaction without shifting in the next from the account
@@ -275,7 +275,7 @@ func (bs *proposalBlock) commitTransactions(bo *BlockOperations, txs *types.Tran
 			txs.Pop()
 
 		case errors.Is(err, nil):
-			bs.tcount++
+			pb.tcount++
 			txs.Shift()
 		default:
 			// Strange error, discard the transaction and get the next in line (note, the
