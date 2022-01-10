@@ -24,6 +24,7 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
+	"github.com/kardiachain/go-kardia/lib/accounts"
 	"github.com/kardiachain/go-kardia/lib/bloombits"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -83,7 +84,8 @@ type KardiaService struct {
 	bloomIndexer      *BloomIndexer                  // Bloom indexer operating during block imports
 	closeBloomHandler chan struct{}
 
-	gpo *oracles.Oracle
+	gpo    *oracles.Oracle
+	accMan *accounts.Manager
 }
 
 func (s *KardiaService) AddKaiServer(ks KardiaSubService) {
@@ -189,6 +191,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 
 	// init gas price oracle
 	kai.gpo = oracles.NewGasPriceOracle(kai, config.GasOracle)
+	kai.accMan = ctx.AccMan
 	return kai, nil
 }
 

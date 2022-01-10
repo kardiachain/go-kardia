@@ -36,6 +36,7 @@ import (
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/lib/accounts/keystore"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/metrics"
@@ -206,6 +207,7 @@ func (c *Config) getNodeConfig() (*node.Config, error) {
 		Metrics:          n.Metrics,
 		FastSync:         c.getFastSyncConfig(),
 		GasOracle:        c.getGasOracleConfig(),
+		KeyStoreDir:      n.KeyStoreDir,
 	}
 	mainChainConfig, err := c.getMainChainConfig()
 	if err != nil {
@@ -356,6 +358,11 @@ func (c *Config) Start() {
 		return
 	}
 
+	if err = setAccountManagerBackends(n); err != nil {
+		logger.Error("Cannot set accounts manager backend to node", "err", err)
+		return
+	}
+
 	if err := n.Start(); err != nil {
 		logger.Error("error while starting node", "err", err)
 		return
@@ -445,6 +452,23 @@ func runtimeSystemSettings() error {
 
 func waitForever() {
 	select {}
+}
+
+func setAccountManagerBackends(stack *node.Node) error {
+	conf := stack.Config()
+	am := stack.AccountManager()
+	keydir := stack.KeyStoreDir()
+	scryptN := keystore.StandardScryptN
+	scryptP := keystore.StandardScryptP
+	if conf.UseLightweightKDF {
+		scryptN = keystore.LightScryptN
+		scryptP = keystore.LightScryptP
+	}
+
+	// Assemble the supported backends
+	am.AddBackend(keystore.NewKeyStore(keydir, scryptN, scryptP))
+
+	return nil
 }
 
 func main() {

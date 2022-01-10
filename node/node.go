@@ -35,6 +35,7 @@ import (
 	cs "github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
 	"github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/lib/accounts"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/metrics"
@@ -54,11 +55,15 @@ var (
 // Node is a container on which services can be registered.
 type Node struct {
 	bs.BaseService
-	sw *p2p.Switch // p2p connections
+	sw     *p2p.Switch // p2p connections
+	accMan *accounts.Manager
 
 	eventmux *event.TypeMux // Event multiplexer used between the services of a stack
 	config   *Config
 	log      log.Logger
+
+	keyDir     string // key store directory
+	keyDirTemp bool   // If true, key directory will be removed by Stop
 
 	ephemeralKeystore string            // if non-empty, the key directory that will be removed by Stop
 	instanceDirLock   fileutil.Releaser // prevents concurrent use of instance directory
@@ -137,6 +142,17 @@ func New(conf *Config) (*Node, error) {
 		return nil, err
 	}
 	stateDB := cstate.NewStore(db.DB())
+
+	// Acquire the instance directory lock.
+	keyDir, isEphem, err := getKeyStoreDir(conf)
+	if err != nil {
+		return nil, err
+	}
+	node.keyDir = keyDir
+	node.keyDirTemp = isEphem
+	// Creates an empty AccountManager with no backends. Callers (e.g. cmd/main.go)
+	// are required to add the backends later on.
+	node.accMan = accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: conf.InsecureUnlockAllowed})
 
 	// Setting up the p2p server
 	nodeKey := &p2p.NodeKey{PrivKey: conf.NodeKey()}
@@ -231,6 +247,7 @@ func (n *Node) OnStart() error {
 			EventMux:   n.eventmux,
 			BlockStore: n.blockStore,
 			StateDB:    n.stateDB,
+			AccMan:     n.accMan,
 		}
 		for kind, s := range services { // copy needed for threaded access
 			ctx.services[kind] = s
@@ -544,6 +561,16 @@ func (n *Node) wsServerForPort(port int) *httpServer {
 // the current protocol stack.
 func (n *Node) EventMux() *event.TypeMux {
 	return n.eventmux
+}
+
+// KeyStoreDir retrieves the key directory
+func (n *Node) KeyStoreDir() string {
+	return n.keyDir
+}
+
+// AccountManager retrieves the account manager used by the protocol stack.
+func (n *Node) AccountManager() *accounts.Manager {
+	return n.accMan
 }
 
 // OpenDatabase opens an existing database with the given name (or creates one if no
