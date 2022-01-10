@@ -32,7 +32,7 @@ import (
 	"github.com/cespare/cp"
 	"github.com/davecgh/go-spew/spew"
 
-	"github.com/kardiachain/go-kardia/lib/accounts"
+	"github.com/kardiachain/go-kardia/kai/accounts"
 	"github.com/kardiachain/go-kardia/lib/common"
 )
 

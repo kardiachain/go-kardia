@@ -18,7 +18,9 @@
 
 package bind
 
-import "github.com/kardiachain/go-kardia/lib/abi"
+import (
+	"github.com/kardiachain/go-kardia/kai/accounts/abi"
+)
 
 // tmplData is the data structure required to fill the binding template.
 type tmplData struct {

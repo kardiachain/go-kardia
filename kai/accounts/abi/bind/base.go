@@ -25,7 +25,7 @@ import (
 	"math/big"
 
 	"github.com/kardiachain/go-kardia"
-	"github.com/kardiachain/go-kardia/lib/abi"
+	"github.com/kardiachain/go-kardia/kai/accounts/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/event"

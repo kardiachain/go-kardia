@@ -21,8 +21,8 @@ package node
 import (
 	"reflect"
 
+	"github.com/kardiachain/go-kardia/kai/accounts"
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
-	"github.com/kardiachain/go-kardia/lib/accounts"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	bs "github.com/kardiachain/go-kardia/lib/service"

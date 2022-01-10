@@ -35,8 +35,8 @@ import (
 	"github.com/rs/cors"
 
 	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kai/accounts/keystore"
 	"github.com/kardiachain/go-kardia/kai/storage"
-	"github.com/kardiachain/go-kardia/lib/accounts/keystore"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/metrics"

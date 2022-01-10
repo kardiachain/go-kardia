@@ -22,7 +22,7 @@ import (
 	"math/big"
 
 	"github.com/kardiachain/go-kardia"
-	"github.com/kardiachain/go-kardia/lib/accounts"
+	"github.com/kardiachain/go-kardia/kai/accounts"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/types"
 )

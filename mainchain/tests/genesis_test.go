@@ -24,7 +24,6 @@ import (
 	"testing"
 
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/kai/account"
 	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -77,15 +76,8 @@ var (
 func TestGenesisAllocFromData(t *testing.T) {
 
 	var data = make(map[string]*big.Int, len(privKeys))
-	for _, pk := range privKeys {
-		keystore := account.KeyStore{Path: ""}
-		keystoreJson, err := keystore.NewKeyStoreJSON(password, pk)
-
-		if err != nil {
-			t.Error("Cannot create new keystore")
-		}
-
-		data[keystoreJson.Address] = initBalance
+	for i := range addresses {
+		data[addresses[i]] = initBalance
 	}
 
 	ga, err := genesis.GenesisAllocFromData(data)

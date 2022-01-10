@@ -19,7 +19,7 @@
 package kvm
 
 import (
-	"github.com/kardiachain/go-kardia/lib/abi"
+	"github.com/kardiachain/go-kardia/kai/accounts/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 )
 
