@@ -14,6 +14,7 @@ services:
     image: gcr.io/indigo-history-235904/go-kardia:stable
     ports:
       - 3000:3000
+      - 6001:6001
       - 3000:3000/udp
       - 8545:8545
     networks:
@@ -29,52 +30,53 @@ services:
         max-size: 300m
   node2:
     container_name: node2
+    build: ../..
     image: gcr.io/indigo-history-235904/go-kardia:stable
     ports:
       - 3001:3000
+      - 6002:6001
       - 3001:3000/udp
       - 8546:8545
     networks:
       kardia:
         ipv4_address: 172.20.0.3
     volumes:
-      - ./node2.yaml:/go/bin/node2.yaml
-      - ./:/root/.kardia
-    command: [ "--network", "devnet", "--genesis", "cfg/genesis_devnet.yaml", "--node","cfg/devnet_node2.yaml" ]
+      - ./node1.yaml:/go/bin/node1.yaml
+      - .:/root/.kardia
+    command: [ "--network", "devnet", "--genesis", "cfg/genesis_devnet.yaml", "--node","cfg/devnet_node2.yaml"  ]
     logging:
       driver: "json-file"
       options:
         max-size: 300m
   node3:
-    container_name: node3
-    image: gcr.io/indigo-history-235904/go-kardia:stable
-    ports:
-      - 3002:3000
-      - 3002:3000/udp
-      - 8547:8545
-    networks:
-      kardia:
-        ipv4_address: 172.20.0.4
-    volumes:
-      - ./node3.yaml:/go/bin/node3.yaml
-      - ./:/root/.kardia
-    command: [ "--network", "devnet", "--genesis", "cfg/genesis_devnet.yaml", "--node","cfg/devnet_node3.yaml" ]
-    logging:
-      driver: "json-file"
-      options:
-        max-size: 300m
+      container_name: node3
+      image: gcr.io/indigo-history-235904/go-kardia:stable
+      ports:
+        - 3002:3000
+        - 6003:6001
+        - 3002:3000/udp
+        - 8547:8545
+      networks:
+        kardia:
+          ipv4_address: 172.20.0.4
+      volumes:
+        - ./node3.yaml:/go/bin/node3.yaml
+        - ./:/root/.kardia
+      command: [ "--network", "devnet", "--genesis", "cfg/genesis_devnet.yaml", "--node","cfg/devnet_node3.yaml" ]
+      logging:
+        driver: "json-file"
+        options:
+          max-size: 300m
   prometheus:
     image: prom/prometheus:latest
     volumes:
-      - ./prometheus:/prometheus/
+      - ./prometheus:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
     ports:
-      - 9090:9090
+      - "9090:9090"
   grafana:
     image: grafana/grafana:latest
     ports:
       - 5000:3000
-    depends_on:
-      - prometheus

@@ -23,7 +23,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/ethereum/go-ethereum/metrics/prometheus"
+	"github.com/kardiachain/go-kardia/prometheus"
 	"math/big"
 	"net/http"
 	"net/http/pprof"
@@ -389,8 +389,9 @@ func (c *Config) StartDebug() error {
 		router.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
 		router.Handle("/debug/pprof/block", pprof.Handler("block"))
 		router.Handle("/debug/vars", http.DefaultServeMux)
-		router.Handle("/debug/metrics/prometheus/cstate", prometheus.Handler(metrics.CStateRegistry))
-		router.Handle("/debug/metrics/prometheus/bc", prometheus.Handler(metrics.BlockchainRegistry))
+		router.Handle("/metrics", prometheus.Handler(metrics.DefaultRegistry))
+		router.Handle("/prometheus/metrics/db", prometheus.Handler(metrics.DBRegistry))
+		router.Handle("/prometheus/metrics/prometheus/bc", prometheus.Handler(metrics.BlockchainRegistry))
 
 		if err := http.ListenAndServe(c.Debug.Port, cors.AllowAll().Handler(router)); err != nil {
 			panic(err)

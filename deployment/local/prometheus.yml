@@ -11,9 +11,13 @@ rule_files:
 # - "second.rules"
 
 # A scrape configuration containing exactly one endpoint to scrape:
-# Here it's Prometheus itself.
 scrape_configs:
-  - job_name: my-prometheus
-    scrape_interval: 10s
+  - job_name: node1-prometheus
     static_configs:
-      - targets: ['localhost:6000']
+      - targets: ['node1:6001']
+  - job_name: node2-prometheus
+      static_configs:
+        - targets: [ 'node2:6002' ]
+  - job_name: node3-prometheus
+      static_configs:
+        - targets: [ 'node3:6003' ]

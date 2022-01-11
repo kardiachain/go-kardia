@@ -13,10 +13,10 @@ var (
 )
 
 var (
-	saveStateTimer 		= metrics.NewRegisteredTimer(MetricSaveState, metrics.CStateRegistry)
-	stateBytesLength 	= metrics.NewRegisteredGauge(MetricStateBytes, metrics.CStateRegistry)
-	lastHeightValidatorsChangedGauge = metrics.NewRegisteredGauge(MetricValidatorsChanged, metrics.CStateRegistry)
-	nextValidatorsGauge = metrics.NewRegisteredGauge(MetricNextValidators, metrics.CStateRegistry)
+	saveStateTimer 		= metrics.NewRegisteredTimer(MetricSaveState, metrics.DefaultRegistry)
+	stateBytesLength 	= metrics.NewRegisteredGauge(MetricStateBytes, metrics.DefaultRegistry)
+	lastHeightValidatorsChangedGauge = metrics.NewRegisteredGauge(MetricValidatorsChanged, metrics.DefaultRegistry)
+	nextValidatorsGauge = metrics.NewRegisteredGauge(MetricNextValidators, metrics.DefaultRegistry)
 )
 
 func metricName(group, name string) string {

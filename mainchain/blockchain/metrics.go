@@ -18,14 +18,14 @@ var (
 
 // Setup metrics
 var (
-	blockWriteTimer 		= metrics.NewRegisteredTimer(MetricBlockInfoWrite, metrics.BlockchainRegistry)
-	blockHeightGauge 		= metrics.NewRegisteredGauge(MetricBlockHeight, metrics.BlockchainRegistry)
-	blockTransactionsGauge 	= metrics.NewRegisteredGauge(MetricBlockTransactions, metrics.BlockchainRegistry)
-	blockHashGauge			= metrics.NewRegisteredGauge(MetricBlockHash, metrics.BlockchainRegistry)
-	blockSaveTimer			= metrics.NewRegisteredTimer(MetricBlockSave, metrics.BlockchainRegistry)
-	blockCommitSave			= metrics.NewRegisteredGauge(MetricBlockCommit, metrics.BlockchainRegistry)
-	blockSeenCommitSave		= metrics.NewRegisteredGauge(MetricBlockSeenCommit, metrics.BlockchainRegistry)
-	blockInfoSave			= metrics.NewRegisteredGauge(MetricBlockInfo, metrics.BlockchainRegistry)
+	blockWriteTimer 		= metrics.NewRegisteredTimer(MetricBlockInfoWrite, metrics.DefaultRegistry)
+	blockHeightGauge 		= metrics.NewRegisteredGauge(MetricBlockHeight, metrics.DefaultRegistry)
+	blockTransactionsGauge 	= metrics.NewRegisteredGauge(MetricBlockTransactions, metrics.DefaultRegistry)
+	blockHashGauge			= metrics.NewRegisteredGauge(MetricBlockHash, metrics.DefaultRegistry)
+	blockSaveTimer			= metrics.NewRegisteredTimer(MetricBlockSave, metrics.DefaultRegistry)
+	blockCommitSave			= metrics.NewRegisteredGauge(MetricBlockCommit, metrics.DefaultRegistry)
+	blockSeenCommitSave		= metrics.NewRegisteredGauge(MetricBlockSeenCommit, metrics.DefaultRegistry)
+	blockInfoSave			= metrics.NewRegisteredGauge(MetricBlockInfo, metrics.DefaultRegistry)
 )
 
 func metricName(group, name string) string {
