@@ -12,7 +12,7 @@ var (
 	typeGaugeTpl           = "# TYPE %s gauge\n"
 	typeCounterTpl         = "# TYPE %s counter\n"
 	typeSummaryTpl         = "# TYPE %s summary\n"
-	keyValueTpl            = "%s %v\n\n"
+	keyValueTpl            = "%s %v\n"
 	keyQuantileTagValueTpl = "%s {quantile=\"%s\"} %v\n"
 )
 

@@ -23,7 +23,7 @@ services:
     volumes:
       - ./node1.yaml:/go/bin/node1.yaml
       - .:/root/.kardia
-    command: [ "--network", "devnet", "--genesis", "cfg/genesis_devnet.yaml", "--node","cfg/devnet_node1.yaml"  ]
+    command: [ "--network", "mainnet", "--node","node1.yaml" ]
     logging:
       driver: "json-file"
       options:
@@ -43,7 +43,7 @@ services:
     volumes:
       - ./node1.yaml:/go/bin/node1.yaml
       - .:/root/.kardia
-    command: [ "--network", "devnet", "--genesis", "cfg/genesis_devnet.yaml", "--node","cfg/devnet_node2.yaml"  ]
+    command: [ "--network", "mainnet", "--node","node1.yaml" ]
     logging:
       driver: "json-file"
       options:
@@ -62,7 +62,7 @@ services:
       volumes:
         - ./node3.yaml:/go/bin/node3.yaml
         - ./:/root/.kardia
-      command: [ "--network", "devnet", "--genesis", "cfg/genesis_devnet.yaml", "--node","cfg/devnet_node3.yaml" ]
+      command: [ "--network", "mainnet", "--node","node1.yaml" ]
       logging:
         driver: "json-file"
         options:
@@ -70,13 +70,17 @@ services:
   prometheus:
     image: prom/prometheus:latest
     volumes:
-      - ./prometheus:/prometheus
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
     ports:
-      - "9090:9090"
+      - 9090:9090
+    depends_on:
+      - node1
   grafana:
     image: grafana/grafana:latest
     ports:
       - 5000:3000
+    depends_on:
+      - prometheus
