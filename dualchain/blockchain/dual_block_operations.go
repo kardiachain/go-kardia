@@ -158,18 +158,6 @@ func (dbo *DualBlockOperations) CommitAndValidateBlockTxs(block *types.Block, la
 	return nil, root, err
 }
 
-// CommitBlockTxsIfNotFound executes and commits block txs if the block state root is not found in storage.
-// Proposer and validators should already commit the block txs, so this function prevents double tx execution.
-func (dbo *DualBlockOperations) CommitBlockTxsIfNotFound(block *types.Block, lastCommit stypes.LastCommitInfo, byzVals []stypes.Evidence) ([]*types.Validator, common.Hash, error) {
-	root := dbo.blockchain.DB().ReadAppHash(block.Height())
-	if !dbo.blockchain.CheckCommittedStateRoot(root) {
-		dbo.logger.Trace("Block has unseen state root, execute & commit block txs", "height", block.Height())
-		return dbo.CommitAndValidateBlockTxs(block, lastCommit, byzVals)
-	}
-
-	return nil, common.Hash{}, nil
-}
-
 // Persists the given block, blockParts, and seenCommit to the underlying db.
 // seenCommit: The +2/3 precommits that were seen which committed at height.
 //             If all the nodes restart after committing a block,

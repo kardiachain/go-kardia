@@ -19,9 +19,10 @@
 package blockchain
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"time"
+	"sync"
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/events"
@@ -30,7 +31,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/mainchain/staking"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -62,35 +62,29 @@ type proposalBlock struct {
 
 // blockConstructor
 type blockConstructor struct {
-	logger      log.Logger
-	chainConfig *configs.ChainConfig
+	logger log.Logger
 
-	proposalBlock *proposalBlock
-	blockchain    *BlockChain
-	txPool        *tx_pool.TxPool
+	blockchain *BlockChain
+	txPool     *tx_pool.TxPool
 
-	staking *staking.StakingSmcUtil
+	// Channels
+	wg sync.WaitGroup
 
 	// Subscriptions
-	mux          *event.TypeMux
 	txsCh        chan events.NewTxsEvent
 	chainHeadCh  chan events.ChainHeadEvent
 	txsSub       event.Subscription
 	chainHeadSub event.Subscription
-
-	exitCh chan struct{}
 }
 
 // newblockConstructor creates a new block constructor
-func newblockConstructor(blockchain *BlockChain, txPool *tx_pool.TxPool, cfg *configs.ChainConfig) *blockConstructor {
+func NewblockConstructor(blockchain *BlockChain, txPool *tx_pool.TxPool) {
 	bcs := &blockConstructor{
 		logger:      log.New("blockConstructor"),
-		chainConfig: cfg,
 		blockchain:  blockchain,
 		txPool:      txPool,
 		txsCh:       make(chan events.NewTxsEvent, txChanSize),
 		chainHeadCh: make(chan events.ChainHeadEvent, chainHeadChanSize),
-		exitCh:      make(chan struct{}),
 	}
 
 	// Subscribe NewTxsEvent for tx pool
@@ -98,94 +92,138 @@ func newblockConstructor(blockchain *BlockChain, txPool *tx_pool.TxPool, cfg *co
 	// Subscribe events for blockchain
 	bcs.chainHeadSub = blockchain.SubscribeChainHeadEvent(bcs.chainHeadCh)
 
-	go bcs.constructionLoop()
-	return bcs
-}
-
-// renew the blockchain state
-func (bcs *blockConstructor) renew() {
-	current := bcs.blockchain.CurrentBlock()
-	currentState, _ := bcs.blockchain.State()
-	bcs.logger.Info("Txs", "total", len(bcs.proposalBlock.txs))
-	bcs.proposalBlock = &proposalBlock{
-		signer: types.LatestSigner(bcs.chainConfig),
-		state:  currentState.Copy(),
-		tcount: 0,
-		txs:    []*types.Transaction{},
-		header: &types.Header{
-			Height:   current.Height() + 1,
-			GasLimit: current.GasLimit(),
-			Time:     time.Now(),
-		},
-	}
-
-	// pendingTxs, _ := bcs.txPool.Pending()
-	// txs := types.NewTransactionsByPriceAndNonce(bcs.blockState.signer, pendingTxs)
-	// bcs.commitTransactions(txs)
+	bcs.wg.Add(1)
+	go func() {
+		defer bcs.wg.Done()
+		bcs.constructionLoop()
+	}()
 }
 
 // constructionLoop is a standalone goroutine to regenerate the sealing task based on the received event.
 func (bcs *blockConstructor) constructionLoop() {
 	defer bcs.txsSub.Unsubscribe()
 	defer bcs.chainHeadSub.Unsubscribe()
+	// Context and cancel function for the currently executing block construction
+	// Cancel needs to be called in each exit path to make the linter happy
+	// because go struggles with analyzing lexical scoping.
+	var taskCtx context.Context
+	var cancel context.CancelFunc
+	var wg sync.WaitGroup
+
+	defer wg.Wait()
+	txsCh := make(chan events.NewTxsEvent, txChanSize)
+
+	if cancel != nil {
+		cancel()
+	}
+	wg.Wait()
+	taskCtx, cancel = context.WithCancel(context.Background())
+	wg.Add(1)
+
+	go func() {
+		bcs.constructProposalBlock(taskCtx, txsCh)
+		wg.Done()
+	}()
+
 	for {
 		select {
 		case <-bcs.chainHeadCh:
+			bcs.logger.Info("Received new head event, renewing new block to propose")
 			bcs.renew()
 		case ev := <-bcs.txsCh:
-			// System stopped
-			if bcs.proposalBlock != nil {
-				txs := make(map[common.Address]types.Transactions)
-				for _, tx := range ev.Txs {
-					acc, _ := types.Sender(bcs.proposalBlock.signer, tx)
-					txs[acc] = append(txs[acc], tx)
-				}
-				// txSet := types.NewTransactionsByPriceAndNonce(bcs.blockState.signer, txs)
-				// bcs.commitTransactions(txSet)
+			select {
+			case txsCh <- ev:
+			default:
 			}
-		case <-bcs.exitCh:
+		case <-bcs.chainHeadSub.Err():
+			if cancel != nil {
+				cancel()
+			}
 			return
 		case <-bcs.txsSub.Err():
-			return
-		case <-bcs.chainHeadSub.Err():
+			if cancel != nil {
+				cancel()
+			}
 			return
 		}
 	}
 }
 
-// newProposalBlock prepare a new block state to propose
-func (bo *BlockOperations) newProposalBlock(header *types.Header) (*proposalBlock, error) {
-	state, err := bo.blockchain.State()
+// renew the blockchain state
+func (bcs *blockConstructor) renew() {
+	pb, err := bcs.newProposalBlock()
 	if err != nil {
-		bo.logger.Error("Failed to get blockchain head state", "err", err)
+		return
+	}
+	pb.organizeTransactions(bcs)
+}
+
+func newProposalHeader(height uint64) *types.Header {
+	return &types.Header{
+		Height:   height + 1,
+		GasLimit: configs.BlockGasLimitGalaxias,
+	}
+}
+
+// newProposalBlock prepare a new block state to propose
+func (bcs *blockConstructor) newProposalBlock() (*proposalBlock, error) {
+	lastBlock := bcs.blockchain.CurrentBlock()
+	lastHeight := lastBlock.Height()
+	lastState, err := bcs.blockchain.StateAt(lastHeight)
+	if err != nil {
+		bcs.logger.Error("Failed to get blockchain head state", "err", err)
 		return nil, err
 	}
 
+	// prepare a new header
+	header := newProposalHeader(lastHeight)
 	pb := &proposalBlock{
 		logger:   log.New("ProposalBlock"),
-		signer:   types.LatestSigner(bo.blockchain.chainConfig),
-		state:    state,
+		signer:   types.LatestSigner(bcs.blockchain.chainConfig),
+		state:    lastState,
 		tcount:   0,
-		gasLimit: configs.BlockGasLimitGalaxias,
+		gasLimit: header.GasLimit,
 		usedGas:  new(uint64),
 		header:   header,
 		txs:      []*types.Transaction{},
 		receipts: []*types.Receipt{},
 	}
 	pb.gasPool = new(types.GasPool).AddGas(pb.gasLimit)
-	if err := pb.organizeTransactions(bo); err != nil {
-		return nil, err
-	}
-
+	pb.state.IntermediateRoot(true)
 	return pb, nil
 }
 
-// organizeTransaction organize transactions in tx pool and try to apply into block state
-func (pb *proposalBlock) organizeTransactions(bo *BlockOperations) error {
-	pending, err := bo.txPool.Pending()
+func (bcs *blockConstructor) constructProposalBlock(ctx context.Context, txsCh chan events.NewTxsEvent) {
+	pb, err := bcs.newProposalBlock()
 	if err != nil {
-		// @lewtran: panic here?
-		pb.logger.Error("Cannot fetch pending transactions", "err", err)
+		return
+	}
+	pb.organizeTransactions(bcs)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case ev := <-txsCh:
+			if gp := pb.gasPool; gp != nil && gp.Gas() < configs.TxGas {
+				return
+			}
+			txs := make(map[common.Address]types.Transactions)
+			for _, tx := range ev.Txs {
+				acc, _ := types.Sender(pb.signer, tx)
+				txs[acc] = append(txs[acc], tx)
+			}
+			txSet := types.NewTransactionsByPriceAndNonce(pb.signer, txs)
+			pb.commitTransactions(bcs, txSet)
+		}
+	}
+}
+
+// organizeTransaction organize transactions in tx pool and try to apply into block state
+func (pb *proposalBlock) organizeTransactions(bcs *blockConstructor) error {
+	pending, err := bcs.txPool.Pending()
+	if err != nil {
+		bcs.logger.Error("Cannot fetch pending transactions", "err", err)
 		return nil
 	}
 
@@ -195,7 +233,7 @@ func (pb *proposalBlock) organizeTransactions(bo *BlockOperations) error {
 
 	// Split pending transactions to local and remote
 	localTxs, remoteTxs := make(map[common.Address]types.Transactions), pending
-	for _, account := range bo.txPool.Locals() {
+	for _, account := range bcs.txPool.Locals() {
 		if txs := remoteTxs[account]; len(txs) > 0 {
 			delete(remoteTxs, account)
 			localTxs[account] = txs
@@ -203,13 +241,13 @@ func (pb *proposalBlock) organizeTransactions(bo *BlockOperations) error {
 	}
 	if len(localTxs) > 0 {
 		txs := types.NewTransactionsByPriceAndNonce(pb.signer, localTxs)
-		if err := pb.commitTransactions(bo, txs); err != nil {
+		if err := pb.commitTransactions(bcs, txs); err != nil {
 			return fmt.Errorf("failed to commit local transactions: %w", err)
 		}
 	}
 	if len(remoteTxs) > 0 {
 		txs := types.NewTransactionsByPriceAndNonce(pb.signer, remoteTxs)
-		if err := pb.commitTransactions(bo, txs); err != nil {
+		if err := pb.commitTransactions(bcs, txs); err != nil {
 			return fmt.Errorf("failed to commit remote transactions: %w", err)
 		}
 	}
@@ -217,11 +255,11 @@ func (pb *proposalBlock) organizeTransactions(bo *BlockOperations) error {
 }
 
 // commitTransaction attempts to appply a single transaction. If the transaction fails, it's modifications are reverted.
-func (pb *proposalBlock) commitTransaction(bo *BlockOperations, tx *types.Transaction) error {
+func (pb *proposalBlock) commitTransaction(bcs *blockConstructor, tx *types.Transaction) error {
 	snap := pb.state.Snapshot()
 	kvmConfig := kvm.Config{}
 
-	receipt, _, err := ApplyTransaction(bo.blockchain.chainConfig, pb.logger, bo.blockchain, pb.gasPool, pb.state, pb.header, tx, pb.usedGas, kvmConfig)
+	receipt, _, err := ApplyTransaction(bcs.blockchain.chainConfig, bcs.logger, bcs.blockchain, pb.gasPool, pb.state, pb.header, tx, pb.usedGas, kvmConfig)
 	if err != nil {
 		pb.state.RevertToSnapshot(snap)
 		return err
@@ -232,7 +270,7 @@ func (pb *proposalBlock) commitTransaction(bo *BlockOperations, tx *types.Transa
 }
 
 // commitTransactions validate and commit transactions into block to propose
-func (pb *proposalBlock) commitTransactions(bo *BlockOperations, txs *types.TransactionsByPriceAndNonce) error {
+func (pb *proposalBlock) commitTransactions(bcs *blockConstructor, txs *types.TransactionsByPriceAndNonce) error {
 	for {
 		// If we don't have enough gas for any further transactions then we're done
 		if pb.gasPool.Gas() < configs.TxGas {
@@ -257,7 +295,7 @@ func (pb *proposalBlock) commitTransactions(bo *BlockOperations, txs *types.Tran
 		from, _ := types.Sender(pb.signer, tx)
 
 		pb.state.Prepare(tx.Hash(), common.Hash{}, pb.tcount)
-		err := pb.commitTransaction(bo, tx)
+		err := pb.commitTransaction(bcs, tx)
 		switch {
 		case errors.Is(err, tx_pool.ErrGasLimitReached):
 			// Pop the current out-of-gas transaction without shifting in the next from the account

@@ -56,19 +56,19 @@ type BlockOperations struct {
 	height     uint64
 	staking    *staking.StakingSmcUtil
 
-	proposalBlock *proposalBlock
+	pb *proposalBlock
 }
 
 // NewBlockOperations returns a new BlockOperations with reference to the latest state of blockchain.
 func NewBlockOperations(logger log.Logger, blockchain *BlockChain, txPool *tx_pool.TxPool, evpool EvidencePool, staking *staking.StakingSmcUtil) *BlockOperations {
 	return &BlockOperations{
-		logger:        logger,
-		blockchain:    blockchain,
-		txPool:        txPool,
-		height:        blockchain.CurrentBlock().Height(),
-		evPool:        evpool,
-		staking:       staking,
-		proposalBlock: &proposalBlock{},
+		logger:     logger,
+		blockchain: blockchain,
+		txPool:     txPool,
+		height:     blockchain.CurrentBlock().Height(),
+		evPool:     evpool,
+		staking:    staking,
+		pb:         &proposalBlock{},
 	}
 }
 
@@ -111,26 +111,26 @@ func (bo *BlockOperations) CreateProposalBlock(
 		timestamp = cstate.MedianTime(commit, lastState.LastValidators)
 	}
 
+	if bo.blockchain.chainConfig.IsGalaxias(&bo.height) {
+		header := bo.pb.header
+		header.Time = timestamp
+		header.NumTxs = 0
+		header.LastBlockID = lastState.LastBlockID
+		header.ProposerAddress = proposerAddr
+		header.ValidatorsHash = lastState.Validators.Hash()
+		header.NextValidatorsHash = lastState.NextValidators.Hash()
+		header.AppHash = lastState.AppHash
+
+		block = bo.newBlock(header, bo.pb.txs, commit, evidence)
+		bo.logger.Trace("Make block to propose", "block", block)
+		return block, block.MakePartSet(types.BlockPartSizeBytes)
+	}
+
 	header := bo.newHeader(timestamp, height, 0, lastState.LastBlockID, proposerAddr, lastState.Validators.Hash(),
 		lastState.NextValidators.Hash(), lastState.AppHash)
 	header.GasLimit = configs.BlockGasLimit
 	bo.logger.Info("Creates new header", "header", header)
-
-	if bo.blockchain.chainConfig.IsGalaxias(&bo.height) {
-		header.GasLimit = configs.BlockGasLimitGalaxias
-		pb, err := bo.newProposalBlock(header)
-		if err != nil {
-			bo.logger.Error("Failed to create new proposal block", "err", err)
-		}
-		block = bo.newBlock(pb.header, pb.txs, commit, evidence)
-		bo.logger.Trace("Make block to propose", "block", block)
-		// free up the GC memory
-		bo.proposalBlock = nil
-		return block, block.MakePartSet(types.BlockPartSizeBytes)
-	}
-
 	txs := bo.txPool.GetPendingData()
-
 	block = bo.newBlock(header, txs, commit, evidence)
 	bo.logger.Trace("Make block to propose", "block", block)
 	return block, block.MakePartSet(types.BlockPartSizeBytes)
@@ -159,18 +159,6 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCom
 	bo.blockchain.logsFeed.Send(logs)
 
 	return vals, root, nil
-}
-
-// CommitBlockTxsIfNotFound executes and commits block txs if the block state root is not found in storage.
-// Proposer and validators should already commit the block txs, so this function prevents double tx execution.
-func (bo *BlockOperations) CommitBlockTxsIfNotFound(block *types.Block, lastCommit stypes.LastCommitInfo, byzVals []stypes.Evidence) ([]*types.Validator, common.Hash, error) {
-	root := bo.blockchain.DB().ReadAppHash(block.Height())
-	if !bo.blockchain.CheckCommittedStateRoot(root) {
-		bo.logger.Trace("Block has unseen state root, execute & commit block txs", "height", block.Height())
-		return bo.CommitAndValidateBlockTxs(block, lastCommit, byzVals)
-	}
-
-	return nil, common.Hash{}, nil
 }
 
 // SaveBlock saves the given block, blockParts, and seenCommit to the underlying storage.
