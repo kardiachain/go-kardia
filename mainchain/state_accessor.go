@@ -176,7 +176,7 @@ func (k *KardiaService) stateAtTransaction(block *types.Block, txIndex int, reex
 		vmenv := kvm.NewKVM(context, txContext, statedb, configs.MainnetChainConfig, kvm.Config{})
 		statedb.Prepare(tx.Hash(), block.Hash(), idx)
 		if _, err := blockchain.ApplyMessage(vmenv, msg, new(types.GasPool).AddGas(tx.Gas())); err != nil {
-			return nil, kvm.BlockContext{}, nil, fmt.Errorf("transaction %#x failed: %v", tx.Hash(), err)
+			k.logger.Warn("failed to apply transaction while tracing", "hash", tx.Hash(), "err", err)
 		}
 		// Ensure any modifications are committed to the state
 		// Only delete empty objects if EIP158/161 (a.k.a Spurious Dragon) is in effect
