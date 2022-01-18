@@ -56,11 +56,13 @@ type BlockOperations struct {
 	height     uint64
 	staking    *staking.StakingSmcUtil
 
-	pb *proposalBlock
+	bcs *blockConstructor
 }
 
 // NewBlockOperations returns a new BlockOperations with reference to the latest state of blockchain.
 func NewBlockOperations(logger log.Logger, blockchain *BlockChain, txPool *tx_pool.TxPool, evpool EvidencePool, staking *staking.StakingSmcUtil) *BlockOperations {
+	NewBlockConstructor(blockchain, txPool)
+
 	return &BlockOperations{
 		logger:     logger,
 		blockchain: blockchain,
@@ -68,7 +70,6 @@ func NewBlockOperations(logger log.Logger, blockchain *BlockChain, txPool *tx_po
 		height:     blockchain.CurrentBlock().Height(),
 		evPool:     evpool,
 		staking:    staking,
-		pb:         &proposalBlock{},
 	}
 }
 
@@ -112,7 +113,7 @@ func (bo *BlockOperations) CreateProposalBlock(
 	}
 
 	if bo.blockchain.chainConfig.IsGalaxias(&bo.height) {
-		header := bo.pb.header
+		header := bo.bcs.pb.header
 		header.Time = timestamp
 		header.NumTxs = 0
 		header.LastBlockID = lastState.LastBlockID
@@ -121,7 +122,7 @@ func (bo *BlockOperations) CreateProposalBlock(
 		header.NextValidatorsHash = lastState.NextValidators.Hash()
 		header.AppHash = lastState.AppHash
 
-		block = bo.newBlock(header, bo.pb.txs, commit, evidence)
+		block = bo.newBlock(header, bo.bcs.pb.txs, commit, evidence)
 		bo.logger.Trace("Make block to propose", "block", block)
 		return block, block.MakePartSet(types.BlockPartSizeBytes)
 	}

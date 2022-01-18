@@ -69,16 +69,17 @@ type blockConstructor struct {
 
 	// Channels
 	wg sync.WaitGroup
-
 	// Subscriptions
 	txsCh        chan events.NewTxsEvent
 	chainHeadCh  chan events.ChainHeadEvent
 	txsSub       event.Subscription
 	chainHeadSub event.Subscription
+
+	pb *proposalBlock
 }
 
 // newblockConstructor creates a new block constructor
-func NewblockConstructor(blockchain *BlockChain, txPool *tx_pool.TxPool) {
+func NewBlockConstructor(blockchain *BlockChain, txPool *tx_pool.TxPool) {
 	bcs := &blockConstructor{
 		logger:      log.New("blockConstructor"),
 		blockchain:  blockchain,
@@ -119,7 +120,6 @@ func (bcs *blockConstructor) constructionLoop() {
 	wg.Wait()
 	taskCtx, cancel = context.WithCancel(context.Background())
 	wg.Add(1)
-
 	go func() {
 		bcs.constructProposalBlock(taskCtx, txsCh)
 		wg.Done()
@@ -128,7 +128,7 @@ func (bcs *blockConstructor) constructionLoop() {
 	for {
 		select {
 		case <-bcs.chainHeadCh:
-			bcs.logger.Info("Received new head event, renewing new block to propose")
+			bcs.logger.Info("Received new head event, renewing block")
 			bcs.renew()
 		case ev := <-bcs.txsCh:
 			select {
@@ -151,11 +151,10 @@ func (bcs *blockConstructor) constructionLoop() {
 
 // renew the blockchain state
 func (bcs *blockConstructor) renew() {
-	pb, err := bcs.newProposalBlock()
+	err := bcs.newProposalBlock()
 	if err != nil {
 		return
 	}
-	pb.organizeTransactions(bcs)
 }
 
 func newProposalHeader(height uint64) *types.Header {
@@ -166,19 +165,19 @@ func newProposalHeader(height uint64) *types.Header {
 }
 
 // newProposalBlock prepare a new block state to propose
-func (bcs *blockConstructor) newProposalBlock() (*proposalBlock, error) {
+func (bcs *blockConstructor) newProposalBlock() error {
 	lastBlock := bcs.blockchain.CurrentBlock()
 	lastHeight := lastBlock.Height()
 	lastState, err := bcs.blockchain.StateAt(lastHeight)
 	if err != nil {
 		bcs.logger.Error("Failed to get blockchain head state", "err", err)
-		return nil, err
+		return err
 	}
 
 	// prepare a new header
 	header := newProposalHeader(lastHeight)
-	pb := &proposalBlock{
-		logger:   log.New("ProposalBlock"),
+	bcs.pb = &proposalBlock{
+		logger:   log.New(),
 		signer:   types.LatestSigner(bcs.blockchain.chainConfig),
 		state:    lastState,
 		tcount:   0,
@@ -188,33 +187,36 @@ func (bcs *blockConstructor) newProposalBlock() (*proposalBlock, error) {
 		txs:      []*types.Transaction{},
 		receipts: []*types.Receipt{},
 	}
-	pb.gasPool = new(types.GasPool).AddGas(pb.gasLimit)
-	pb.state.IntermediateRoot(true)
-	return pb, nil
+	bcs.pb.gasPool = new(types.GasPool).AddGas(bcs.pb.gasLimit)
+	bcs.pb.state.IntermediateRoot(true)
+	bcs.pb.organizeTransactions(bcs)
+
+	bcs.logger.Error("@@@", "@@@", bcs.pb.header)
+
+	return nil
 }
 
 func (bcs *blockConstructor) constructProposalBlock(ctx context.Context, txsCh chan events.NewTxsEvent) {
-	pb, err := bcs.newProposalBlock()
+	err := bcs.newProposalBlock()
 	if err != nil {
 		return
 	}
-	pb.organizeTransactions(bcs)
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case ev := <-txsCh:
-			if gp := pb.gasPool; gp != nil && gp.Gas() < configs.TxGas {
+			if gp := bcs.pb.gasPool; gp != nil && gp.Gas() < configs.TxGas {
 				return
 			}
 			txs := make(map[common.Address]types.Transactions)
 			for _, tx := range ev.Txs {
-				acc, _ := types.Sender(pb.signer, tx)
+				acc, _ := types.Sender(bcs.pb.signer, tx)
 				txs[acc] = append(txs[acc], tx)
 			}
-			txSet := types.NewTransactionsByPriceAndNonce(pb.signer, txs)
-			pb.commitTransactions(bcs, txSet)
+			txSet := types.NewTransactionsByPriceAndNonce(bcs.pb.signer, txs)
+			bcs.pb.commitTransactions(bcs, txSet)
 		}
 	}
 }
