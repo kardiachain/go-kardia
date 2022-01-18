@@ -112,15 +112,8 @@ func (bo *BlockOperations) CreateProposalBlock(
 	}
 
 	if bo.blockchain.chainConfig.IsGalaxias(&bo.height) {
-		header := bo.bcs.pb.header
-		header.Time = timestamp
-		header.NumTxs = 0
-		header.LastBlockID = lastState.LastBlockID
-		header.ProposerAddress = proposerAddr
-		header.ValidatorsHash = lastState.Validators.Hash()
-		header.NextValidatorsHash = lastState.NextValidators.Hash()
-		header.AppHash = lastState.AppHash
-
+		header := bo.bcs.pb.updateHeader(timestamp, lastState.LastBlockID, proposerAddr, lastState.Validators.Hash(),
+			lastState.NextValidators.Hash(), lastState.AppHash)
 		block = bo.newBlock(header, bo.bcs.pb.txs, commit, evidence)
 		bo.logger.Trace("Make block to propose", "block", block)
 		return block, block.MakePartSet(types.BlockPartSizeBytes)

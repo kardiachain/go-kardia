@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/events"
@@ -160,7 +161,8 @@ func (bcs *blockConstructor) renew() {
 	}
 }
 
-func newProposalHeader(height uint64) *types.Header {
+// newHeader create a temp header with the correctsponding height of the blockchain
+func newHeader(height uint64) *types.Header {
 	return &types.Header{
 		Height:   height + 1,
 		GasLimit: configs.BlockGasLimitGalaxias,
@@ -178,7 +180,7 @@ func (bcs *blockConstructor) newProposalBlock() error {
 	}
 
 	// prepare a new header
-	header := newProposalHeader(lastHeight)
+	header := newHeader(lastHeight)
 	bcs.pb = &proposalBlock{
 		logger:   log.New(),
 		signer:   types.LatestSigner(bcs.blockchain.chainConfig),
@@ -220,6 +222,19 @@ func (bcs *blockConstructor) constructProposalBlock(ctx context.Context, txsCh c
 			bcs.pb.commitTransactions(bcs, txSet)
 		}
 	}
+}
+
+// updateHeader update the block header from given data.
+func (pb *proposalBlock) updateHeader(time time.Time, blockID types.BlockID,
+	proposer common.Address, validatorsHash common.Hash, nextValidatorHash common.Hash, appHash common.Hash) *types.Header {
+	pb.header.Time = time
+	pb.header.LastBlockID = blockID
+	pb.header.ProposerAddress = proposer
+	pb.header.ValidatorsHash = validatorsHash
+	pb.header.NextValidatorsHash = nextValidatorHash
+	pb.header.AppHash = appHash
+
+	return pb.header
 }
 
 // organizeTransaction organize transactions in tx pool and try to apply into block state
