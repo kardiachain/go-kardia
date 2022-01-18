@@ -61,8 +61,6 @@ type BlockOperations struct {
 
 // NewBlockOperations returns a new BlockOperations with reference to the latest state of blockchain.
 func NewBlockOperations(logger log.Logger, blockchain *BlockChain, txPool *tx_pool.TxPool, evpool EvidencePool, staking *staking.StakingSmcUtil) *BlockOperations {
-	NewBlockConstructor(blockchain, txPool)
-
 	return &BlockOperations{
 		logger:     logger,
 		blockchain: blockchain,
@@ -70,6 +68,7 @@ func NewBlockOperations(logger log.Logger, blockchain *BlockChain, txPool *tx_po
 		height:     blockchain.CurrentBlock().Height(),
 		evPool:     evpool,
 		staking:    staking,
+		bcs:        newBlockConstructor(blockchain, txPool),
 	}
 }
 

@@ -79,7 +79,7 @@ type blockConstructor struct {
 }
 
 // newblockConstructor creates a new block constructor
-func NewBlockConstructor(blockchain *BlockChain, txPool *tx_pool.TxPool) {
+func newBlockConstructor(blockchain *BlockChain, txPool *tx_pool.TxPool) *blockConstructor {
 	bcs := &blockConstructor{
 		logger:      log.New("blockConstructor"),
 		blockchain:  blockchain,
@@ -98,6 +98,8 @@ func NewBlockConstructor(blockchain *BlockChain, txPool *tx_pool.TxPool) {
 		defer bcs.wg.Done()
 		bcs.constructionLoop()
 	}()
+
+	return bcs
 }
 
 // constructionLoop is a standalone goroutine to regenerate the sealing task based on the received event.
@@ -128,9 +130,10 @@ func (bcs *blockConstructor) constructionLoop() {
 	for {
 		select {
 		case <-bcs.chainHeadCh:
-			bcs.logger.Info("Received new head event, renewing block")
+			bcs.logger.Debug("Received new head event, renewing block")
 			bcs.renew()
 		case ev := <-bcs.txsCh:
+			bcs.logger.Debug("Received new txs event, trying to apply new tx to proposal block")
 			select {
 			case txsCh <- ev:
 			default:
@@ -190,8 +193,6 @@ func (bcs *blockConstructor) newProposalBlock() error {
 	bcs.pb.gasPool = new(types.GasPool).AddGas(bcs.pb.gasLimit)
 	bcs.pb.state.IntermediateRoot(true)
 	bcs.pb.organizeTransactions(bcs)
-
-	bcs.logger.Error("@@@", "@@@", bcs.pb.header)
 
 	return nil
 }
