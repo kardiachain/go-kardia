@@ -438,6 +438,11 @@ func (n *Node) OnStop() {
 		}
 	}
 
+	// Stop accounts manager
+	if err := n.accMan.Close(); err != nil {
+		n.Logger.Error("Error closing accounts manager", "err", err)
+	}
+
 	if err := n.sw.Stop(); err != nil {
 		n.Logger.Error("Error closing switch", "err", err)
 	}
