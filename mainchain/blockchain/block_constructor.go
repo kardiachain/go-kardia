@@ -19,7 +19,6 @@
 package blockchain
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -107,57 +106,32 @@ func newBlockConstructor(blockchain *BlockChain, txPool *tx_pool.TxPool) *blockC
 func (bcs *blockConstructor) constructionLoop() {
 	defer bcs.txsSub.Unsubscribe()
 	defer bcs.chainHeadSub.Unsubscribe()
-	// Context and cancel function for the currently executing block construction
-	// Cancel needs to be called in each exit path to make the linter happy
-	// because go struggles with analyzing lexical scoping.
-	var taskCtx context.Context
-	var cancel context.CancelFunc
+
 	var wg sync.WaitGroup
-
 	defer wg.Wait()
-	txsCh := make(chan events.NewTxsEvent, txChanSize)
-
-	if cancel != nil {
-		cancel()
-	}
-	wg.Wait()
-	taskCtx, cancel = context.WithCancel(context.Background())
-	wg.Add(1)
-	go func() {
-		bcs.constructProposalBlock(taskCtx, txsCh)
-		wg.Done()
-	}()
 
 	for {
 		select {
 		case <-bcs.chainHeadCh:
-			bcs.logger.Debug("Received new head event, renewing block")
-			bcs.renew()
+			bcs.newProposalBlock()
 		case ev := <-bcs.txsCh:
-			bcs.logger.Debug("Received new txs event, trying to apply new tx to proposal block")
-			select {
-			case txsCh <- ev:
-			default:
+			if bcs.pb != nil {
+				if gp := bcs.pb.gasPool; gp != nil && gp.Gas() < configs.TxGas {
+					return
+				}
+				txs := make(map[common.Address]types.Transactions)
+				for _, tx := range ev.Txs {
+					acc, _ := types.Sender(bcs.pb.signer, tx)
+					txs[acc] = append(txs[acc], tx)
+				}
+				txSet := types.NewTransactionsByPriceAndNonce(bcs.pb.signer, txs)
+				bcs.pb.commitTransactions(bcs, txSet)
 			}
 		case <-bcs.chainHeadSub.Err():
-			if cancel != nil {
-				cancel()
-			}
 			return
 		case <-bcs.txsSub.Err():
-			if cancel != nil {
-				cancel()
-			}
 			return
 		}
-	}
-}
-
-// renew the blockchain state
-func (bcs *blockConstructor) renew() {
-	err := bcs.newProposalBlock()
-	if err != nil {
-		return
 	}
 }
 
@@ -197,31 +171,6 @@ func (bcs *blockConstructor) newProposalBlock() error {
 	bcs.pb.organizeTransactions(bcs)
 
 	return nil
-}
-
-func (bcs *blockConstructor) constructProposalBlock(ctx context.Context, txsCh chan events.NewTxsEvent) {
-	err := bcs.newProposalBlock()
-	if err != nil {
-		return
-	}
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case ev := <-txsCh:
-			if gp := bcs.pb.gasPool; gp != nil && gp.Gas() < configs.TxGas {
-				return
-			}
-			txs := make(map[common.Address]types.Transactions)
-			for _, tx := range ev.Txs {
-				acc, _ := types.Sender(bcs.pb.signer, tx)
-				txs[acc] = append(txs[acc], tx)
-			}
-			txSet := types.NewTransactionsByPriceAndNonce(bcs.pb.signer, txs)
-			bcs.pb.commitTransactions(bcs, txSet)
-		}
-	}
 }
 
 // updateHeader update the block header from given data.
