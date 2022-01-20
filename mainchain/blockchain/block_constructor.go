@@ -19,6 +19,7 @@
 package blockchain
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -107,29 +108,45 @@ func (bcs *blockConstructor) constructionLoop() {
 	defer bcs.txsSub.Unsubscribe()
 	defer bcs.chainHeadSub.Unsubscribe()
 
+	var taskCtx context.Context
+	var cancel context.CancelFunc
 	var wg sync.WaitGroup
+
 	defer wg.Wait()
+	txsCh := make(chan events.NewTxsEvent, txChanSize)
+
+	generateBlock := func() {
+		if cancel != nil {
+			cancel()
+		}
+		wg.Wait()
+		taskCtx, cancel = context.WithCancel(context.Background())
+		wg.Add(1)
+
+		go func() {
+			bcs.constructProposalBlock(taskCtx, txsCh)
+			wg.Done()
+		}()
+	}
 
 	for {
 		select {
 		case <-bcs.chainHeadCh:
-			bcs.newProposalBlock()
+			generateBlock()
 		case ev := <-bcs.txsCh:
-			if bcs.pb != nil {
-				if gp := bcs.pb.gasPool; gp != nil && gp.Gas() < configs.TxGas {
-					return
-				}
-				txs := make(map[common.Address]types.Transactions)
-				for _, tx := range ev.Txs {
-					acc, _ := types.Sender(bcs.pb.signer, tx)
-					txs[acc] = append(txs[acc], tx)
-				}
-				txSet := types.NewTransactionsByPriceAndNonce(bcs.pb.signer, txs)
-				bcs.pb.commitTransactions(bcs, txSet)
+			select {
+			case txsCh <- ev:
+			default:
 			}
 		case <-bcs.chainHeadSub.Err():
+			if cancel != nil {
+				cancel()
+			}
 			return
 		case <-bcs.txsSub.Err():
+			if cancel != nil {
+				cancel()
+			}
 			return
 		}
 	}
@@ -168,9 +185,33 @@ func (bcs *blockConstructor) newProposalBlock() error {
 	}
 	bcs.pb.gasPool = new(types.GasPool).AddGas(bcs.pb.gasLimit)
 	bcs.pb.state.IntermediateRoot(true)
-	bcs.pb.organizeTransactions(bcs)
 
 	return nil
+}
+
+func (bcs *blockConstructor) constructProposalBlock(ctx context.Context, txsCh chan events.NewTxsEvent) {
+	if err := bcs.newProposalBlock(); err != nil {
+		return
+	}
+	bcs.pb.organizeTransactions(ctx, bcs)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case ev := <-txsCh:
+			if gp := bcs.pb.gasPool; gp != nil && gp.Gas() < configs.TxGas {
+				return
+			}
+			txs := make(map[common.Address]types.Transactions)
+			for _, tx := range ev.Txs {
+				acc, _ := types.Sender(bcs.pb.signer, tx)
+				txs[acc] = append(txs[acc], tx)
+			}
+			txSet := types.NewTransactionsByPriceAndNonce(bcs.pb.signer, txs)
+			bcs.pb.commitTransactions(ctx, bcs, txSet)
+		}
+	}
 }
 
 // updateHeader update the block header from given data.
@@ -187,7 +228,7 @@ func (pb *proposalBlock) updateHeader(time time.Time, blockID types.BlockID,
 }
 
 // organizeTransaction organize transactions in tx pool and try to apply into block state
-func (pb *proposalBlock) organizeTransactions(bcs *blockConstructor) error {
+func (pb *proposalBlock) organizeTransactions(ctx context.Context, bcs *blockConstructor) error {
 	pending, err := bcs.txPool.Pending()
 	if err != nil {
 		bcs.logger.Error("Cannot fetch pending transactions", "err", err)
@@ -208,13 +249,13 @@ func (pb *proposalBlock) organizeTransactions(bcs *blockConstructor) error {
 	}
 	if len(localTxs) > 0 {
 		txs := types.NewTransactionsByPriceAndNonce(pb.signer, localTxs)
-		if err := pb.commitTransactions(bcs, txs); err != nil {
+		if err := pb.commitTransactions(ctx, bcs, txs); err != nil {
 			return fmt.Errorf("failed to commit local transactions: %w", err)
 		}
 	}
 	if len(remoteTxs) > 0 {
 		txs := types.NewTransactionsByPriceAndNonce(pb.signer, remoteTxs)
-		if err := pb.commitTransactions(bcs, txs); err != nil {
+		if err := pb.commitTransactions(ctx, bcs, txs); err != nil {
 			return fmt.Errorf("failed to commit remote transactions: %w", err)
 		}
 	}
@@ -237,8 +278,15 @@ func (pb *proposalBlock) commitTransaction(bcs *blockConstructor, tx *types.Tran
 }
 
 // commitTransactions validate and commit transactions into block to propose
-func (pb *proposalBlock) commitTransactions(bcs *blockConstructor, txs *types.TransactionsByPriceAndNonce) error {
+func (pb *proposalBlock) commitTransactions(ctx context.Context, bcs *blockConstructor, txs *types.TransactionsByPriceAndNonce) error {
 	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			// pass ctx
+		}
+
 		// If we don't have enough gas for any further transactions then we're done
 		if pb.gasPool.Gas() < configs.TxGas {
 			log.Error("Not enough gas for further transactions", "have", pb.gasPool, "want", configs.TxGas)
