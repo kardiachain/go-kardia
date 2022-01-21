@@ -31,6 +31,8 @@ import (
 	"runtime"
 	"time"
 
+	"gopkg.in/urfave/cli.v1"
+
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 
@@ -447,11 +449,44 @@ func waitForever() {
 	select {}
 }
 
-func main() {
-	flag.Parse()
-	config, err := LoadConfig(args)
-	if err != nil {
-		panic(err)
+var app = cli.NewApp()
+
+func init() {
+	app.Name = "root"
+	app.Commands = []cli.Command{
+		recoverTxLookupIndexCmd,
 	}
-	config.Start()
+
+	app.Flags = []cli.Flag{
+		cli.StringFlag{
+			Name:  "genesis",
+			Usage: "Path to genesis config file. Default: ${wd}/cfg/genesis.yaml",
+		},
+		cli.StringFlag{
+			Name:  "node",
+			Usage: "Path to Kardia node config file. Default: ${wd}/cfg/kai_config.yaml",
+		},
+		cli.StringFlag{
+			Name:  "network",
+			Usage: "Target network, choose one [mainnet, testnet, devnet]. Default: \"mainnet\"",
+			Value: "mainnet",
+		},
+	}
+
+	app.Action = func(ctx *cli.Context) error {
+		flag.Parse()
+		config, err := LoadConfig(args)
+		if err != nil {
+			return err
+		}
+		config.Start()
+		return nil
+	}
+}
+
+func main() {
+	if err := app.Run(os.Args); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }

@@ -155,6 +155,8 @@ type (
 		MaxBytes        int64 `yaml:"MaxBytes"`
 	}
 	Debug struct {
-		Port string `yaml:"Port"`
+		Port      string `yaml:"Port"`
+		FromBlock uint64 `yaml:"FromBlock"`
+		EndBlock  uint64 `yaml:"EndBlock"`
 	}
 )

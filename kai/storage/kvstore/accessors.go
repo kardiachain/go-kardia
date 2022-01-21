@@ -269,7 +269,7 @@ func ReadBlockInfo(db kaidb.Reader, hash common.Hash, number uint64) *types.Bloc
 // ReadTxLookupEntry retrieves the positional metadata associated with a transaction
 // hash to allow retrieving the transaction or receipt by hash.
 func ReadTxLookupEntry(db kaidb.Reader, hash common.Hash) (common.Hash, uint64, uint64) {
-	data, _ := db.Get(txLookupKey(hash))
+	data, _ := db.Get(TxLookupKey(hash))
 	if len(data) == 0 {
 		return common.Hash{}, 0, 0
 	}
@@ -294,7 +294,7 @@ func WriteTxLookupEntries(db kaidb.Writer, block *types.Block) {
 		if err != nil {
 			log.Crit("Failed to encode transaction lookup entry", "err", err)
 		}
-		if err := db.Put(txLookupKey(tx.Hash()), data); err != nil {
+		if err := db.Put(TxLookupKey(tx.Hash()), data); err != nil {
 			log.Crit("Failed to store transaction lookup entry", "err", err)
 		}
 	}
@@ -302,7 +302,7 @@ func WriteTxLookupEntries(db kaidb.Writer, block *types.Block) {
 
 // DeleteTxLookupEntry removes all transaction data associated with a hash.
 func DeleteTxLookupEntry(db kaidb.KeyValueWriter, hash common.Hash) error {
-	if err := db.Delete(txLookupKey(hash)); err != nil {
+	if err := db.Delete(TxLookupKey(hash)); err != nil {
 		return err
 	}
 	return nil
