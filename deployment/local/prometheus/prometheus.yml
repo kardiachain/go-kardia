@@ -4,6 +4,8 @@ global:
   evaluation_interval: 15s # By default, scrape targets every 15 seconds.
   # scrape_timeout is set to the global default (10s).
 
+  external_labels:
+    monitor: 'node-scraping'
 # Load and evaluate rules in this file every 'evaluation_interval' seconds.
 rule_files:
 # - "alert.rules"
@@ -12,6 +14,22 @@ rule_files:
 
 # A scrape configuration containing exactly one endpoint to scrape:
 scrape_configs:
-  - job_name: node1-prometheus
+  - job_name: "node1"
+    scrape_interval: 2m
+    scrape_timeout: 1m
     static_configs:
-      - targets: ['node1:6001']
+      - targets: [ 'node1:6001' ]
+        labels:
+          alias: "node1"
+    tls_config:
+      insecure_skip_verify: true
+#  - job_name: node2
+#    scrape_interval: 10s
+#    static_configs:
+#      - targets:
+#          - localhost:6002
+#  - job_name: node3
+#    scrape_interval: 10s
+#    static_configs:
+#      - targets:
+#          - localhost:6003

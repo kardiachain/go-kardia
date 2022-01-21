@@ -23,7 +23,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/kardiachain/go-kardia/prometheus"
+	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 	"math/big"
 	"net/http"
 	"net/http/pprof"
@@ -31,9 +32,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"time"
-
-	"github.com/gorilla/mux"
-	"github.com/rs/cors"
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/storage"
@@ -46,6 +44,7 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/oracles"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/node"
+	"github.com/kardiachain/go-kardia/prometheus"
 	kaiproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 
 	// Force-load the tracer engines to trigger registration
@@ -378,6 +377,7 @@ func (c *Config) Start() {
 
 func (c *Config) StartDebug() error {
 	go func() {
+		log.Warn("Running router server")
 		router := mux.NewRouter()
 		router.HandleFunc("/debug/pprof/", pprof.Index)
 		router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
@@ -390,8 +390,6 @@ func (c *Config) StartDebug() error {
 		router.Handle("/debug/pprof/block", pprof.Handler("block"))
 		router.Handle("/debug/vars", http.DefaultServeMux)
 		router.Handle("/metrics", prometheus.Handler(metrics.DefaultRegistry))
-		router.Handle("/prometheus/metrics/db", prometheus.Handler(metrics.DBRegistry))
-		router.Handle("/prometheus/metrics/prometheus/bc", prometheus.Handler(metrics.BlockchainRegistry))
 
 		if err := http.ListenAndServe(c.Debug.Port, cors.AllowAll().Handler(router)); err != nil {
 			panic(err)

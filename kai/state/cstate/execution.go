@@ -131,7 +131,7 @@ func (blockExec *BlockExecutor) ApplyBlock(state LatestBlockState, blockID types
 
 	if metrics.Enabled {
 		saveStateTimer.UpdateSince(subStart)
-		stateBytesLength.Update(int64(len(state.Bytes())))
+		StateBytesLength.Update(int64(len(state.Bytes())))
 		lastHeightValidatorsChangedGauge.Update(int64(state.LastHeightConsensusParamsChanged))
 		nextValidatorsGauge.Update(int64(len(state.NextValidators.Validators)))
 	}
