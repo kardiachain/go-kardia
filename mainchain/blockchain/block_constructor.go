@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
@@ -69,12 +70,18 @@ type blockConstructor struct {
 	txPool     *tx_pool.TxPool
 
 	// Channels
-	wg sync.WaitGroup
+	startCh chan struct{}
+	exitCh  chan struct{}
+	wg      sync.WaitGroup
+
 	// Subscriptions
 	txsCh        chan events.NewTxsEvent
 	chainHeadCh  chan events.ChainHeadEvent
 	txsSub       event.Subscription
 	chainHeadSub event.Subscription
+
+	// atomic status counters
+	status int32
 
 	pb *proposalBlock
 }
@@ -85,6 +92,8 @@ func newBlockConstructor(blockchain *BlockChain, txPool *tx_pool.TxPool) *blockC
 		logger:      log.New("blockConstructor"),
 		blockchain:  blockchain,
 		txPool:      txPool,
+		exitCh:      make(chan struct{}),
+		startCh:     make(chan struct{}, 1),
 		txsCh:       make(chan events.NewTxsEvent, txChanSize),
 		chainHeadCh: make(chan events.ChainHeadEvent, chainHeadChanSize),
 	}
@@ -94,17 +103,28 @@ func newBlockConstructor(blockchain *BlockChain, txPool *tx_pool.TxPool) *blockC
 	// Subscribe events for blockchain
 	bcs.chainHeadSub = blockchain.SubscribeChainHeadEvent(bcs.chainHeadCh)
 
+	bcs.start()
+
 	bcs.wg.Add(1)
-	go func() {
-		defer bcs.wg.Done()
-		bcs.constructionLoop()
-	}()
+	go bcs.constructionLoop()
 
 	return bcs
 }
 
+// start sets the status to 1 (running)
+func (bcs *blockConstructor) start() {
+	atomic.StoreInt32(&bcs.status, 1)
+	bcs.startCh <- struct{}{}
+}
+
+// isRunning returns the running status
+func (bcs *blockConstructor) isRunning() bool {
+	return atomic.LoadInt32(&bcs.status) == 1
+}
+
 // constructionLoop is a standalone goroutine to regenerate the sealing task based on the received event.
 func (bcs *blockConstructor) constructionLoop() {
+	defer bcs.wg.Done()
 	defer bcs.txsSub.Unsubscribe()
 	defer bcs.chainHeadSub.Unsubscribe()
 
@@ -123,10 +143,12 @@ func (bcs *blockConstructor) constructionLoop() {
 		taskCtx, cancel = context.WithCancel(context.Background())
 		wg.Add(1)
 
-		go func() {
-			bcs.constructProposalBlock(taskCtx, txsCh)
-			wg.Done()
-		}()
+		if bcs.isRunning() {
+			go func() {
+				bcs.constructProposalBlock(taskCtx, txsCh)
+				wg.Done()
+			}()
+		}
 	}
 
 	for {
@@ -134,9 +156,11 @@ func (bcs *blockConstructor) constructionLoop() {
 		case <-bcs.chainHeadCh:
 			generateBlock()
 		case ev := <-bcs.txsCh:
-			select {
-			case txsCh <- ev:
-			default:
+			if !bcs.isRunning() {
+				select {
+				case txsCh <- ev:
+				default:
+				}
 			}
 		case <-bcs.chainHeadSub.Err():
 			if cancel != nil {
@@ -200,16 +224,18 @@ func (bcs *blockConstructor) constructProposalBlock(ctx context.Context, txsCh c
 		case <-ctx.Done():
 			return
 		case ev := <-txsCh:
-			if gp := bcs.pb.gasPool; gp != nil && gp.Gas() < configs.TxGas {
-				return
+			if !bcs.isRunning() && bcs.pb != nil {
+				if gp := bcs.pb.gasPool; gp != nil && gp.Gas() < configs.TxGas {
+					return
+				}
+				txs := make(map[common.Address]types.Transactions)
+				for _, tx := range ev.Txs {
+					acc, _ := types.Sender(bcs.pb.signer, tx)
+					txs[acc] = append(txs[acc], tx)
+				}
+				txSet := types.NewTransactionsByPriceAndNonce(bcs.pb.signer, txs)
+				bcs.pb.commitTransactions(ctx, bcs, txSet)
 			}
-			txs := make(map[common.Address]types.Transactions)
-			for _, tx := range ev.Txs {
-				acc, _ := types.Sender(bcs.pb.signer, tx)
-				txs[acc] = append(txs[acc], tx)
-			}
-			txSet := types.NewTransactionsByPriceAndNonce(bcs.pb.signer, txs)
-			bcs.pb.commitTransactions(ctx, bcs, txSet)
 		}
 	}
 }
