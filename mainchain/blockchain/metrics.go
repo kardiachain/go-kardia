@@ -12,7 +12,7 @@ var (
 	MetricBlockHash			= metricName("block", "hash")
 	MetricBlockSave			= metricName("block", "save")
 	MetricBlockCommit 		= metricName("block", "commit")
-	MetricBlockSeenCommit	= metricName("block", "seen-commit")
+	MetricBlockSeenCommit	= metricName("block", "seen_commit")
 	MetricBlockInfo			= metricName("block", "info")
 )
 
