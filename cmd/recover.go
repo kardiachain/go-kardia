@@ -79,7 +79,7 @@ func processBlockInfo(store types.StoreDB, block *types.Block, bi *types.BlockIn
 	txs := types.Transactions{}
 	receipts := bi.Receipts
 	for i := uint64(0); i < block.NumTxs(); i++ {
-		if i < uint64(len(receipts)) && bi.Receipts[i].TxHash.Equal(block.Transactions()[i].Hash()) {
+		if i < uint64(len(receipts)) && receipts[i].TxHash.Equal(block.Transactions()[i].Hash()) {
 			txs = append(txs, block.Transactions()[i])
 			continue
 		}
@@ -93,8 +93,11 @@ func processBlockInfo(store types.StoreDB, block *types.Block, bi *types.BlockIn
 				if correctBi.Receipts[j].TxHash.Equal(block.Transactions()[i].Hash()) {
 					fmt.Printf("Correcting receipt of a bad tx, hash: %v, wrong block height %v, correct block height %v\n", block.Transactions()[i].Hash().Hex(), block.Height(), blockHeight)
 					receipts = insertReceipts(receipts, i, correctBi.Receipts[j])
+					continue
 				}
 			}
+			fmt.Printf("Not found correct receipts, inserting fake receipt of a bad tx, hash: %v, block height %v\n", block.Transactions()[i].Hash().Hex(), block.Height())
+			receipts = insertReceipts(receipts, i, reconstructBadReceipt(block.Transactions()[i]))
 		}
 	}
 	store.WriteBlockInfo(block.Hash(), block.Height(), bi)
@@ -137,7 +140,7 @@ func rewriteTxLookupIndex(db kaidb.Database, blockHash common.Hash, blockHeight 
 }
 
 func insertReceipts(a types.Receipts, index uint64, value *types.Receipt) types.Receipts {
-	if uint64(len(a)) == index { // nil or empty slice or after last element
+	if uint64(len(a)) >= index { // nil or empty slice or after last element
 		return append(a, value)
 	}
 	a = append(a[:index+1], a[index:]...) // index < len(a)
