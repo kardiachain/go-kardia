@@ -1,4 +1,4 @@
-version: '3.4'
+ersion: '3.4'
 
 networks:
   kardia:
@@ -14,71 +14,52 @@ services:
     image: gcr.io/indigo-history-235904/go-kardia:stable
     ports:
       - 3000:3000
-      - 6001:6001
       - 3000:3000/udp
       - 8545:8545
     networks:
       kardia:
         ipv4_address: 172.20.0.2
     volumes:
-      - ./devnet_node1.yaml:/go/bin/devnet_node1.yaml
+      - ./node1.yaml:/go/bin/node1.yaml
       - .:/root/.kardia
-    command: [ "--network", "devnet", "--node", "cfg/devnet_node1.yaml" ]
+    command: [ "--network", "mainnet", "--node","node1.yaml" ]
     logging:
       driver: "json-file"
       options:
         max-size: 300m
   node2:
     container_name: node2
-    build: ../..
     image: gcr.io/indigo-history-235904/go-kardia:stable
     ports:
       - 3001:3000
-      - 6002:6002
       - 3001:3000/udp
       - 8546:8545
     networks:
       kardia:
         ipv4_address: 172.20.0.3
     volumes:
-      - ./devnet_node2.yaml:/go/bin/devnet_node2.yaml
-      - .:/root/.kardia
-    command: [ "--network", "devnet", "--node","cfg/devnet_node2.yaml" ]
+      - ./node2.yaml:/go/bin/node2.yaml
+      - ./:/root/.kardia
+    command: [ "--network", "mainnet", "--node","node2.yaml" ]
     logging:
       driver: "json-file"
       options:
         max-size: 300m
   node3:
-      container_name: node3
-      image: gcr.io/indigo-history-235904/go-kardia:stable
-      ports:
-        - 3002:3000
-        - 6003:6003
-        - 3002:3000/udp
-        - 8547:8545
-      networks:
-        kardia:
-          ipv4_address: 172.20.0.4
-      volumes:
-        - ./devnet_node3:/go/bin/devnet_node3
-        - ./:/root/.kardia
-      command: [ "--network", "devnet", "--node","cfg/devnet_node3.yaml" ]
-      logging:
-        driver: "json-file"
-        options:
-          max-size: 300m
-  prometheus:
-    image: prom/prometheus:latest
+    container_name: node3
+    image: gcr.io/indigo-history-235904/go-kardia:stable
+    ports:
+      - 3002:3000
+      - 3002:3000/udp
+      - 8547:8545
+    networks:
+      kardia:
+        ipv4_address: 172.20.0.4
     volumes:
-      - ./prometheus:/etc/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-    ports:
-      - 9090:9090
-  grafana:
-    image: grafana/grafana:latest
-    ports:
-      - 5000:3000
-    depends_on:
-      - prometheus
+      - ./node3.yaml:/go/bin/node3.yaml
+      - ./:/root/.kardia
+    command: [ "--network", "mainnet", "--node","node3.yaml" ]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 300m
