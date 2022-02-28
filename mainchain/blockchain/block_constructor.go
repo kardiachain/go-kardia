@@ -148,13 +148,22 @@ func (bcs *blockConstructor) constructionLoop() {
 				bcs.constructProposalBlock(taskCtx, txsCh)
 				wg.Done()
 			}()
+		} else {
+			go func() {
+				bcs.constructPendingBlock(taskCtx, txsCh)
+				wg.Done()
+			}()
 		}
 	}
 
 	for {
 		select {
+		case <-bcs.startCh:
+			generateBlock()
+
 		case <-bcs.chainHeadCh:
 			generateBlock()
+
 		case ev := <-bcs.txsCh:
 			if !bcs.isRunning() {
 				select {
@@ -162,6 +171,12 @@ func (bcs *blockConstructor) constructionLoop() {
 				default:
 				}
 			}
+		// System stopped
+		case <-bcs.exitCh:
+			if cancel != nil {
+				cancel()
+			}
+			return
 		case <-bcs.chainHeadSub.Err():
 			if cancel != nil {
 				cancel()
@@ -185,18 +200,18 @@ func newHeader(height uint64) *types.Header {
 }
 
 // newProposalBlock prepare a new block state to propose
-func (bcs *blockConstructor) newProposalBlock() error {
+func newProposalBlock(bcs *blockConstructor) (*proposalBlock, error) {
 	lastBlock := bcs.blockchain.CurrentBlock()
 	lastHeight := lastBlock.Height()
 	lastState, err := bcs.blockchain.StateAt(lastHeight)
 	if err != nil {
 		bcs.logger.Error("Failed to get blockchain head state", "err", err)
-		return err
+		return nil, err
 	}
 
 	// prepare a new header
 	header := newHeader(lastHeight)
-	bcs.pb = &proposalBlock{
+	pb := &proposalBlock{
 		logger:   log.New(),
 		signer:   types.LatestSigner(bcs.blockchain.chainConfig),
 		state:    lastState,
@@ -208,23 +223,41 @@ func (bcs *blockConstructor) newProposalBlock() error {
 		receipts: []*types.Receipt{},
 	}
 	bcs.pb.gasPool = new(types.GasPool).AddGas(bcs.pb.gasLimit)
-	bcs.pb.state.IntermediateRoot(true)
 
-	return nil
+	if bcs.isRunning() {
+		bcs.pb.state.IntermediateRoot(true)
+	}
+
+	return pb, nil
 }
 
 func (bcs *blockConstructor) constructProposalBlock(ctx context.Context, txsCh chan events.NewTxsEvent) {
-	if err := bcs.newProposalBlock(); err != nil {
+	pb, err := newProposalBlock(bcs)
+	if err != nil {
 		return
 	}
-	bcs.pb.organizeTransactions(ctx, bcs)
+	if err = pb.organizeTransactions(ctx, bcs); err != nil {
+		bcs.logger.Error("Failed to apply transactions to the block", "err", err)
+		return
+	}
+}
+
+func (bcs *blockConstructor) constructPendingBlock(ctx context.Context, txsCh chan events.NewTxsEvent) {
+	pb, err := newProposalBlock(bcs)
+	if err != nil {
+		return
+	}
+	if err = pb.organizeTransactions(ctx, bcs); err != nil {
+		bcs.logger.Error("Failed to apply transactions to the block", "err", err)
+		return
+	}
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case ev := <-txsCh:
-			if !bcs.isRunning() && bcs.pb != nil {
+			if !bcs.isRunning() {
 				if gp := bcs.pb.gasPool; gp != nil && gp.Gas() < configs.TxGas {
 					return
 				}
@@ -233,8 +266,9 @@ func (bcs *blockConstructor) constructProposalBlock(ctx context.Context, txsCh c
 					acc, _ := types.Sender(bcs.pb.signer, tx)
 					txs[acc] = append(txs[acc], tx)
 				}
+
 				txSet := types.NewTransactionsByPriceAndNonce(bcs.pb.signer, txs)
-				bcs.pb.commitTransactions(ctx, bcs, txSet)
+				pb.commitTransactions(ctx, bcs, txSet)
 			}
 		}
 	}
