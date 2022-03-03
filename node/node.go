@@ -504,6 +504,11 @@ func (n *Node) RegisterHandler(name, path string, handler http.Handler) {
 	n.http.handlerNames[path] = name
 }
 
+// Attach creates an RPC client attached to an in-process API handler.
+func (n *Node) Attach() (*rpc.Client, error) {
+	return rpc.DialInProc(n.inprocHandler), nil
+}
+
 // DataDir retrieves the current datadir used by the protocol stack.
 // Deprecated: No files should be stored in this directory, use InstanceDir instead.
 func (n *Node) DataDir() string {

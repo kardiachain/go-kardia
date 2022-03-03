@@ -31,9 +31,6 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/gorilla/mux"
-	"github.com/rs/cors"
-
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -47,12 +44,23 @@ import (
 	"github.com/kardiachain/go-kardia/node"
 	kaiproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 
+	"github.com/gorilla/mux"
+	"github.com/rs/cors"
+
 	// Force-load the tracer engines to trigger registration
 	_ "github.com/kardiachain/go-kardia/mainchain/tracers/js"
 	_ "github.com/kardiachain/go-kardia/mainchain/tracers/native"
 )
 
-var args flags
+var (
+	args             flags
+	clientIdentifier = "kai"
+	// Git SHA1 commit hash of the release (set via linker flags)
+	gitCommit = ""
+	gitDate   = ""
+	// The app that holds all commands and flags.
+	app = NewApp(gitCommit, gitDate, "the go-kardia command line interface")
+)
 
 // getP2P gets p2p's config from config
 func (c *Config) getP2PConfig() (*configs.P2PConfig, error) {
