@@ -80,7 +80,7 @@ func finalizeConfigParams(args *flags) {
 	}
 }
 
-// Load attempts to load the config from given path and filename.
+// LoadConfig attempts to load the config from given path and filename.
 func LoadConfig(args flags) (*Config, error) {
 	finalizeConfigParams(&args)
 	var (
