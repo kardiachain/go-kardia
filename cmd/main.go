@@ -46,6 +46,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
+	"gopkg.in/urfave/cli.v1"
 
 	// Force-load the tracer engines to trigger registration
 	_ "github.com/kardiachain/go-kardia/mainchain/tracers/js"
@@ -455,11 +456,42 @@ func waitForever() {
 	select {}
 }
 
-func main() {
-	flag.Parse()
-	config, err := LoadConfig(args)
-	if err != nil {
-		panic(err)
+func init() {
+	app.Name = "root"
+	app.Commands = []cli.Command{
+		attachCommand,
 	}
-	config.Start()
+
+	app.Flags = []cli.Flag{
+		cli.StringFlag{
+			Name:  "genesis",
+			Usage: "Path to genesis config file. Default: ${wd}/cfg/genesis.yaml",
+		},
+		cli.StringFlag{
+			Name:  "node",
+			Usage: "Path to Kardia node config file. Default: ${wd}/cfg/kai_config.yaml",
+		},
+		cli.StringFlag{
+			Name:  "network",
+			Usage: "Target network, choose one [mainnet, testnet, devnet]. Default: \"mainnet\"",
+			Value: "mainnet",
+		},
+	}
+
+	app.Action = func(ctx *cli.Context) error {
+		flag.Parse()
+		config, err := LoadConfig(args)
+		if err != nil {
+			return err
+		}
+		config.Start()
+		return nil
+	}
+}
+
+func main() {
+	if err := app.Run(os.Args); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }

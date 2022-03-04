@@ -21,12 +21,12 @@ var (
 		Name:      "attach",
 		Usage:     "Start an interactive JavaScript environment (connect to node)",
 		ArgsUsage: "[endpoint]",
-		Flags:     append(consoleFlags, utils.DataDirFlag),
+		Flags:     consoleFlags,
 		Category:  "CONSOLE COMMANDS",
 		Description: `
 The Gkai console is an interactive shell for the JavaScript runtime environment
 which exposes a node admin interface as well as the Ðapp JavaScript API.
-See https://gkai.ethereum.org/docs/interface/javascript-console.
+See https://geth.ethereum.org/docs/interface/javascript-console.
 This command allows to open a console on a running gkai node.`,
 	}
 )
@@ -34,6 +34,11 @@ This command allows to open a console on a running gkai node.`,
 // remoteConsole will connect to a remote gkai instance, attaching a JavaScript
 // console to it.
 func remoteConsole(ctx *cli.Context) error {
+	nodeConfig, err := LoadConfig(args)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("nodeConfig %+v\n", nodeConfig)
 	endpoint := ctx.Args().First()
 	if endpoint == "" {
 		path := configs.DefaultDataDir()
@@ -47,7 +52,7 @@ func remoteConsole(ctx *cli.Context) error {
 		utils.Fatalf("Unable to attach to remote gkai: %v", err)
 	}
 	config := console.Config{
-		DataDir: utils.MakeDataDir(ctx),
+		DataDir: nodeConfig.DataDir,
 		DocRoot: ctx.GlobalString(utils.JSpathFlag.Name),
 		Client:  client,
 		Preload: utils.MakeConsolePreloads(ctx),

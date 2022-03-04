@@ -116,9 +116,9 @@ func (c *Console) init(preload []string) error {
 
 	// Initialize the JavaScript <-> Go RPC bridge.
 	bridge := newBridge(c.client, c.prompter, c.printer)
-	if err := c.initWeb3(bridge); err != nil {
-		return err
-	}
+	//if err := c.initWeb3(bridge); err != nil {
+	//	return err
+	//}
 
 	// Add bridge overrides for web3.js functionality.
 	c.jsre.Do(func(vm *goja.Runtime) {
