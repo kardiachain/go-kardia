@@ -17,6 +17,7 @@ import (
 	"github.com/kardiachain/go-kardia/console/prompt"
 	"github.com/kardiachain/go-kardia/internal/jsre"
 	"github.com/kardiachain/go-kardia/internal/jsre/deps"
+	"github.com/kardiachain/go-kardia/internal/web3ext"
 	"github.com/kardiachain/go-kardia/rpc"
 
 	"github.com/dop251/goja"
@@ -116,9 +117,9 @@ func (c *Console) init(preload []string) error {
 
 	// Initialize the JavaScript <-> Go RPC bridge.
 	bridge := newBridge(c.client, c.prompter, c.printer)
-	//if err := c.initWeb3(bridge); err != nil {
-	//	return err
-	//}
+	if err := c.initWeb3(bridge); err != nil {
+		return err
+	}
 
 	// Add bridge overrides for web3.js functionality.
 	c.jsre.Do(func(vm *goja.Runtime) {
@@ -180,6 +181,38 @@ func (c *Console) initWeb3(bridge *bridge) error {
 		_, err = vm.RunString("var web3 = new Web3(_consoleWeb3Transport)")
 	})
 	return err
+}
+
+// initExtensions loads and registers web3.js extensions.
+func (c *Console) initExtensions() error {
+	// Compute aliases from server-provided modules.
+	apis, err := c.client.SupportedModules()
+	if err != nil {
+		return fmt.Errorf("api modules: %v", err)
+	}
+	aliases := map[string]struct{}{"eth": {}, "personal": {}}
+	for api := range apis {
+		if api == "web3" {
+			continue
+		}
+		aliases[api] = struct{}{}
+		if file, ok := web3ext.Modules[api]; ok {
+			if err = c.jsre.Compile(api+".js", file); err != nil {
+				return fmt.Errorf("%s.js: %v", api, err)
+			}
+		}
+	}
+
+	// Apply aliases.
+	c.jsre.Do(func(vm *goja.Runtime) {
+		web3 := getObject(vm, "web3")
+		for name := range aliases {
+			if v := web3.Get(name); v != nil {
+				vm.Set(name, v)
+			}
+		}
+	})
+	return nil
 }
 
 // initAdmin creates additional admin APIs implemented by the bridge.
