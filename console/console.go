@@ -120,6 +120,9 @@ func (c *Console) init(preload []string) error {
 	if err := c.initWeb3(bridge); err != nil {
 		return err
 	}
+	if err := c.initExtensions(); err != nil {
+		return err
+	}
 
 	// Add bridge overrides for web3.js functionality.
 	c.jsre.Do(func(vm *goja.Runtime) {

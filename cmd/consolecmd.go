@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/kardiachain/go-kardia/cmd/utils"
-	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/console"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/rpc"
@@ -38,13 +37,9 @@ func remoteConsole(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("nodeConfig %+v\n", nodeConfig)
 	endpoint := ctx.Args().First()
 	if endpoint == "" {
-		path := configs.DefaultDataDir()
-		if ctx.GlobalIsSet(utils.DataDirFlag.Name) {
-			path = ctx.GlobalString(utils.DataDirFlag.Name)
-		}
+		path := nodeConfig.DataDir
 		endpoint = fmt.Sprintf("%s/gkai.ipc", path)
 	}
 	client, err := dialRPC(endpoint)

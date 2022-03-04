@@ -11,7 +11,6 @@ import (
 	"text/tabwriter"
 	"text/template"
 
-	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/internal/flags"
 
 	"gopkg.in/urfave/cli.v1"
@@ -128,18 +127,6 @@ func HomeDir() string {
 // are the same for all commands.
 
 var (
-	// General settings
-	DataDirFlag = DirectoryFlag{
-		Name:  "datadir",
-		Usage: "Data directory for the databases and keystore",
-		Value: DirectoryString(configs.DefaultDataDir()),
-	}
-	NetworkIdFlag = cli.Uint64Flag{
-		Name:  "networkid",
-		Usage: "Explicitly set network id (integer)(For testnets: use --ropsten, --rinkeby, --goerli instead)",
-		Value: configs.MainnetNetworkID,
-	}
-
 	// JS console related flags
 	ExecFlag = cli.StringFlag{
 		Name:  "exec",
@@ -156,17 +143,6 @@ var (
 		Value: DirectoryString("."),
 	}
 )
-
-// MakeDataDir retrieves the currently requested data directory, terminating
-// if none (or the empty string) is specified. If the node is starting a testnet,
-// then a subdirectory of the specified datadir will be used.
-func MakeDataDir(ctx *cli.Context) string {
-	if path := ctx.GlobalString(DataDirFlag.Name); path != "" {
-		return path
-	}
-	Fatalf("Cannot determine default data directory, please set manually (--datadir)")
-	return ""
-}
 
 // MakeConsolePreloads retrieves the absolute paths for the console JavaScript
 // scripts to preload before starting.
