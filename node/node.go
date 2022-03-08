@@ -632,6 +632,7 @@ func makeNodeInfo(
 		Other: p2p.DefaultNodeInfoOther{
 			TxIndex: txIndexerStatus,
 		},
+		ChainConfig: config.Genesis.Config,
 	}
 
 	if config.P2P.PexReactor {

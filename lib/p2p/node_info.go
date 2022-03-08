@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/bytes"
 	kstrings "github.com/kardiachain/go-kardia/lib/strings"
 	kp2p "github.com/kardiachain/go-kardia/proto/kardiachain/p2p"
@@ -89,8 +90,9 @@ type DefaultNodeInfo struct {
 	Channels bytes.HexBytes `json:"channels"` // channels this node knows about
 
 	// ASCIIText fields
-	Moniker string               `json:"moniker"` // arbitrary moniker
-	Other   DefaultNodeInfoOther `json:"other"`   // other application specific data
+	Moniker     string               `json:"moniker"` // arbitrary moniker
+	Other       DefaultNodeInfoOther `json:"other"`   // other application specific data
+	ChainConfig *configs.ChainConfig `json:"config"`
 }
 
 // DefaultNodeInfoOther is the misc. applcation specific data
