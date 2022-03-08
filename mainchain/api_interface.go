@@ -82,8 +82,10 @@ type APIBackend interface {
 
 func (k *KardiaService) HeaderByHeight(ctx context.Context, height rpc.BlockHeight) *types.Header {
 	// Return the latest block if rpc.LatestBlockHeight or rpc.PendingBlockHeight has been passed in
-	if height.Uint64() >= rpc.PendingBlockHeight.Uint64() {
+	if height.Uint64() == rpc.PendingBlockHeight.Uint64() {
 		return k.blockchain.CurrentBlock().Header()
+	} else if height.Uint64() == rpc.LatestBlockHeight.Uint64() {
+		return k.blockchain.GetHeaderByHeight(k.blockchain.CurrentBlock().Header().Height - 1)
 	}
 	return k.blockchain.GetHeaderByHeight(height.Uint64())
 }

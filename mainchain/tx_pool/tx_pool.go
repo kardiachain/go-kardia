@@ -185,6 +185,8 @@ type TxPool struct {
 	signer   types.Signer
 	mu       sync.RWMutex
 
+	isGalaxias bool // Fork indicator whether we are in the Galaxias stage.
+
 	currentState  *state.StateDB // Current state in the blockchain head
 	pendingNonces *txNoncer      // Pending state tracking virtual nonces
 	currentMaxGas uint64         // Current gas limit for transaction caps
@@ -584,7 +586,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 		return ErrInsufficientFunds
 	}
 	// Ensure the transaction has more gas than the basic tx fee.
-	intrGas, err := IntrinsicGas(tx.Data(), tx.To() == nil, false)
+	intrGas, err := IntrinsicGas(tx.Data(), tx.To() == nil, !pool.isGalaxias)
 	if err != nil {
 		return err
 	}
@@ -1246,6 +1248,10 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	log.Debug("Reinjecting stale transactions", "count", len(reinject))
 	senderCacher.recover(pool.signer, reinject)
 	pool.addTxsLocked(reinject, false)
+
+	// Update all fork indicator by next pending block number.
+	next := newHead.Height + 1
+	pool.isGalaxias = pool.chainCfg.IsGalaxias(&next)
 }
 
 // promoteExecutables moves transactions that have become processable from the
