@@ -1,0 +1,57 @@
+Node:
+  Name: node3
+  DataDir: /tmp/.kardia
+  HTTPHost: 0.0.0.0
+  HTTPPort: 8547
+  HTTPModules:
+    - node
+    - kai
+    - tx
+    - account
+    - net
+    - eth
+    - txpool
+    - debug
+  HTTPVirtualHosts:
+    - 0.0.0.0
+    - localhost
+  HTTPCors:
+    - "*"
+  WSHost: 0.0.0.0
+  WSPort: 8552
+  WSOrigins: # cors, use "*" to accept all
+    - "*"
+  P2P:
+    PrivateKey: 98de1df1e242afb02bd5dc01fbcacddcc9a4d41df95a66f629139560ca6e4dbb
+    ListenAddress: tcp://0.0.0.0:3002
+    MaxPeers: 25
+  LogLevel: info           # crit, error, warn, info, debug, trace
+  Metrics: false
+  FastSync:
+    Enable: true        # true if this node allow and be able to fastsync, otherwise false
+    MaxPeers: 2         # maximum peer is allowed to receive fastsync blocks from this node at a time. Type int
+    TargetPending: 20   # maximum number of blocks in a batch sync. Type int
+    PeerTimeout: 15     # maximum response time from a peer in second. Type int
+    MinRecvRate: 0      # minimum receive rate from peer, otherwise prune. Type int64
+  TimeOutForStaticCall: 5
+MainChain:
+  ServiceName: KARDIA
+  ChainId: 1
+  NetworkId: 10000
+  AcceptTxs: 1       # accept tx sync process or not (1 is yes, 0 is no)
+  Seeds:
+    - c1fe56e3f58d3244f606306611a5d10c8333f1f6@127.0.0.1:3000
+    - 7cefc13b6e2aedeedfb7cb6c32457240746baee5@127.0.0.1:3001
+    - ff3dac4f04ddbd24de5d6039f90596f0a8bb08fd@127.0.0.1:3002
+  Database:
+    Dir: chaindata                           # directory stores leveldb
+    Cache: 16                                # cache is used in leveldb
+    Handles: 32                              # handles is used in leveldb
+    Drop: 1                                  # Specify whether drop database or not (0 is no, 1 is yes)
+GenTxs: # Devnet config to dynamize txs processing
+  Type: 1
+  NumTxs: 500
+  Delay: 2
+  Index: 1
+Debug: # Devnet config for debugging purposes 
+  Port: ":6002"
