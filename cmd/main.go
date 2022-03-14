@@ -23,8 +23,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/gorilla/mux"
-	"github.com/rs/cors"
 	"math/big"
 	"net/http"
 	"net/http/pprof"
@@ -32,6 +30,9 @@ import (
 	"path/filepath"
 	"runtime"
 	"time"
+
+	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/storage"
@@ -359,11 +360,6 @@ func (c *Config) Start() {
 	if err := n.Start(); err != nil {
 		logger.Error("error while starting node", "err", err)
 		return
-	}
-
-	if c.Metrics {
-		logger.Warn("Collect metrics enabled")
-		metrics.Enabled = true
 	}
 
 	if c.Debug != nil {
