@@ -24,8 +24,8 @@ Node:
   P2P:
     PrivateKey: 8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06
     ListenAddress: tcp://0.0.0.0:3000
-    InboundPeers: 25
-    OutboundPeers: 25
+    InboundPeers: 15
+    OutboundPeers: 15
   LogLevel: info           # crit, error, warn, info, debug, trace
   Metrics: true
   FastSync:
@@ -55,4 +55,4 @@ GenTxs: # Devnet config to dynamize txs processing
   Delay: 2
   Index: 1
 Debug: # Devnet config for debugging purposes 
-  Port: ":6001"
+  Port: ":6000"

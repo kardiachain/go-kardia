@@ -6,8 +6,12 @@
 package metrics
 
 import (
+	"os"
 	"runtime"
+	"strings"
 	"time"
+
+	"github.com/kardiachain/go-kardia/lib/log"
 )
 
 // Enabled is checked by the constructor functions for all of the
@@ -16,6 +20,25 @@ import (
 // This global kill-switch helps quantify the observer effect and makes
 // for less cluttered pprof profiles.
 var Enabled = true
+
+// enablerFlags is the CLI flag names to use to enable metrics collections.
+var enablerFlags = []string{"metrics"}
+
+// Init enables or disables the metrics system. Since we need this to run before
+// any other code gets to create meters and timers, we'll actually do an ugly hack
+// and peek into the command line args for the metrics flag.
+func init() {
+	for _, arg := range os.Args {
+		flag := strings.TrimLeft(arg, "-")
+
+		for _, enabler := range enablerFlags {
+			if !Enabled && flag == enabler {
+				log.Info("Enabling metrics collection")
+				Enabled = true
+			}
+		}
+	}
+}
 
 // CollectProcessMetrics periodically collects various metrics about the running
 // process.

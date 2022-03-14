@@ -23,8 +23,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/gorilla/mux"
-	"github.com/rs/cors"
 	"math/big"
 	"net/http"
 	"net/http/pprof"
@@ -32,6 +30,9 @@ import (
 	"path/filepath"
 	"runtime"
 	"time"
+
+	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/storage"
@@ -338,16 +339,6 @@ func (c *Config) Start() {
 		return
 	}
 
-	if c.Metrics {
-		metrics.Enabled = true
-	}
-
-	if c.Debug != nil {
-		if err := c.StartDebug(); err != nil {
-			logger.Error("Failed to start debug", "err", err)
-		}
-	}
-
 	genesisCfg, err := c.getGenesisConfig()
 	if err != nil {
 		panic(err)
@@ -371,11 +362,18 @@ func (c *Config) Start() {
 		return
 	}
 
+	if c.Debug != nil {
+		if err := c.StartDebug(); err != nil {
+			logger.Error("Failed to start debug", "err", err)
+		}
+	}
+
 	waitForever()
 }
 
 func (c *Config) StartDebug() error {
 	go func() {
+		log.Warn("Running router server")
 		router := mux.NewRouter()
 		router.HandleFunc("/debug/pprof/", pprof.Index)
 		router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
@@ -387,9 +385,7 @@ func (c *Config) StartDebug() error {
 		router.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
 		router.Handle("/debug/pprof/block", pprof.Handler("block"))
 		router.Handle("/debug/vars", http.DefaultServeMux)
-		if metrics.Enabled {
-			router.Handle("/metrics", prometheus.Handler(metrics.DefaultRegistry))
-		}
+		router.Handle("/metrics", prometheus.Handler(metrics.DefaultRegistry))
 
 		if err := http.ListenAndServe(c.Debug.Port, cors.AllowAll().Handler(router)); err != nil {
 			panic(err)
