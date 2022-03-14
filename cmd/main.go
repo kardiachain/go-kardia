@@ -338,6 +338,16 @@ func (c *Config) Start() {
 		return
 	}
 
+	if c.Metrics {
+		metrics.Enabled = true
+	}
+
+	if c.Debug != nil {
+		if err := c.StartDebug(); err != nil {
+			logger.Error("Failed to start debug", "err", err)
+		}
+	}
+
 	genesisCfg, err := c.getGenesisConfig()
 	if err != nil {
 		panic(err)
@@ -361,23 +371,11 @@ func (c *Config) Start() {
 		return
 	}
 
-	if c.Metrics {
-		logger.Warn("Collect metrics enabled")
-		metrics.Enabled = true
-	}
-
-	if c.Debug != nil {
-		if err := c.StartDebug(); err != nil {
-			logger.Error("Failed to start debug", "err", err)
-		}
-	}
-
 	waitForever()
 }
 
 func (c *Config) StartDebug() error {
 	go func() {
-		log.Warn("Running router server")
 		router := mux.NewRouter()
 		router.HandleFunc("/debug/pprof/", pprof.Index)
 		router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
@@ -389,7 +387,9 @@ func (c *Config) StartDebug() error {
 		router.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
 		router.Handle("/debug/pprof/block", pprof.Handler("block"))
 		router.Handle("/debug/vars", http.DefaultServeMux)
-		router.Handle("/metrics", prometheus.Handler(metrics.DefaultRegistry))
+		if metrics.Enabled {
+			router.Handle("/metrics", prometheus.Handler(metrics.DefaultRegistry))
+		}
 
 		if err := http.ListenAndServe(c.Debug.Port, cors.AllowAll().Handler(router)); err != nil {
 			panic(err)

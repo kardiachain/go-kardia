@@ -15,7 +15,7 @@ import (
 //
 // This global kill-switch helps quantify the observer effect and makes
 // for less cluttered pprof profiles.
-var Enabled = false
+var Enabled = true
 
 // CollectProcessMetrics periodically collects various metrics about the running
 // process.

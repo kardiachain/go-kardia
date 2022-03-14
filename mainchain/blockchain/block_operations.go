@@ -160,7 +160,7 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCom
 	if metrics.Enabled {
 		// block write timer
 		blockWriteTimer.UpdateSince(opStart)
-		// block height
+		// block height gauge
 		blockHeightGauge.Update(int64(block.Height()))
 		// block transactions gauge
 		for i := range block.Transactions() {
@@ -222,6 +222,7 @@ func (bo *BlockOperations) SaveBlock(block *types.Block, blockParts *types.PartS
 	bo.blockchain.SaveBlock(block, blockParts, seenCommit)
 
 	if metrics.Enabled {
+		//fmt.Println("---metrics enabled:" + strconv.FormatBool(metrics.Enabled))
 		blockSaveTimer.UpdateSince(opStart)
 
 		bc, _ := proto.Marshal(block.LastCommit().ToProto())

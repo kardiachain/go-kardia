@@ -10,6 +10,7 @@ Node:
     - account
     - net
     - eth
+    - txpool
     - debug
   HTTPVirtualHosts:
     - 0.0.0.0
@@ -23,7 +24,8 @@ Node:
   P2P:
     PrivateKey: 98de1df1e242afb02bd5dc01fbcacddcc9a4d41df95a66f629139560ca6e4dbb
     ListenAddress: tcp://0.0.0.0:3002
-    MaxPeers: 25
+    InboundPeers: 25
+    OutboundPeers: 25
   LogLevel: info           # crit, error, warn, info, debug, trace
   Metrics: true
   FastSync:
@@ -52,5 +54,5 @@ GenTxs: # Devnet config to dynamize txs processing
   NumTxs: 500
   Delay: 2
   Index: 1
-Debug: # Devnet config for debugging purposes 
+Debug: # Devnet config for debugging purposes
   Port: ":6003"

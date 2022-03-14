@@ -24,9 +24,10 @@ Node:
   P2P:
     PrivateKey: 77cfc693f7861a6e1ea817c593c04fbc9b63d4d3146c5753c008cfc67cffca79
     ListenAddress: tcp://0.0.0.0:3001
-    MaxPeers: 25
+    InboundPeers: 25
+    OutboundPeers: 25
   LogLevel: info           # crit, error, warn, info, debug, trace
-  Metrics: false
+  Metrics: true
   FastSync:
     Enable: true        # true if this node allow and be able to fastsync, otherwise false
     MaxPeers: 2         # maximum peer is allowed to receive fastsync blocks from this node at a time. Type int
@@ -54,4 +55,4 @@ GenTxs: # Devnet config to dynamize txs processing
   Delay: 2
   Index: 1
 Debug: # Devnet config for debugging purposes 
-  Port: ":6001"
+  Port: ":6002"

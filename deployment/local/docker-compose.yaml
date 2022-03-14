@@ -22,7 +22,7 @@ services:
     volumes:
       - ./node1.yaml:/go/bin/node1.yaml
       - .:/root/.kardia
-    command: [ "--network", "mainnet", "--node","node1.yaml" ]
+    command: [ "--network", "devnet", "--node","cfg/devnet_node1.yaml" ]
     logging:
       driver: "json-file"
       options:
@@ -40,7 +40,7 @@ services:
     volumes:
       - ./node2.yaml:/go/bin/node2.yaml
       - ./:/root/.kardia
-    command: [ "--network", "mainnet", "--node","node2.yaml" ]
+    command: [ "--network", "devnet", "--node","cfg/devnet_node2.yaml" ]
     logging:
       driver: "json-file"
       options:
@@ -58,8 +58,14 @@ services:
     volumes:
       - ./node3.yaml:/go/bin/node3.yaml
       - ./:/root/.kardia
-    command: [ "--network", "mainnet", "--node","node3.yaml" ]
+    command: [ "--network", "devnet", "--node","cfg/devnet_node3.yaml" ]
     logging:
       driver: "json-file"
       options:
         max-size: 300m
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus/prometheus.yml:/prometheus/prometheus.yml
+    ports:
+      - 9090:9090

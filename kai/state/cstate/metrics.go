@@ -8,23 +8,13 @@ import (
 var (
 	MetricSaveState 		= metricName("cstate", "state/save")
 	MetricStateBytes 		= metricName("cstate", "state/bytes")
-	MetricValidatorsChanged = metricName("cstate", "state/validators-changed")
-	MetricNextValidators	= metricName("cstate", "state/next-validators")
+	MetricValidatorsChanged = metricName("cstate", "state/validators_changed")
+	MetricNextValidators	= metricName("cstate", "state/next_validators")
 )
 
 var (
-	//saveStateTimer		= promauto.NewHistogram(prometheus.HistogramOpts{
-	//	Name: "save_state_timer",
-	//	Help: ""
-	//})
-
-	//StateBytesLength = promauto.NewGauge(prometheus.GaugeOpts{
-	//	Name: "state_bytes_length_total",
-	//	Help: "state bytes length",
-	//})
-
 	saveStateTimer 		= metrics.NewRegisteredTimer(MetricSaveState, metrics.DefaultRegistry)
-	StateBytesLength 	= metrics.NewRegisteredGauge(MetricStateBytes, metrics.DefaultRegistry)
+	stateBytesLength 	= metrics.NewRegisteredGauge(MetricStateBytes, metrics.DefaultRegistry)
 	lastHeightValidatorsChangedGauge = metrics.NewRegisteredGauge(MetricValidatorsChanged, metrics.DefaultRegistry)
 	nextValidatorsGauge = metrics.NewRegisteredGauge(MetricNextValidators, metrics.DefaultRegistry)
 )
