@@ -4,6 +4,13 @@
 * Install [prometheus](https://prometheus.io/docs/prometheus/latest/getting_started/).
 * Install [grafana](https://grafana.com/docs/grafana/latest/installation/).
 
+### Enable metrics
+Add ```--metrics``` args to command
+```
+./cmd --network devnet --genesis cfg/genesis_devnet.yaml --node cfg/devnet_node1.yaml --metrics
+```
+
+
 ### Configuring Prometheus to monitor node
 Save the following Prometheus configuration as a file named prometheus.yml:
 ```
