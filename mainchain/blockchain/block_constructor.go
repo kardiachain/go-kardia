@@ -29,6 +29,7 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/events"
 	"github.com/kardiachain/go-kardia/kai/state"
+	"github.com/kardiachain/go-kardia/kai/state/cstate"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
@@ -80,10 +81,19 @@ type blockConstructor struct {
 	txsSub       event.Subscription
 	chainHeadSub event.Subscription
 
+	// consensus state
+	proposerAddr common.Address
+	lastState    cstate.LatestBlockState
+	commit       *types.Commit
+	evidence     []types.Evidence
+
+	// snapshot block and mutex
+	snapshotBlock   *types.Block
+	snapshotPartSet *types.PartSet
+	snapshotMu      sync.RWMutex
+
 	// atomic status counters
 	status int32
-
-	pb *proposalBlock
 }
 
 // newblockConstructor creates a new block constructor
@@ -191,14 +201,6 @@ func (bcs *blockConstructor) constructionLoop() {
 	}
 }
 
-// newHeader create a temp header with the correctsponding height of the blockchain
-func newHeader(height uint64) *types.Header {
-	return &types.Header{
-		Height:   height + 1,
-		GasLimit: configs.BlockGasLimitGalaxias,
-	}
-}
-
 // newProposalBlock prepare a new block state to propose
 func newProposalBlock(bcs *blockConstructor) (*proposalBlock, error) {
 	lastBlock := bcs.blockchain.CurrentBlock()
@@ -210,7 +212,11 @@ func newProposalBlock(bcs *blockConstructor) (*proposalBlock, error) {
 	}
 
 	// prepare a new header
-	header := newHeader(lastHeight)
+	header := &types.Header{
+		Height:   lastHeight + 1,
+		GasLimit: configs.BlockGasLimitGalaxias,
+	}
+
 	pb := &proposalBlock{
 		logger:   log.New(),
 		signer:   types.LatestSigner(bcs.blockchain.chainConfig),
@@ -222,13 +228,43 @@ func newProposalBlock(bcs *blockConstructor) (*proposalBlock, error) {
 		txs:      []*types.Transaction{},
 		receipts: []*types.Receipt{},
 	}
-	bcs.pb.gasPool = new(types.GasPool).AddGas(bcs.pb.gasLimit)
+	pb.gasPool = new(types.GasPool).AddGas(pb.gasLimit)
 
 	if bcs.isRunning() {
-		bcs.pb.state.IntermediateRoot(true)
+		pb.state.IntermediateRoot(true)
 	}
 
 	return pb, nil
+}
+
+func (bcs *blockConstructor) createSnapshotBlock(pb *proposalBlock) {
+	bcs.snapshotMu.Lock()
+	defer bcs.snapshotMu.Unlock()
+
+	bcs.snapshotBlock = types.NewBlock(
+		pb.header,
+		pb.txs,
+		nil,
+		nil,
+	)
+
+	bcs.snapshotPartSet = bcs.snapshotBlock.MakePartSet(types.BlockPartSizeBytes)
+}
+
+// updateHeader update the block header from given data.
+func (bcs *blockConstructor) updateHeader(time time.Time, blockID types.BlockID,
+	proposer common.Address, validatorsHash common.Hash, nextValidatorHash common.Hash, appHash common.Hash) *types.Header {
+	bcs.snapshotMu.Lock()
+	defer bcs.snapshotMu.Unlock()
+
+	bcs.snapshotBlock.Header().Time = time
+	bcs.snapshotBlock.Header().LastBlockID = blockID
+	bcs.snapshotBlock.Header().ProposerAddress = proposer
+	bcs.snapshotBlock.Header().ValidatorsHash = validatorsHash
+	bcs.snapshotBlock.Header().NextValidatorsHash = nextValidatorHash
+	bcs.snapshotBlock.Header().AppHash = appHash
+
+	return bcs.snapshotBlock.Header()
 }
 
 func (bcs *blockConstructor) constructProposalBlock(ctx context.Context, txsCh chan events.NewTxsEvent) {
@@ -258,33 +294,20 @@ func (bcs *blockConstructor) constructPendingBlock(ctx context.Context, txsCh ch
 			return
 		case ev := <-txsCh:
 			if !bcs.isRunning() {
-				if gp := bcs.pb.gasPool; gp != nil && gp.Gas() < configs.TxGas {
+				if gp := pb.gasPool; gp != nil && gp.Gas() < configs.TxGas {
 					return
 				}
 				txs := make(map[common.Address]types.Transactions)
 				for _, tx := range ev.Txs {
-					acc, _ := types.Sender(bcs.pb.signer, tx)
+					acc, _ := types.Sender(pb.signer, tx)
 					txs[acc] = append(txs[acc], tx)
 				}
 
-				txSet := types.NewTransactionsByPriceAndNonce(bcs.pb.signer, txs)
+				txSet := types.NewTransactionsByPriceAndNonce(pb.signer, txs)
 				pb.commitTransactions(ctx, bcs, txSet)
 			}
 		}
 	}
-}
-
-// updateHeader update the block header from given data.
-func (pb *proposalBlock) updateHeader(time time.Time, blockID types.BlockID,
-	proposer common.Address, validatorsHash common.Hash, nextValidatorHash common.Hash, appHash common.Hash) *types.Header {
-	pb.header.Time = time
-	pb.header.LastBlockID = blockID
-	pb.header.ProposerAddress = proposer
-	pb.header.ValidatorsHash = validatorsHash
-	pb.header.NextValidatorsHash = nextValidatorHash
-	pb.header.AppHash = appHash
-
-	return pb.header
 }
 
 // organizeTransaction organize transactions in tx pool and try to apply into block state

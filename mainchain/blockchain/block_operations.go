@@ -98,12 +98,11 @@ func (bo *BlockOperations) CreateProposalBlock(
 	// Tx execution can happen in parallel with voting or precommitted.
 	// For simplicity, this code executes & commits txs before sending proposal,
 	// so statedb of proposal node already contains the new state and txs receipts of this proposal block.
-	//maxBytes := lastState.ConsensusParams.Block.MaxBytes
 	// Fetch a limited amount of valid evidence
 	maxNumEvidence, _ := types.MaxEvidencePerBlock(lastState.ConsensusParams.Evidence.MaxBytes)
 	evidence, _ := bo.evPool.PendingEvidence(maxNumEvidence)
 
-	// Set time.
+	// Set time
 	var timestamp time.Time
 	if height == 1 {
 		timestamp = lastState.LastBlockTime // genesis time
@@ -111,14 +110,15 @@ func (bo *BlockOperations) CreateProposalBlock(
 		timestamp = cstate.MedianTime(commit, lastState.LastValidators)
 	}
 
+	// Galaxias logics
 	if bo.blockchain.chainConfig.IsGalaxias(&bo.height) {
-		header := bo.bcs.pb.updateHeader(timestamp, lastState.LastBlockID, proposerAddr, lastState.Validators.Hash(),
-			lastState.NextValidators.Hash(), lastState.AppHash)
-		block = bo.newBlock(header, bo.bcs.pb.txs, commit, evidence)
+		bo.bcs.updateHeader(timestamp, lastState.LastBlockID, proposerAddr, lastState.Validators.Hash(), lastState.NextValidators.Hash(), lastState.AppHash)
+		block = bo.bcs.snapshotBlock
 		bo.logger.Trace("Make block to propose", "block", block)
 		return block, block.MakePartSet(types.BlockPartSizeBytes)
 	}
 
+	// Aris logics
 	header := bo.newHeader(timestamp, height, 0, lastState.LastBlockID, proposerAddr, lastState.Validators.Hash(),
 		lastState.NextValidators.Hash(), lastState.AppHash)
 	header.GasLimit = configs.BlockGasLimit
