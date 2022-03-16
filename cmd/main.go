@@ -373,7 +373,7 @@ func (c *Config) Start() {
 
 func (c *Config) StartDebug() error {
 	go func() {
-		log.Warn("Running router server")
+		log.Info("Running router server")
 		router := mux.NewRouter()
 		router.HandleFunc("/debug/pprof/", pprof.Index)
 		router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)

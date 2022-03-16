@@ -27,7 +27,6 @@ Node:
     InboundPeers: 15
     OutboundPeers: 15
   LogLevel: info           # crit, error, warn, info, debug, trace
-  Metrics: true
   FastSync:
     Enable: true        # true if this node allow and be able to fastsync, otherwise false
     MaxPeers: 2         # maximum peer is allowed to receive fastsync blocks from this node at a time. Type int

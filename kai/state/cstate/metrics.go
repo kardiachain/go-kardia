@@ -6,17 +6,17 @@ import (
 )
 
 var (
-	MetricSaveState 		= metricName("cstate", "state/save")
-	MetricStateBytes 		= metricName("cstate", "state/bytes")
+	MetricSaveState         = metricName("cstate", "state/save")
+	MetricStateBytes        = metricName("cstate", "state/bytes")
 	MetricValidatorsChanged = metricName("cstate", "state/validators_changed")
-	MetricNextValidators	= metricName("cstate", "state/next_validators")
+	MetricNextValidators    = metricName("cstate", "state/next_validators")
 )
 
 var (
-	saveStateTimer 		= metrics.NewRegisteredTimer(MetricSaveState, metrics.DefaultRegistry)
-	stateBytesLength 	= metrics.NewRegisteredGauge(MetricStateBytes, metrics.DefaultRegistry)
+	saveStateTimer                   = metrics.NewRegisteredTimer(MetricSaveState, metrics.DefaultRegistry)
+	stateBytesLength                 = metrics.NewRegisteredGauge(MetricStateBytes, metrics.DefaultRegistry)
 	lastHeightValidatorsChangedGauge = metrics.NewRegisteredGauge(MetricValidatorsChanged, metrics.DefaultRegistry)
-	nextValidatorsGauge = metrics.NewRegisteredGauge(MetricNextValidators, metrics.DefaultRegistry)
+	nextValidatorsGauge              = metrics.NewRegisteredGauge(MetricNextValidators, metrics.DefaultRegistry)
 )
 
 func metricName(group, name string) string {

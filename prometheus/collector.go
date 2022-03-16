@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	helpTpl				   = "# HELP %s\n"
+	helpTpl                = "# HELP %s\n"
 	typeGaugeTpl           = "# TYPE %s gauge\n"
 	typeCounterTpl         = "# TYPE %s counter\n"
 	typeSummaryTpl         = "# TYPE %s summary\n"

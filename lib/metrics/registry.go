@@ -329,13 +329,13 @@ func (r *PrefixedRegistry) UnregisterAll() {
 }
 
 var (
-	DefaultRegistry = NewRegistry()
-	SystemRegistry  = NewPrefixedRegistry("system/")
-	DBRegistry      = NewPrefixedRegistry("db/")
-	TxPoolRegistry  = NewPrefixedRegistry("tx_pool/")
-	P2PRegistry     = NewPrefixedRegistry("p2p/")
-	BlockchainRegistry     = NewPrefixedRegistry("blockchain/")
-	CStateRegistry	= NewPrefixedRegistry("cstate/")
+	DefaultRegistry    = NewRegistry()
+	SystemRegistry     = NewPrefixedRegistry("system/")
+	DBRegistry         = NewPrefixedRegistry("db/")
+	TxPoolRegistry     = NewPrefixedRegistry("tx_pool/")
+	P2PRegistry        = NewPrefixedRegistry("p2p/")
+	BlockchainRegistry = NewPrefixedRegistry("blockchain/")
+	CStateRegistry     = NewPrefixedRegistry("cstate/")
 )
 
 // Call the given function for each registered metric.

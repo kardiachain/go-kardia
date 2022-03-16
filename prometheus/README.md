@@ -15,7 +15,7 @@ Add ```--metrics``` args to command
 Save the following Prometheus configuration as a file named prometheus.yml:
 ```
 global:
-  scrape_interval:     15s # By default, scrape targets every 15 seconds.
+  scrape_interval:    5s # By default, scrape targets every 15 seconds.
 
 scrape_configs:
   - job_name: 'node1'
