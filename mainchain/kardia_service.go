@@ -23,6 +23,7 @@ import (
 	bcReactor "github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
+	"github.com/kardiachain/go-kardia/kai/accounts"
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
 	"github.com/kardiachain/go-kardia/lib/bloombits"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -83,7 +84,8 @@ type KardiaService struct {
 	bloomIndexer      *BloomIndexer                  // Bloom indexer operating during block imports
 	closeBloomHandler chan struct{}
 
-	gpo *oracles.Oracle
+	gpo    *oracles.Oracle
+	accMan *accounts.Manager
 }
 
 func (s *KardiaService) AddKaiServer(ks KardiaSubService) {
@@ -189,6 +191,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 
 	// init gas price oracle
 	kai.gpo = oracles.NewGasPriceOracle(kai, config.GasOracle)
+	kai.accMan = ctx.AccMan
 	return kai, nil
 }
 
@@ -307,15 +310,21 @@ func (s *KardiaService) APIs() []rpc.API {
 			Public:    true,
 		},
 		{
-			Namespace: "txpool",
+			Namespace: "eth",
 			Version:   "1.0",
-			Service:   NewPublicTxPoolAPI(s),
+			Service:   &publicWeb3API{s.nodeConfig},
 			Public:    true,
 		},
 		{
 			Namespace: "eth",
 			Version:   "1.0",
-			Service:   &publicWeb3API{s.nodeConfig},
+			Service:   NewPublicNodeAccountAPI(s.accMan),
+			Public:    true,
+		},
+		{
+			Namespace: "txpool",
+			Version:   "1.0",
+			Service:   NewPublicTxPoolAPI(s),
 			Public:    true,
 		},
 		{

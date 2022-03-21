@@ -25,6 +25,7 @@ import (
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/internal/kaiapi"
+	"github.com/kardiachain/go-kardia/kai/accounts"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -463,4 +464,20 @@ func (s *publicWeb3API) ClientVersion() string {
 // It assumes the input is hex encoded.
 func (s *publicWeb3API) Sha3(input common.Bytes) common.Bytes {
 	return crypto.Keccak256(input)
+}
+
+// PublicNodeAccountAPI provides an API to access accounts managed by this node.
+// It offers only methods that can retrieve accounts.
+type PublicNodeAccountAPI struct {
+	am *accounts.Manager
+}
+
+// NewPublicNodeAccountAPI creates a new PublicNodeAccountAPI.
+func NewPublicNodeAccountAPI(am *accounts.Manager) *PublicNodeAccountAPI {
+	return &PublicNodeAccountAPI{am: am}
+}
+
+// Accounts returns the collection of accounts this node manages
+func (s *PublicNodeAccountAPI) Accounts() []common.Address {
+	return s.am.Accounts()
 }

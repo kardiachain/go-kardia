@@ -27,7 +27,7 @@ import (
 	"strings"
 
 	"github.com/kardiachain/go-kardia/cmd/flags"
-	"github.com/kardiachain/go-kardia/lib/abi/bind"
+	"github.com/kardiachain/go-kardia/kai/accounts/abi/bind"
 	"github.com/kardiachain/go-kardia/lib/compiler"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
