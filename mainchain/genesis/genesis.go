@@ -99,7 +99,7 @@ type genesisSpecMarshaling struct {
 
 type genesisAccountMarshaling struct {
 	Code    common.Bytes
-	Balance kmath.HexOrDecimal256
+	Balance *kmath.HexOrDecimal256
 	Nonce   uint64
 	Storage map[storageJSON]storageJSON
 }
