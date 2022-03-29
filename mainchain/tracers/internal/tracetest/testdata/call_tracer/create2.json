@@ -29,11 +29,7 @@
     },
     "config": {
       "chainId": 242,
-      "galaxiasBlock": 480023900,
-      "kaicon": {
-        "period": 15,
-        "epoch": 30000
-      }
+      "galaxiasBlock": 480023900
     }
   },
   "context": {

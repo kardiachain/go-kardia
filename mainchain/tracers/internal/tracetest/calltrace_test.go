@@ -74,10 +74,6 @@ var makeTest = function (tx, rewind) {
     genesis.timestamp = genesis.timestamp.toString();
 
     genesis.alloc = debug.traceTransaction(tx, { tracer: "prestateTracer", rewind: rewind });
-    for (var key in genesis.alloc) {
-        var balance = new BigNumber(genesis.alloc[key].balance.substr(2), 16);
-        genesis.alloc[key].balance = balance.toNumber(10);
-    }
     genesis.config = node.nodeInfo.config;
 
     // Generate the call trace and produce the test input
