@@ -23,6 +23,7 @@ import (
 	"sync/atomic"
 
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/math"
 )
 
 // Config are the configuration options for the Interpreter
@@ -197,8 +198,14 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 		}
 
 		// Static portion of gas
-		cost = operation.constantGas
-		if !contract.UseGas(operation.constantGas) {
+		cost = operation.constantGas // for tracing
+		// Validate stack
+		if sLen := stack.len(); sLen < operation.minStack {
+			return nil, &ErrStackUnderflow{stackLen: sLen, required: operation.minStack}
+		} else if sLen > operation.maxStack {
+			return nil, &ErrStackOverflow{stackLen: sLen, limit: operation.maxStack}
+		}
+		if !contract.UseGas(cost) {
 			return nil, ErrOutOfGas
 		}
 
@@ -222,6 +229,22 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 		// consume the gas and return an error if not enough gas is available.
 		// cost is explicitly set so that the capture state defer method can get the proper cost
 		if operation.dynamicGas != nil {
+			// All ops with a dynamic memory usage also has a dynamic gas cost.
+			// calculate the new memory size and expand the memory to fit
+			// the operation
+			// Memory check needs to be done prior to evaluating the dynamic gas portion,
+			// to detect calculation overflows
+			if operation.memorySize != nil {
+				memSize, overflow := operation.memorySize(stack)
+				if overflow {
+					return nil, ErrGasUintOverflow
+				}
+				// memory is expanded in words of 32 bytes. Gas
+				// is also calculated in words.
+				if memorySize, overflow = math.SafeMul(toWordSize(memSize), 32); overflow {
+					return nil, ErrGasUintOverflow
+				}
+			}
 			var dynamicCost uint64
 			dynamicCost, err = operation.dynamicGas(in.kvm, contract, stack, mem, memorySize)
 			cost += dynamicCost

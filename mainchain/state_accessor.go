@@ -179,7 +179,6 @@ func (k *KardiaService) stateAtTransaction(block *types.Block, txIndex int, reex
 			k.logger.Warn("failed to apply transaction while tracing", "hash", tx.Hash(), "err", err)
 		}
 		// Ensure any modifications are committed to the state
-		// Only delete empty objects if EIP158/161 (a.k.a Spurious Dragon) is in effect
 		statedb.Finalise(true)
 	}
 	return nil, kvm.BlockContext{}, nil, fmt.Errorf("transaction index %d out of range for block %#x", txIndex, block.Hash())

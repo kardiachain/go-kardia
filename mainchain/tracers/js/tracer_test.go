@@ -306,7 +306,7 @@ func TestPrestateTracerCreate2(t *testing.T) {
 	statedb := tests.MakePreState(memorydb.New(), alloc)
 
 	// Create the tracer, the KVM environment and run it
-	tracer, err := newJsTracer("prestateTracer", new(tracers.Context))
+	tracer, err := newJsTracer("prestateTracerLegacy", new(tracers.Context))
 	if err != nil {
 		t.Fatalf("failed to create call tracer: %v", err)
 	}
