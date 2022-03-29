@@ -128,9 +128,9 @@ type callTracerTest struct {
 
 // Iterates over all the input-output datasets in the tracer test harness and
 // runs the JavaScript tracers against them.
-func TestCallTracerLegacy(t *testing.T) {
-	testCallTracer("callTracerLegacy", "call_tracer", t)
-}
+//func TestCallTracerLegacy(t *testing.T) {
+//	testCallTracer("callTracerLegacy", "call_tracer", t)
+//}
 
 func testCallTracer(tracer string, dirPath string, t *testing.T) {
 	files, err := ioutil.ReadDir(filepath.Join("testdata", dirPath))
@@ -262,7 +262,8 @@ func BenchmarkTracers(b *testing.B) {
 			if err := json.Unmarshal(blob, test); err != nil {
 				b.Fatalf("failed to parse testcase: %v", err)
 			}
-			benchTracer("callTracerNative", test, b)
+			benchTracer("callTracer", test, b)
+			//benchTracer("replayTracerLegacy", test, b) // for benchmarking purposes
 		})
 	}
 }
@@ -273,12 +274,14 @@ func benchTracer(tracerName string, test *callTracerTest, b *testing.B) {
 	if err := rlp.DecodeBytes(common.FromHex(test.Input), tx); err != nil {
 		b.Fatalf("failed to parse testcase input: %v", err)
 	}
-	signer := types.HomesteadSigner{}
+	blockHeight := uint64(test.Context.Number)
+	signer := types.MakeSigner(test.Genesis.Config, &blockHeight)
+	origin, _ := signer.Sender(tx)
 	msg, err := tx.AsMessage(signer)
 	if err != nil {
 		b.Fatalf("failed to prepare transaction for tracing: %v", err)
 	}
-	origin, _ := signer.Sender(tx)
+	origin, _ = signer.Sender(tx)
 	txContext := kvm.TxContext{
 		Origin:   origin,
 		GasPrice: tx.GasPrice(),
