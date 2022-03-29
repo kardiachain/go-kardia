@@ -126,12 +126,6 @@ type callTracerTest struct {
 	TxHash  string           `json:"txHash"`
 }
 
-// Iterates over all the input-output datasets in the tracer test harness and
-// runs the JavaScript tracers against them.
-//func TestCallTracerLegacy(t *testing.T) {
-//	testCallTracer("callTracerLegacy", "call_tracer", t)
-//}
-
 func testCallTracer(tracer string, dirPath string, t *testing.T) {
 	files, err := ioutil.ReadDir(filepath.Join("testdata", dirPath))
 	if err != nil {

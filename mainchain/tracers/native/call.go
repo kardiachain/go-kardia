@@ -200,7 +200,7 @@ func addrToHex(a common.Address) string {
 func (t *callTracer) formatReplayedStack() []callFrame {
 	replayedStack := sequence(t.callstack[0], []callFrame{}, []int{})
 	for i := range replayedStack {
-		formatCallType(replayedStack[i])
+		formatCallType(&replayedStack[i])
 	}
 	return replayedStack
 }
@@ -220,7 +220,7 @@ func sequence(call callFrame, callSequence []callFrame, traceAddress []int) []ca
 	return newCallSequence
 }
 
-func formatCallType(in callFrame) {
+func formatCallType(in *callFrame) {
 	switch in.Type {
 	case "CALL", "DELEGATECALL", "STATICCALL":
 		in.CallType = strings.ToLower(in.Type)
