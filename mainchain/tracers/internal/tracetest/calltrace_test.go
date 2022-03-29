@@ -49,52 +49,53 @@ import (
 )
 
 // To generate a new callTracer test, copy paste the makeTest method below into
-// a Geth console and call it with a transaction hash you which to export.
+// a Gkai console and call it with a transaction hash you which to export.
 
 /*
-// makeTest generates a callTracer test by running a prestate reassembled and a
+// makeTest generates a callTracer test by running a pre-state reassembled and a
 // call trace run, assembling all the gathered information into a test case.
-var makeTest = function(tx, rewind) {
-  // Generate the genesis block from the block, transaction and prestate data
-  var block   = eth.getBlock(eth.getTransaction(tx).blockHash);
-  var genesis = eth.getBlock(block.parentHash);
+var makeTest = function (tx, rewind) {
+    // Generate the genesis block from the block, transaction and prestate data
+    var block = eth.getBlock(eth.getTransaction(tx).blockHash);
+    var genesis = eth.getBlock(block.parentHash);
 
-  delete genesis.gasUsed;
-  delete genesis.logsBloom;
-  delete genesis.parentHash;
-  delete genesis.receiptsRoot;
-  delete genesis.sha3Uncles;
-  delete genesis.size;
-  delete genesis.transactions;
-  delete genesis.transactionsRoot;
-  delete genesis.uncles;
+    delete genesis.gasUsed;
+    delete genesis.logsBloom;
+    delete genesis.parentHash;
+    delete genesis.receiptsRoot;
+    delete genesis.sha3Uncles;
+    delete genesis.size;
+    delete genesis.transactions;
+    delete genesis.transactionsRoot;
+    delete genesis.uncles;
 
-  genesis.gasLimit  = genesis.gasLimit.toString();
-  genesis.number    = genesis.number.toString();
-  genesis.timestamp = genesis.timestamp.toString();
+    genesis.gasLimit = genesis.gasLimit.toString();
+    genesis.number = genesis.number.toString();
+    genesis.timestamp = genesis.timestamp.toString();
 
-  genesis.alloc = debug.traceTransaction(tx, {tracer: "prestateTracer", rewind: rewind});
-  for (var key in genesis.alloc) {
-    genesis.alloc[key].nonce = genesis.alloc[key].nonce.toString();
-  }
-  genesis.config = admin.nodeInfo.protocols.eth.config;
+    genesis.alloc = debug.traceTransaction(tx, { tracer: "prestateTracer", rewind: rewind });
+    for (var key in genesis.alloc) {
+        var balance = new BigNumber(genesis.alloc[key].balance.substr(2), 16);
+        genesis.alloc[key].balance = balance.toNumber(10);
+    }
+    genesis.config = node.nodeInfo.config;
 
-  // Generate the call trace and produce the test input
-  var result = debug.traceTransaction(tx, {tracer: "callTracer", rewind: rewind});
-  delete result.time;
+    // Generate the call trace and produce the test input
+    var result = debug.traceTransaction(tx, { tracer: "callTracer", rewind: rewind });
+    delete result.time;
 
-  console.log(JSON.stringify({
-    genesis: genesis,
-    context: {
-      number:     block.number.toString(),
-      difficulty: block.difficulty,
-      timestamp:  block.timestamp.toString(),
-      gasLimit:   block.gasLimit.toString(),
-      miner:      block.miner,
-    },
-    input:  eth.getRawTransaction(tx),
-    result: result,
-  }, null, 2));
+    console.log(JSON.stringify({
+        genesis: genesis,
+        context: {
+            number: block.number.toString(),
+            difficulty: block.difficulty,
+            timestamp: block.timestamp.toString(),
+            gasLimit: block.gasLimit.toString(),
+            miner: block.miner,
+        },
+        input: eth.getRawTransaction(tx),
+        result: result,
+    }, null, 2));
 }
 */
 
@@ -126,12 +127,13 @@ type callTracerTest struct {
 	Context *callContext     `json:"context"`
 	Input   string           `json:"input"`
 	Result  *callTrace       `json:"result"`
+	TxHash  string           `json:"txHash"`
 }
 
 // Iterates over all the input-output datasets in the tracer test harness and
 // runs the JavaScript tracers against them.
 func TestCallTracerLegacy(t *testing.T) {
-	testCallTracer("callTracerLegacy", "call_tracer_legacy", t)
+	testCallTracer("callTracerLegacy", "call_tracer", t)
 }
 
 func testCallTracer(tracer string, dirPath string, t *testing.T) {
@@ -161,7 +163,8 @@ func testCallTracer(tracer string, dirPath string, t *testing.T) {
 			if err := rlp.DecodeBytes(common.FromHex(test.Input), tx); err != nil {
 				t.Fatalf("failed to parse testcase input: %v", err)
 			}
-			signer := types.HomesteadSigner{}
+			blockHeight := (uint64)(test.Context.Number)
+			signer := types.MakeSigner(test.Genesis.Config, &blockHeight)
 			origin, _ := signer.Sender(tx)
 			txContext := kvm.TxContext{
 				Origin:   origin,
