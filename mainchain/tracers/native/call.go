@@ -49,6 +49,11 @@ type callFrame struct {
 	Error        string      `json:"error,omitempty"`
 	TraceAddress []int       `json:"traceAddress"`
 	Calls        []callFrame `json:"calls,omitempty"`
+
+	// optional CREATE fields
+	Init                       string `json:"init,omitempty"`
+	CreatedContractAddressHash string `json:"createdContractAddressHash,omitempty"`
+	CreatedContractCode        string `json:"createdContractCode,omitempty"`
 }
 
 type callTracer struct {
@@ -228,6 +233,12 @@ func formatCallType(in *callFrame) {
 	case "CREATE", "CREATE2":
 		in.CallType = strings.ToLower(in.Type)
 		in.Type = "create"
+		in.Init = in.Input
+		in.CreatedContractCode = in.Output
+		in.CreatedContractAddressHash = in.To
+		in.Input = ""
+		in.Output = ""
+		in.To = ""
 	case "SELFDESTRUCT":
 		in.CallType = strings.ToLower(in.Type)
 		in.Type = "selfdestruct"
