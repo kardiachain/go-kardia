@@ -280,6 +280,7 @@ var opCodeToString = map[OpCode]string{
 	TIMESTAMP:   "TIMESTAMP",
 	NUMBER:      "NUMBER",
 	GASLIMIT:    "GASLIMIT",
+	CHAINID:     "CHAINID",
 	SELFBALANCE: "SELFBALANCE",
 
 	// 0x50 range - 'storage' and execution.
