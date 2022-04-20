@@ -483,6 +483,16 @@ func SignTx(signer Signer, tx *Transaction, prv *ecdsa.PrivateKey) (*Transaction
 	return tx.WithSignature(signer, sig)
 }
 
+// MustSignNewTx creates a transaction and signs it.
+// This panics if the transaction cannot be signed.
+func MustSignNewTx(s Signer, tx *Transaction, prv *ecdsa.PrivateKey) *Transaction {
+	tx, err := SignTx(s, tx, prv)
+	if err != nil {
+		panic(err)
+	}
+	return tx
+}
+
 // sigHash returns the hash to be signed by the sender.
 // It does not uniquely identify the transaction.
 func sigHash(tx *Transaction) common.Hash {
