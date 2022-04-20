@@ -78,17 +78,14 @@ type receiptRLP struct {
 type receiptStorageRLP struct {
 	PostStateOrStatus []byte
 	CumulativeGasUsed uint64
-	Bloom             Bloom
-	TxHash            common.Hash
-	ContractAddress   common.Address
 	Logs              []*LogForStorage
-	GasUsed           uint64
 }
 
 // v2StoredReceiptRLP is the storage encoding of a receipt used in database version 2.
 type v2StoredReceiptRLP struct {
 	PostStateOrStatus []byte
 	CumulativeGasUsed uint64
+	Bloom             Bloom
 	TxHash            common.Hash
 	ContractAddress   common.Address
 	Logs              []*LogForStorage
@@ -210,13 +207,13 @@ func decodeStoredReceiptRLP(r *ReceiptForStorage, blob []byte) error {
 		return err
 	}
 	// Assign the consensus fields
-	r.CumulativeGasUsed, r.Bloom = dec.CumulativeGasUsed, dec.Bloom
+	r.CumulativeGasUsed = dec.CumulativeGasUsed
 	r.Logs = make([]*Log, len(dec.Logs))
 	for i, log := range dec.Logs {
 		r.Logs[i] = (*Log)(log)
 	}
 	// Assign the implementation fields
-	r.TxHash, r.ContractAddress, r.GasUsed = dec.TxHash, dec.ContractAddress, dec.GasUsed
+	r.Bloom = CreateBloom(Receipts{(*Receipt)(r)})
 	return nil
 }
 
