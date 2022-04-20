@@ -34,7 +34,7 @@ func benchRLP(b *testing.B, encode bool) {
 		obj  interface{}
 	}{
 		{
-			"legacy-header",
+			"header",
 			&Header{
 				Height:   1000,
 				GasLimit: 8_000_000,

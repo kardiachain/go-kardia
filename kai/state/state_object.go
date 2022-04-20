@@ -96,6 +96,8 @@ func (s *stateObject) empty() bool {
 	return s.data.Nonce == 0 && s.data.Balance.Sign() == 0 && bytes.Equal(s.data.CodeHash, emptyCodeHash)
 }
 
+//go:generate go run ../../lib/rlp/rlpgen -type Account -out gen_account_rlp.go
+
 // Account is the Kardia consensus representation of accounts.
 // These objects are stored in the main account trie.
 type Account struct {
@@ -139,7 +141,7 @@ func (so *stateObject) deepCopy(db *StateDB) *stateObject {
 
 // EncodeRLP implements rlp.Encoder.
 func (so *stateObject) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, so.data)
+	return rlp.Encode(w, &so.data)
 }
 
 //
