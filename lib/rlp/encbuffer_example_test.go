@@ -1,3 +1,5 @@
+// From go-ethereum/rlp/encbuffer_example_test.go
+
 package rlp_test
 
 import (

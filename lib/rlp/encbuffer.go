@@ -1,3 +1,5 @@
+// From go-ethereum/rlp/encbuffer.go
+
 package rlp
 
 import (

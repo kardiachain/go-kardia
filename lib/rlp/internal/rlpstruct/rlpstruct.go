@@ -1,3 +1,5 @@
+// From go-ethereum/rlp/internal/rlpstruct/rlpstruct.go
+
 // Package rlpstruct implements struct processing for RLP encoding/decoding.
 //
 // In particular, this package handles all rules around field filtering,

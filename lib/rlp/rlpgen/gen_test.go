@@ -1,3 +1,5 @@
+// From go-ethereum/rlp/rlpgen/gen_test.go
+
 package main
 
 import (

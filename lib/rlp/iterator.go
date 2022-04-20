@@ -1,3 +1,5 @@
+// From go-ethereum/rlp/iterator.go
+
 // Copyright 2019 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //

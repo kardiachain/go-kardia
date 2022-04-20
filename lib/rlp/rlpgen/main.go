@@ -1,3 +1,5 @@
+// From go-ethereum/rlp/rlpgen/main.go
+
 // Copyright 2021 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
