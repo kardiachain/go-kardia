@@ -3,7 +3,6 @@ package types
 import (
 	"math/big"
 	"testing"
-	"time"
 
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -33,14 +32,6 @@ func benchRLP(b *testing.B, encode bool) {
 		name string
 		obj  interface{}
 	}{
-		{
-			"header",
-			&Header{
-				Height:   1000,
-				GasLimit: 8_000_000,
-				Time:     time.Now(),
-			},
-		},
 		{
 			"receipt-for-storage",
 			&ReceiptForStorage{

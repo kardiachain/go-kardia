@@ -78,7 +78,11 @@ type receiptRLP struct {
 type receiptStorageRLP struct {
 	PostStateOrStatus []byte
 	CumulativeGasUsed uint64
+	Bloom             Bloom
+	TxHash            common.Hash
+	ContractAddress   common.Address
 	Logs              []*LogForStorage
+	GasUsed           uint64
 }
 
 // v2StoredReceiptRLP is the storage encoding of a receipt used in database version 2.
@@ -170,6 +174,9 @@ func (r *ReceiptForStorage) EncodeRLP(_w io.Writer) error {
 	outerList := w.List()
 	w.WriteBytes((*Receipt)(r).statusEncoding())
 	w.WriteUint64(r.CumulativeGasUsed)
+	w.WriteBytes(r.Bloom.Bytes())
+	w.WriteBytes(r.TxHash.Bytes())
+	w.Write(r.ContractAddress.Bytes())
 	logList := w.List()
 	for _, log := range r.Logs {
 		if err := rlp.Encode(w, log); err != nil {
@@ -177,6 +184,7 @@ func (r *ReceiptForStorage) EncodeRLP(_w io.Writer) error {
 		}
 	}
 	w.ListEnd(logList)
+	w.WriteUint64(r.GasUsed)
 	w.ListEnd(outerList)
 	return w.Flush()
 }
