@@ -176,7 +176,7 @@ func (r *ReceiptForStorage) EncodeRLP(_w io.Writer) error {
 	w.WriteUint64(r.CumulativeGasUsed)
 	w.WriteBytes(r.Bloom.Bytes())
 	w.WriteBytes(r.TxHash.Bytes())
-	w.Write(r.ContractAddress.Bytes())
+	w.WriteBytes(r.ContractAddress.Bytes())
 	logList := w.List()
 	for _, log := range r.Logs {
 		if err := rlp.Encode(w, log); err != nil {
