@@ -85,17 +85,6 @@ type receiptStorageRLP struct {
 	GasUsed           uint64
 }
 
-// v2StoredReceiptRLP is the storage encoding of a receipt used in database version 2.
-type v2StoredReceiptRLP struct {
-	PostStateOrStatus []byte
-	CumulativeGasUsed uint64
-	Bloom             Bloom
-	TxHash            common.Hash
-	ContractAddress   common.Address
-	Logs              []*LogForStorage
-	GasUsed           uint64
-}
-
 // NewReceipt creates a barebone transaction receipt, copying the init fields.
 func NewReceipt(failed bool, cumulativeGasUsed uint64) *Receipt {
 	r := &Receipt{CumulativeGasUsed: cumulativeGasUsed}
@@ -236,17 +225,21 @@ type BlockInfo struct {
 
 // EncodeRLP implements rlp.Encoder, and flattens all content fields of a block info
 // into an RLP stream.
-func (bi *BlockInfo) EncodeRLP(w io.Writer) error {
-	sbi := storageBlockInfo{
-		Receipts: make([]*ReceiptForStorage, len(bi.Receipts)),
-		GasUsed:  bi.GasUsed,
-		Rewards:  bi.Rewards,
-		Bloom:    bi.Bloom,
+func (bi *BlockInfo) EncodeRLP(_w io.Writer) error {
+	w := rlp.NewEncoderBuffer(_w)
+	outerList := w.List()
+	receiptList := w.List()
+	for _, r := range bi.Receipts {
+		if err := rlp.Encode(w, r); err != nil {
+			return err
+		}
 	}
-	for i, receipt := range bi.Receipts {
-		sbi.Receipts[i] = (*ReceiptForStorage)(receipt)
-	}
-	return rlp.Encode(w, sbi)
+	w.ListEnd(receiptList)
+	w.WriteUint64(bi.GasUsed)
+	w.WriteBigInt(bi.Rewards)
+	w.WriteBytes(bi.Bloom.Bytes())
+	w.ListEnd(outerList)
+	return w.Flush()
 }
 
 func (bi *BlockInfo) DecodeRLP(s *rlp.Stream) error {

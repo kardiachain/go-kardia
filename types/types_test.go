@@ -28,10 +28,26 @@ func benchRLP(b *testing.B, encode bool) {
 	key, _ := crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
 	to := common.HexToAddress("0x00000000000000000000000000000000deadbeef")
 	signer := LatestSignerForChainID(big.NewInt(1337))
+	receipts := Receipts{
+		&Receipt{
+			Status:            ReceiptStatusSuccessful,
+			CumulativeGasUsed: 0x888888888,
+			Logs:              make([]*Log, 0),
+		},
+	}
 	for _, tc := range []struct {
 		name string
 		obj  interface{}
 	}{
+		{
+			"blockInfo",
+			&BlockInfo{
+				GasUsed:  100000,
+				Rewards:  new(big.Int).SetUint64(14000000000),
+				Receipts: receipts,
+				Bloom:    CreateBloom(receipts),
+			},
+		},
 		{
 			"receipt-for-storage",
 			&ReceiptForStorage{
@@ -42,11 +58,7 @@ func benchRLP(b *testing.B, encode bool) {
 		},
 		{
 			"receipt-full",
-			&Receipt{
-				Status:            ReceiptStatusSuccessful,
-				CumulativeGasUsed: 0x888888888,
-				Logs:              make([]*Log, 0),
-			},
+			receipts[0],
 		},
 		{
 			"transaction",
