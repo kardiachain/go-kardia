@@ -192,57 +192,21 @@ func (r *ReceiptForStorage) EncodeRLP(_w io.Writer) error {
 // DecodeRLP implements rlp.Decoder, and loads both consensus and implementation
 // fields of a receipt from an RLP stream.
 func (r *ReceiptForStorage) DecodeRLP(s *rlp.Stream) error {
-	// Retrieve the entire receipt blob as we need to try multiple decoders
-	blob, err := s.Raw()
-	if err != nil {
-		return err
-	}
-	// Try decoding from the newest format for future proofness, then the older one
-	// for old nodes that just upgraded. V4 was an intermediate unreleased format so
-	// we do need to decode it, but it's not common (try last).
-	if err := decodeStoredReceiptRLP(r, blob); err == nil {
-		return nil
-	}
-	return decodeV2StoredReceiptRLP(r, blob)
-}
-
-func decodeStoredReceiptRLP(r *ReceiptForStorage, blob []byte) error {
 	var dec receiptStorageRLP
-	if err := rlp.DecodeBytes(blob, &dec); err != nil {
+	if err := s.Decode(&dec); err != nil {
 		return err
 	}
 	if err := (*Receipt)(r).setStatus(dec.PostStateOrStatus); err != nil {
 		return err
 	}
 	// Assign the consensus fields
-	r.CumulativeGasUsed = dec.CumulativeGasUsed
+	r.CumulativeGasUsed, r.Bloom = dec.CumulativeGasUsed, dec.Bloom
 	r.Logs = make([]*Log, len(dec.Logs))
 	for i, log := range dec.Logs {
 		r.Logs[i] = (*Log)(log)
 	}
 	// Assign the implementation fields
-	r.Bloom = CreateBloom(Receipts{(*Receipt)(r)})
-	return nil
-}
-
-func decodeV2StoredReceiptRLP(r *ReceiptForStorage, blob []byte) error {
-	var stored v2StoredReceiptRLP
-	if err := rlp.DecodeBytes(blob, &stored); err != nil {
-		return err
-	}
-	if err := (*Receipt)(r).setStatus(stored.PostStateOrStatus); err != nil {
-		return err
-	}
-	r.CumulativeGasUsed = stored.CumulativeGasUsed
-	r.TxHash = stored.TxHash
-	r.ContractAddress = stored.ContractAddress
-	r.GasUsed = stored.GasUsed
-	r.Logs = make([]*Log, len(stored.Logs))
-	for i, log := range stored.Logs {
-		r.Logs[i] = (*Log)(log)
-	}
-	r.Bloom = CreateBloom(Receipts{(*Receipt)(r)})
-
+	r.TxHash, r.ContractAddress, r.GasUsed = dec.TxHash, dec.ContractAddress, dec.GasUsed
 	return nil
 }
 
