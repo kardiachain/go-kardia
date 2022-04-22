@@ -21,7 +21,6 @@ package rlp
 import (
 	"fmt"
 	"reflect"
-	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -210,50 +209,6 @@ func (e structTagError) Error() string {
 	return fmt.Sprintf("rlp: invalid struct tag %q for %v.%s (%s)", e.tag, e.typ, e.field, e.err)
 }
 
-func parseStructTag(typ reflect.Type, fi, lastPublic int) (tags, error) {
-	f := typ.Field(fi)
-	var ts tags
-	for _, t := range strings.Split(f.Tag.Get("rlp"), ",") {
-		switch t = strings.TrimSpace(t); t {
-		case "":
-		case "-":
-			ts.ignored = true
-		case "nil", "nilString", "nilList":
-			ts.nilOK = true
-			if f.Type.Kind() != reflect.Ptr {
-				return ts, structTagError{typ, f.Name, t, "field is not a pointer"}
-			}
-			switch t {
-			case "nil":
-				ts.nilKind = defaultNilKind(f.Type.Elem())
-			case "nilString":
-				ts.nilKind = String
-			case "nilList":
-				ts.nilKind = List
-			}
-		case "optional":
-			ts.optional = true
-			if ts.tail {
-				return ts, structTagError{typ, f.Name, t, `also has "tail" tag`}
-			}
-		case "tail":
-			ts.tail = true
-			if fi != lastPublic {
-				return ts, structTagError{typ, f.Name, t, "must be on last field"}
-			}
-			if ts.optional {
-				return ts, structTagError{typ, f.Name, t, `also has "optional" tag`}
-			}
-			if f.Type.Kind() != reflect.Slice {
-				return ts, structTagError{typ, f.Name, t, "field type is not slice"}
-			}
-		default:
-			return ts, fmt.Errorf("rlp: unknown struct tag %q on %v.%s", t, typ, f.Name)
-		}
-	}
-	return ts, nil
-}
-
 func lastPublicField(typ reflect.Type) int {
 	last := 0
 	for i := 0; i < typ.NumField(); i++ {
@@ -267,16 +222,6 @@ func lastPublicField(typ reflect.Type) int {
 func (i *typeinfo) generate(typ reflect.Type, tags rlpstruct.Tags) {
 	i.decoder, i.decoderErr = makeDecoder(typ, tags)
 	i.writer, i.writerErr = makeWriter(typ, tags)
-}
-
-// defaultNilKind determines whether a nil pointer to typ encodes/decodes
-// as an empty string or empty list.
-func defaultNilKind(typ reflect.Type) Kind {
-	k := typ.Kind()
-	if isUint(k) || k == reflect.String || k == reflect.Bool || isByteArray(typ) {
-		return String
-	}
-	return List
 }
 
 // rtypeToStructType converts typ to rlpstruct.Type.
@@ -332,8 +277,4 @@ func isUint(k reflect.Kind) bool {
 
 func isByte(typ reflect.Type) bool {
 	return typ.Kind() == reflect.Uint8 && !typ.Implements(encoderInterface)
-}
-
-func isByteArray(typ reflect.Type) bool {
-	return (typ.Kind() == reflect.Slice || typ.Kind() == reflect.Array) && isByte(typ.Elem())
 }

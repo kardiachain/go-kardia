@@ -31,6 +31,7 @@ import (
 )
 
 //go:generate go run github.com/fjl/gencodec@latest -type Receipt -field-override receiptMarshaling -out gen_receipt_json.go
+//go:generate go run ../lib/rlp/rlpgen -type storageBlockInfo -out gen_blockInfo_rlp.go
 
 var (
 	receiptStatusFailedRLP     = []byte{}
@@ -226,20 +227,16 @@ type BlockInfo struct {
 // EncodeRLP implements rlp.Encoder, and flattens all content fields of a block info
 // into an RLP stream.
 func (bi *BlockInfo) EncodeRLP(_w io.Writer) error {
-	w := rlp.NewEncoderBuffer(_w)
-	outerList := w.List()
-	receiptList := w.List()
-	for _, r := range bi.Receipts {
-		if err := rlp.Encode(w, r); err != nil {
-			return err
-		}
+	sbi := &storageBlockInfo{
+		GasUsed:  bi.GasUsed,
+		Rewards:  bi.Rewards,
+		Receipts: make([]*ReceiptForStorage, len(bi.Receipts)),
+		Bloom:    bi.Bloom,
 	}
-	w.ListEnd(receiptList)
-	w.WriteUint64(bi.GasUsed)
-	w.WriteBigInt(bi.Rewards)
-	w.WriteBytes(bi.Bloom.Bytes())
-	w.ListEnd(outerList)
-	return w.Flush()
+	for i, r := range bi.Receipts {
+		sbi.Receipts[i] = (*ReceiptForStorage)(r)
+	}
+	return sbi.EncodeRLP(_w)
 }
 
 func (bi *BlockInfo) DecodeRLP(s *rlp.Stream) error {
