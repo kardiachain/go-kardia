@@ -65,27 +65,14 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// spawns gkai with the given command line args. If the args don't set --datadir, the
+// spawns Gkai with the given command line args. If the args don't set --datadir, the
 // child g gets a temporary data directory.
 func runGeth(t *testing.T, args ...string) *testgeth {
 	tt := &testgeth{}
 	tt.TestCmd = cmdtest.NewTestCmd(t, tt)
-	for i, arg := range args {
-		switch arg {
-		case "--datadir":
-			if i < len(args)-1 {
-				tt.Datadir = args[i+1]
-			}
-		case "--miner.etherbase":
-			if i < len(args)-1 {
-				tt.Etherbase = args[i+1]
-			}
-		}
-	}
 	if tt.Datadir == "" {
 		tt.Datadir = tmpdir(t)
 		tt.Cleanup = func() { os.RemoveAll(tt.Datadir) }
-		args = append([]string{"--datadir", tt.Datadir}, args...)
 		// Remove the temporary datadir if something fails below.
 		defer func() {
 			if t.Failed() {

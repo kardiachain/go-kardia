@@ -1,18 +1,20 @@
-// Copyright 2016 The go-ethereum Authors
-// This file is part of go-ethereum.
-//
-// go-ethereum is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// go-ethereum is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with go-ethereum. If not, see <http://www.gnu.org/licenses/>.
+/*
+ *  Copyright 2022 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
 
 package main
 
@@ -31,29 +33,23 @@ import (
 )
 
 const (
-	ipcAPIs  = "admin:1.0 debug:1.0 eth:1.0 ethash:1.0 miner:1.0 net:1.0 personal:1.0 rpc:1.0 txpool:1.0 web3:1.0"
+	ipcAPIs  = "admin:1.0 debug:1.0 eth:1.0 net:1.0 personal:1.0 rpc:1.0 txpool:1.0 web3:1.0"
 	httpAPIs = "eth:1.0 net:1.0 rpc:1.0 web3:1.0"
 )
 
-// spawns gkai with the given command line args, using a set of flags to minimise
+// runMinimalGkai spawns gkai with the given command line args, using a set of flags to minimise
 // memory and disk IO. If the args don't set --datadir, the
 // child g gets a temporary data directory.
-func runMinimalGeth(t *testing.T, args ...string) *testgeth {
-	// --ropsten to make the 'writing genesis to disk' faster (no accounts)
-	// --networkid=1337 to avoid cache bump
-	// --syncmode=full to avoid allocating fast sync bloom
-	allArgs := []string{"--ropsten", "--networkid", "1337", "--syncmode=full", "--port", "0",
-		"--nat", "none", "--nodiscover", "--maxpeers", "0", "--cache", "64"}
+func runMinimalGkai(t *testing.T, args ...string) *testgeth {
+	allArgs := []string{"--network", "devnet", "--genesis", "cfg/genesis_devnet.yaml", "--node", "cfg/node1.yaml", "attach", "http://127.0.0.1:8545"}
 	return runGeth(t, append(allArgs, args...)...)
 }
 
 // Tests that a node embedded within a console can be started up properly and
 // then terminated by closing the input stream.
 func TestConsoleWelcome(t *testing.T) {
-	coinbase := "0x8605cdbbdb6d264aa742e77020dcbc58fcdce182"
-
 	// Start a gkai console, make sure it's cleaned up and terminate the console
-	gkai := runMinimalGeth(t, "--miner.etherbase", coinbase, "console")
+	gkai := runMinimalGkai(t, "console")
 
 	// Gather all the infos the welcome message needs to contain
 	gkai.SetTemplateFunc("goos", func() string { return runtime.GOOS })
@@ -100,10 +96,7 @@ func TestAttachWelcome(t *testing.T) {
 	p := trulyRandInt(1024, 65533) // Yeah, sometimes this will fail, sorry :P
 	httpPort = strconv.Itoa(p)
 	wsPort = strconv.Itoa(p + 1)
-	gkai := runMinimalGeth(t, "--miner.etherbase", "0x8605cdbbdb6d264aa742e77020dcbc58fcdce182",
-		"--ipcpath", ipc,
-		"--http", "--http.port", httpPort,
-		"--ws", "--ws.port", wsPort)
+	gkai := runMinimalGkai(t)
 	t.Run("ipc", func(t *testing.T) {
 		waitForEndpoint(t, ipc, 3*time.Second)
 		testAttachWelcome(t, gkai, "ipc:"+ipc, ipcAPIs)
@@ -136,7 +129,6 @@ func testAttachWelcome(t *testing.T, gkai *testgeth, endpoint, apis string) {
 		return time.Unix(0, 0).Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
 	})
 	attach.SetTemplateFunc("ipc", func() bool { return strings.HasPrefix(endpoint, "ipc") })
-	attach.SetTemplateFunc("datadir", func() string { return gkai.Datadir })
 	attach.SetTemplateFunc("apis", func() string { return apis })
 
 	// Verify the actual welcome message to the required template
