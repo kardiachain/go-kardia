@@ -156,7 +156,7 @@ func (k *KardiaService) BlockInfoByBlockHash(ctx context.Context, hash common.Ha
 			Bloom:    types.Bloom{},
 		}
 	}
-	return k.DB().ReadBlockInfo(hash, *height)
+	return k.DB().ReadBlockInfo(hash, *height, k.chainConfig)
 }
 
 func (k *KardiaService) StateAndHeaderByHeight(ctx context.Context, height rpc.BlockHeight) (*state.StateDB, *types.Header, error) {

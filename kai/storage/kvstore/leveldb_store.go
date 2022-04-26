@@ -178,8 +178,8 @@ func (s *StoreDB) ReadDualEvent(hash common.Hash) (*types.DualEvent, common.Hash
 }
 
 // ReadBlockInfo retrieves block info belonging to a block.
-func (s *StoreDB) ReadBlockInfo(hash common.Hash, number uint64) *types.BlockInfo {
-	return ReadBlockInfo(s.db, hash, number)
+func (s *StoreDB) ReadBlockInfo(hash common.Hash, number uint64, config *configs.ChainConfig) *types.BlockInfo {
+	return ReadBlockInfo(s.db, hash, number, config)
 }
 
 // ReadTxLookupEntry retrieves the positional metadata associated with a transaction

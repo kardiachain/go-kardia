@@ -58,9 +58,9 @@ type Log struct {
 
 type logMarshaling struct {
 	Data        common.Bytes
-	BlockHeight common.Uint64
-	TxIndex     common.Uint
-	Index       common.Uint
+	BlockHeight uint64
+	TxIndex     uint
+	Index       uint
 }
 
 //go:generate go run ../lib/rlp/rlpgen -type rlpLog -out gen_log_rlp.go
