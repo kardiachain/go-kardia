@@ -53,7 +53,7 @@ type StoreDB interface {
 	ReadTransaction(hash common.Hash) (*Transaction, common.Hash, uint64, uint64)
 	ReadDualEvent(hash common.Hash) (*DualEvent, common.Hash, uint64, uint64)
 	ReadDualEventLookupEntry(hash common.Hash) (common.Hash, uint64, uint64)
-	ReadBlockInfo(hash common.Hash, number uint64) *BlockInfo
+	ReadBlockInfo(hash common.Hash, number uint64, config *configs.ChainConfig) *BlockInfo
 	ReadTxLookupEntry(hash common.Hash) (common.Hash, uint64, uint64)
 	ReadSmartContractAbi(address string) *abi.ABI
 	ReadEvent(address string, method string) *Watcher

@@ -1,5 +1,4 @@
 // From go-ethereum/raw_test.go
-package rlp
 
 // Copyright 2014 The go-ethereum Authors
 // This file is part of the go-ethereum library.
@@ -17,11 +16,14 @@ package rlp
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
+package rlp
+
 import (
 	"bytes"
+	"errors"
 	"io"
-	"reflect"
 	"testing"
+	"testing/quick"
 )
 
 func TestCountValues(t *testing.T) {
@@ -54,7 +56,7 @@ func TestCountValues(t *testing.T) {
 		if count != test.count {
 			t.Errorf("test %d: count mismatch, got %d want %d\ninput: %s", i, count, test.count, test.input)
 		}
-		if !reflect.DeepEqual(err, test.err) {
+		if !errors.Is(err, test.err) {
 			t.Errorf("test %d: err mismatch, got %q want %q\ninput: %s", i, err, test.err, test.input)
 		}
 	}
@@ -72,6 +74,49 @@ func TestSplitTypes(t *testing.T) {
 	}
 }
 
+func TestSplitUint64(t *testing.T) {
+	tests := []struct {
+		input string
+		val   uint64
+		rest  string
+		err   error
+	}{
+		{"01", 1, "", nil},
+		{"7FFF", 0x7F, "FF", nil},
+		{"80FF", 0, "FF", nil},
+		{"81FAFF", 0xFA, "FF", nil},
+		{"82FAFAFF", 0xFAFA, "FF", nil},
+		{"83FAFAFAFF", 0xFAFAFA, "FF", nil},
+		{"84FAFAFAFAFF", 0xFAFAFAFA, "FF", nil},
+		{"85FAFAFAFAFAFF", 0xFAFAFAFAFA, "FF", nil},
+		{"86FAFAFAFAFAFAFF", 0xFAFAFAFAFAFA, "FF", nil},
+		{"87FAFAFAFAFAFAFAFF", 0xFAFAFAFAFAFAFA, "FF", nil},
+		{"88FAFAFAFAFAFAFAFAFF", 0xFAFAFAFAFAFAFAFA, "FF", nil},
+
+		// errors
+		{"", 0, "", io.ErrUnexpectedEOF},
+		{"00", 0, "00", ErrCanonInt},
+		{"81", 0, "81", ErrValueTooLarge},
+		{"8100", 0, "8100", ErrCanonSize},
+		{"8200FF", 0, "8200FF", ErrCanonInt},
+		{"8103FF", 0, "8103FF", ErrCanonSize},
+		{"89FAFAFAFAFAFAFAFAFAFF", 0, "89FAFAFAFAFAFAFAFAFAFF", errUintOverflow},
+	}
+
+	for i, test := range tests {
+		val, rest, err := SplitUint64(unhex(test.input))
+		if val != test.val {
+			t.Errorf("test %d: val mismatch: got %x, want %x (input %q)", i, val, test.val, test.input)
+		}
+		if !bytes.Equal(rest, unhex(test.rest)) {
+			t.Errorf("test %d: rest mismatch: got %x, want %s (input %q)", i, rest, test.rest, test.input)
+		}
+		if err != test.err {
+			t.Errorf("test %d: error mismatch: got %q, want %q", i, err, test.err)
+		}
+	}
+}
+
 func TestSplit(t *testing.T) {
 	tests := []struct {
 		input     string
@@ -79,7 +124,9 @@ func TestSplit(t *testing.T) {
 		val, rest string
 		err       error
 	}{
+		{input: "00FFFF", kind: Byte, val: "00", rest: "FFFF"},
 		{input: "01FFFF", kind: Byte, val: "01", rest: "FFFF"},
+		{input: "7FFFFF", kind: Byte, val: "7F", rest: "FFFF"},
 		{input: "80FFFF", kind: String, val: "", rest: "FFFF"},
 		{input: "C3010203", kind: List, val: "010203"},
 
@@ -193,5 +240,48 @@ func TestReadSize(t *testing.T) {
 		if size != test.size {
 			t.Errorf("readSize(%s, %d): size mismatch: got %#x, want %#x", test.input, test.slen, size, test.size)
 		}
+	}
+}
+
+func TestAppendUint64(t *testing.T) {
+	tests := []struct {
+		input  uint64
+		slice  []byte
+		output string
+	}{
+		{0, nil, "80"},
+		{1, nil, "01"},
+		{2, nil, "02"},
+		{127, nil, "7F"},
+		{128, nil, "8180"},
+		{129, nil, "8181"},
+		{0xFFFFFF, nil, "83FFFFFF"},
+		{127, []byte{1, 2, 3}, "0102037F"},
+		{0xFFFFFF, []byte{1, 2, 3}, "01020383FFFFFF"},
+	}
+
+	for _, test := range tests {
+		x := AppendUint64(test.slice, test.input)
+		if !bytes.Equal(x, unhex(test.output)) {
+			t.Errorf("AppendUint64(%v, %d): got %x, want %s", test.slice, test.input, x, test.output)
+		}
+
+		// Check that IntSize returns the appended size.
+		length := len(x) - len(test.slice)
+		if s := IntSize(test.input); s != length {
+			t.Errorf("IntSize(%d): got %d, want %d", test.input, s, length)
+		}
+	}
+}
+
+func TestAppendUint64Random(t *testing.T) {
+	fn := func(i uint64) bool {
+		enc, _ := EncodeToBytes(i)
+		encAppend := AppendUint64(nil, i)
+		return bytes.Equal(enc, encAppend)
+	}
+	config := quick.Config{MaxCountScale: 50}
+	if err := quick.Check(fn, &config); err != nil {
+		t.Fatal(err)
 	}
 }
