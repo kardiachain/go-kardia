@@ -46,11 +46,11 @@ type callFrame struct {
 	To                         string      `json:"to,omitempty"`
 	Input                      string      `json:"input"`
 	Output                     string      `json:"output,omitempty"`
+	Error                      string      `json:"error,omitempty"`
+	TraceAddress               []int       `json:"traceAddress"`
 	Value                      string      `json:"value,omitempty"`
 	Gas                        string      `json:"gas"`
 	GasUsed                    string      `json:"gasUsed"`
-	Error                      string      `json:"error,omitempty"`
-	TraceAddress               []int       `json:"traceAddress"`
 	Calls                      []callFrame `json:"calls,omitempty"`
 
 	// optional CREATE fields
