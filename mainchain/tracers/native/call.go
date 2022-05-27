@@ -41,11 +41,11 @@ type callFrame struct {
 	CallType     string      `json:"callType,omitempty"`
 	From         string      `json:"from"`
 	To           string      `json:"to,omitempty"`
+	Input        string      `json:"input"`
+	Output       string      `json:"output,omitempty"`
 	Value        string      `json:"value,omitempty"`
 	Gas          string      `json:"gas"`
 	GasUsed      string      `json:"gasUsed"`
-	Input        string      `json:"input"`
-	Output       string      `json:"output,omitempty"`
 	Error        string      `json:"error,omitempty"`
 	TraceAddress []int       `json:"traceAddress"`
 	Calls        []callFrame `json:"calls,omitempty"`
