@@ -37,23 +37,24 @@ func init() {
 }
 
 type callFrame struct {
-	Type         string      `json:"type"`
-	CallType     string      `json:"callType,omitempty"`
-	From         string      `json:"from"`
-	To           string      `json:"to,omitempty"`
-	Input        string      `json:"input"`
-	Output       string      `json:"output,omitempty"`
-	Value        string      `json:"value,omitempty"`
-	Gas          string      `json:"gas"`
-	GasUsed      string      `json:"gasUsed"`
-	Error        string      `json:"error,omitempty"`
-	TraceAddress []int       `json:"traceAddress"`
-	Calls        []callFrame `json:"calls,omitempty"`
+	Type                       string      `json:"type"`
+	CallType                   string      `json:"callType,omitempty"`
+	From                       string      `json:"from"`
+	Init                       string      `json:"init,omitempty"`
+	CreatedContractAddressHash string      `json:"createdContractAddressHash,omitempty"`
+	CreatedContractCode        string      `json:"createdContractCode,omitempty"`
+	To                         string      `json:"to,omitempty"`
+	Input                      string      `json:"input"`
+	Output                     string      `json:"output,omitempty"`
+	Value                      string      `json:"value,omitempty"`
+	Gas                        string      `json:"gas"`
+	GasUsed                    string      `json:"gasUsed"`
+	Error                      string      `json:"error,omitempty"`
+	TraceAddress               []int       `json:"traceAddress"`
+	Calls                      []callFrame `json:"calls,omitempty"`
 
 	// optional CREATE fields
-	Init                       string `json:"init,omitempty"`
-	CreatedContractAddressHash string `json:"createdContractAddressHash,omitempty"`
-	CreatedContractCode        string `json:"createdContractCode,omitempty"`
+
 }
 
 type callTracer struct {
