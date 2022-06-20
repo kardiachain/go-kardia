@@ -44,7 +44,7 @@ type callFrame struct {
 	CreatedContractAddressHash string      `json:"createdContractAddressHash,omitempty"`
 	CreatedContractCode        string      `json:"createdContractCode,omitempty"`
 	To                         string      `json:"to,omitempty"`
-	Input                      string      `json:"input"`
+	Input                      string      `json:"input,omitempty"`
 	Output                     string      `json:"output,omitempty"`
 	Error                      string      `json:"error,omitempty"`
 	TraceAddress               []int       `json:"traceAddress"`
@@ -232,7 +232,7 @@ func formatCallType(in *callFrame) {
 		in.CallType = strings.ToLower(in.Type)
 		in.Type = "call"
 	case "CREATE", "CREATE2":
-		in.CallType = strings.ToLower(in.Type)
+		in.CallType = ""
 		in.Type = "create"
 		in.Init = in.Input
 		in.CreatedContractCode = in.Output
