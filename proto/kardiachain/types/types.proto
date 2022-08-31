@@ -140,6 +140,36 @@ message BlockMeta {
   Header  header     = 3 [(gogoproto.nullable) = false];
 }
 
+message H128 {
+  uint64 hi = 1;
+  uint64 lo = 2;
+}
+
+message H160 {
+  H128 hi = 1;
+  uint32 lo = 2;
+}
+
+message H256 {
+  H128 hi = 1;
+  H128 lo = 2;
+}
+
+message H512 {
+  H256 hi = 1;
+  H256 lo = 2;
+}
+
+message H1024 {
+  H512 hi = 1;
+  H512 lo = 2;
+}
+
+message H2048 {
+  H1024 hi = 1;
+  H1024 lo = 2;
+}
+
 // Reply message containing the current service version on the service side
 message VersionReply {
   uint32 major = 1;
