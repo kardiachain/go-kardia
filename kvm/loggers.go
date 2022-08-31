@@ -25,6 +25,17 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 )
 
+type CallType int
+
+const (
+	CALLT CallType = iota
+	CALLCODET
+	DELEGATECALLT
+	STATICCALLT
+	CREATET
+	CREATE2T
+)
+
 // KVMLogger is used to collect execution traces from an KVM transaction
 // execution. CaptureState is called for each step of the VM with the
 // current VM state.
@@ -37,4 +48,14 @@ type KVMLogger interface {
 	CaptureExit(output []byte, gasUsed uint64, err error)
 	CaptureFault(pc uint64, op OpCode, gas, cost uint64, scope *ScopeContext, depth int, err error)
 	CaptureEnd(output []byte, gasUsed uint64, t time.Duration, err error)
+}
+
+type OELogger interface {
+	CaptureStart(env *KVM, depth int, from common.Address, to common.Address, precompile bool, create bool, callType CallType, input []byte, gas uint64, value *big.Int, code []byte)
+	CaptureState(env *KVM, pc uint64, op OpCode, gas, cost uint64, scope *ScopeContext, rData []byte, depth int, err error)
+	CaptureFault(env *KVM, pc uint64, op OpCode, gas, cost uint64, scope *ScopeContext, depth int, err error)
+	CaptureEnd(depth int, output []byte, startGas, endGas uint64, t time.Duration, err error)
+	CaptureSelfDestruct(from common.Address, to common.Address, value *big.Int)
+	CaptureAccountRead(account common.Address) error
+	CaptureAccountWrite(account common.Address) error
 }

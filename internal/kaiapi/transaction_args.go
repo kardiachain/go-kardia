@@ -59,6 +59,10 @@ type TransactionArgs struct {
 	Input *common.Bytes `json:"input"`
 
 	ChainID *common.Big `json:"chainId,omitempty"`
+
+	// Extra fields for compatibility with trace APIs
+	TxHash     *common.Hash
+	TraceTypes []string
 }
 
 // from retrieves the transaction sender address.

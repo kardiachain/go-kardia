@@ -28,8 +28,9 @@ import (
 
 // Config are the configuration options for the Interpreter
 type Config struct {
-	Debug  bool      // Enables debugging
-	Tracer KVMLogger // Opcode logger
+	Debug    bool      // Enables debugging
+	Tracer   KVMLogger // Opcode logger
+	OETracer OELogger  // Opcode logger compatible with Parity/OpenEthereum
 	// NoRecursion disabled Interpreter call, callcode,
 	// delegate call and create.
 	NoRecursion             bool

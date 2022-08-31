@@ -61,6 +61,8 @@ type APIBackend interface {
 
 	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 
+	TxnLookup(ctx context.Context, txHash common.Hash) (uint64, bool)
+
 	// Filter API
 	BloomStatus() (uint64, uint64)
 	GetLogs(ctx context.Context, blockHash common.Hash) ([][]*types.Log, error)
@@ -364,4 +366,23 @@ func (k *KardiaService) StateAtBlock(ctx context.Context, block *types.Block, re
 
 func (k *KardiaService) GetPoolNonce(ctx context.Context, addr common.Address) (uint64, error) {
 	return k.txPool.Nonce(addr), nil
+}
+
+func (k *KardiaService) TxnLookup(ctx context.Context, txHash common.Hash) (uint64, bool) {
+	blockHash, blockHeight, _ := k.kaiDb.ReadTxLookupEntry(txHash)
+	if blockHash.Equal(common.Hash{}) || blockHeight == 0 {
+		return 0, false
+	}
+	return blockHeight, true
+}
+
+// GetHeader is implemented to be compatible with OpenEthereum trace API backend
+func (k *KardiaService) GetHeader(hash common.Hash, height uint64) *types.Header {
+	blockHeighOrHash := rpc.BlockHeightOrHashWithHeight(rpc.BlockHeight(height))
+	blockHeighOrHash.BlockHash = &hash
+	header, err := k.HeaderByHeightOrHash(context.Background(), blockHeighOrHash)
+	if err != nil {
+		return nil
+	}
+	return header
 }

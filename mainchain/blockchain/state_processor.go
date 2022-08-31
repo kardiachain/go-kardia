@@ -307,12 +307,12 @@ func (st *StateTransition) gasUsed() uint64 {
 }
 
 // NewEVMBlockContext creates a new context for use in the EVM.
-func NewKVMBlockContext(header *types.Header, chain vm.ChainContext, author *common.Address) kvm.BlockContext {
+func NewKVMBlockContext(header *types.Header, chain vm.ChainContext) kvm.BlockContext {
 	return kvm.BlockContext{
 		CanTransfer: vm.CanTransfer,
 		Transfer:    vm.Transfer,
 		GetHash:     vm.GetHashFn(header, chain),
-		Coinbase:    *author,
+		Coinbase:    header.ProposerAddress,
 		BlockHeight: new(big.Int).SetUint64(header.Height),
 		Time:        new(big.Int).SetInt64(header.Time.Unix()),
 		GasLimit:    header.GasLimit,
