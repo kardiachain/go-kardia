@@ -53,6 +53,7 @@ type (
 		Genesis              *Genesis   `yaml:"Genesis,omitempty"`
 		TimeOutForStaticCall int        `yaml:"TimeOutForStaticCall,omitempty"`
 		KeyStoreConfig       `yaml:"KeyStoreConfig,omitempty"`
+		TraceConfig          *TraceAPIConfig `yaml:"TraceAPIConfig"`
 	}
 	GasOracle struct {
 		Blocks     int    `yaml:"Blocks"`
@@ -159,6 +160,11 @@ type (
 		KeyStoreDir           string `yaml:"KeyStoreDir"`
 		UseLightweightKDF     bool   `yaml:"UseLightweightKDF"`
 		InsecureUnlockAllowed bool   `yaml:"InsecureUnlockAllowed"`
+	}
+	TraceAPIConfig struct {
+		Gascap             uint64 `yaml:"Gascap"`
+		MaxTraces          uint64 `yaml:"MaxTraces"`
+		TraceCompatibility bool   `yaml:"TraceCompatibility"`
 	}
 	Debug struct {
 		Port string `yaml:"Port"`

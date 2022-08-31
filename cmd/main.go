@@ -208,6 +208,7 @@ func (c *Config) getNodeConfig() (*node.Config, error) {
 		FastSync:         c.getFastSyncConfig(),
 		GasOracle:        c.getGasOracleConfig(),
 		KeyStoreDir:      n.KeyStoreDir,
+		TraceAPIConfig:   c.getTraceAPIConfig(),
 	}
 	mainChainConfig, err := c.getMainChainConfig()
 	if err != nil {
@@ -257,6 +258,29 @@ func (c *Config) getGasOracleConfig() *oracles.Config {
 		Default:    defaultGasPrice,
 		MaxPrice:   maxGasPrice,
 	}
+}
+
+func (c *Config) getTraceAPIConfig() *configs.TraceAPIConfig {
+	if c.TraceConfig == nil {
+		return configs.DefaultTraceAPIConfig()
+	}
+	var (
+		cfg = &configs.TraceAPIConfig{
+			TraceCompatibility: c.TraceConfig.TraceCompatibility,
+		}
+		defaultCfg = configs.DefaultTraceAPIConfig()
+	)
+	if c.TraceConfig.MaxTraces == 0 {
+		cfg.MaxTraces = defaultCfg.MaxTraces
+	} else {
+		cfg.MaxTraces = c.TraceConfig.MaxTraces
+	}
+	if c.TraceConfig.Gascap == 0 {
+		cfg.Gascap = defaultCfg.Gascap
+	} else {
+		cfg.Gascap = c.TraceConfig.Gascap
+	}
+	return cfg
 }
 
 // newLog inits new logger for kardia

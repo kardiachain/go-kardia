@@ -92,6 +92,19 @@ type Config struct {
 	Consensus *ConsensusConfig
 }
 
+type TraceAPIConfig struct {
+	Gascap             uint64
+	MaxTraces          uint64
+	TraceCompatibility bool // Bug for bug compatibility for trace_ routines with OpenEthereum
+}
+
+func DefaultTraceAPIConfig() *TraceAPIConfig {
+	return &TraceAPIConfig{
+		Gascap:    50000000,
+		MaxTraces: 200,
+	}
+}
+
 // -------- Consensus Params ---------
 
 // DefaultConsensusParams returns default param values for the consensus service

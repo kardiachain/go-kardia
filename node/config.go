@@ -245,6 +245,8 @@ type Config struct {
 
 	GasOracle *oracles.Config
 
+	TraceAPIConfig *configs.TraceAPIConfig
+
 	// ======== DEV ENVIRONMENT CONFIG =========
 	// Configuration of this node when running in dev environment.
 	NodeMetadata *NodeMetadata
