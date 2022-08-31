@@ -30,3 +30,5 @@ cmd/abigen/abigen
 blockchain/.fuse_hidden*
 cmd/*.fuse_hidden*
 **/*.rlp
+.*
+!/.gitignore

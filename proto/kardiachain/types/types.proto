@@ -139,3 +139,10 @@ message BlockMeta {
   BlockID block_id   = 1 [(gogoproto.customname) = "BlockID", (gogoproto.nullable) = false];
   Header  header     = 3 [(gogoproto.nullable) = false];
 }
+
+// Reply message containing the current service version on the service side
+message VersionReply {
+  uint32 major = 1;
+  uint32 minor = 2;
+  uint32 patch = 3;
+}
