@@ -57,6 +57,8 @@ var (
 	GcOverflowMetric = metrics.NewCounter(`db_gc_overflow`) //nolint
 	GcPagesMetric    = metrics.NewCounter(`db_gc_pages`)    //nolint
 
+	// ErrKeyNotFound is returned when key isn't found in the database.
+	ErrKeyNotFound = errors.New("db: key not found")
 )
 
 type DBVerbosityLvl int8
