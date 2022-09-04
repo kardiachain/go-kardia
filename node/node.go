@@ -36,6 +36,8 @@ import (
 	"github.com/kardiachain/go-kardia/kai/accounts"
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
 	"github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
+	"github.com/kardiachain/go-kardia/kai/storage/kvstore/mdbx"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/metrics"
@@ -57,6 +59,7 @@ type Node struct {
 	bs.BaseService
 	sw     *p2p.Switch // p2p connections
 	accMan *accounts.Manager
+	borKv  kvstore.RoDB
 
 	eventmux *event.TypeMux // Event multiplexer used between the services of a stack
 	config   *Config
@@ -154,6 +157,12 @@ func New(conf *Config) (*Node, error) {
 	// are required to add the backends later on.
 	node.accMan = accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: conf.InsecureUnlockAllowed})
 
+	borKv, err := mdbx.NewMDBX(logger).Path(filepath.Join(conf.DataDir, "bor")).Label(kvstore.ConsensusDB).Readonly().Open()
+	if err != nil {
+		return nil, err
+	}
+	node.borKv = borKv
+
 	// Setting up the p2p server
 	nodeKey := &p2p.NodeKey{PrivKey: conf.NodeKey()}
 	state, err := stateDB.LoadStateFromDBOrGenesisDoc(conf.Genesis)
@@ -248,6 +257,7 @@ func (n *Node) OnStart() error {
 			BlockStore: n.blockStore,
 			StateDB:    n.stateDB,
 			AccMan:     n.accMan,
+			BorKv:      n.borKv,
 		}
 		for kind, s := range services { // copy needed for threaded access
 			ctx.services[kind] = s

@@ -25,6 +25,7 @@ import (
 	"github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/kai/accounts"
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
+	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardia/lib/bloombits"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -34,6 +35,7 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/mainchain/oracles"
 	"github.com/kardiachain/go-kardia/mainchain/staking"
+	"github.com/kardiachain/go-kardia/mainchain/trace"
 	"github.com/kardiachain/go-kardia/mainchain/tracers"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/node"
@@ -62,6 +64,7 @@ type KardiaService struct {
 	// DB interfaces
 	kaiDb   types.StoreDB // Local key-value store endpoint. Each use types should use wrapper layer with unique prefixes.
 	stateDB cstate.Store
+	borKv   kvstore.RoDB
 
 	// Handlers
 	txPool     *tx_pool.TxPool
@@ -192,6 +195,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	// init gas price oracle
 	kai.gpo = oracles.NewGasPriceOracle(kai, config.GasOracle)
 	kai.accMan = ctx.AccMan
+	kai.borKv = ctx.BorKv
 	return kai, nil
 }
 
@@ -337,6 +341,12 @@ func (s *KardiaService) APIs() []rpc.API {
 			Namespace: "web3",
 			Version:   "1.0",
 			Service:   &publicWeb3API{s.nodeConfig},
+			Public:    true,
+		},
+		{
+			Namespace: "trace",
+			Version:   "1.0",
+			Service:   trace.NewTraceAPI(s, s.borKv, s.nodeConfig),
 			Public:    true,
 		},
 	}
