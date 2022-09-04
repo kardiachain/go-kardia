@@ -95,16 +95,21 @@ type (
 		prev *stateObject
 	}
 
-	// Changes to individual account.
-	nonceChange struct {
-		account *common.Address
-		prev    uint64
-	}
-
 	// Changes to individual accounts.
 	balanceChange struct {
 		account *common.Address
 		prev    *big.Int
+	}
+	balanceIncrease struct {
+		account  *common.Address
+		increase *big.Int
+	}
+	balanceIncreaseTransfer struct {
+		bi *BalanceIncrease
+	}
+	nonceChange struct {
+		account *common.Address
+		prev    uint64
 	}
 
 	touchChange struct {
@@ -165,6 +170,28 @@ func (ch resetObjectChange) revert(s *StateDB) {
 
 func (ch resetObjectChange) dirtied() *common.Address {
 	return nil
+}
+
+func (ch balanceIncrease) revert(s *StateDB) {
+	if bi, ok := s.balanceInc[*ch.account]; ok {
+		bi.increase.Sub(&bi.increase, &ch.increase)
+		bi.count--
+		if bi.count == 0 {
+			delete(s.balanceInc, *ch.account)
+		}
+	}
+}
+
+func (ch balanceIncrease) dirtied() *common.Address {
+	return ch.account
+}
+
+func (ch balanceIncreaseTransfer) dirtied() *common.Address {
+	return nil
+}
+
+func (ch balanceIncreaseTransfer) revert(s *StateDB) {
+	ch.bi.transferred = false
 }
 
 func (ch nonceChange) revert(s *StateDB) {

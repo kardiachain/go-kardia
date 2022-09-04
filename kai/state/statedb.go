@@ -39,6 +39,11 @@ type revision struct {
 	journalIndex int
 }
 
+type StateTracer interface {
+	CaptureAccountRead(account common.Address) error
+	CaptureAccountWrite(account common.Address) error
+}
+
 var (
 	// emptyRoot is the known root hash of an empty trie.
 	emptyRoot = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
@@ -58,6 +63,14 @@ func (n *proofList) Delete(key []byte) error {
 	panic("not supported")
 }
 
+// BalanceIncrease represents the increase of balance of an account that did not require
+// reading the account first
+type BalanceIncrease struct {
+	increase    *big.Int
+	transferred bool // Set to true when the corresponding stateObject is created and balance increase is transferred to the stateObject
+	count       int  // Number of increases - this needs tracking for proper reversion
+}
+
 // StateDBs within the Kardia protocol are used to store anything
 // within the merkle trie. StateDBs take care of caching and storing
 // nested states. It's the general query interface to retrieve:
@@ -72,6 +85,8 @@ type StateDB struct {
 	// This map holds 'live' objects, which will get modified while processing a state transition.
 	stateObjects      map[common.Address]*stateObject
 	stateObjectsDirty map[common.Address]struct{}
+
+	nilAccounts map[common.Address]struct{} // Remember non-existent account to avoid reading them again
 
 	// DB error.
 	// State objects are used by the consensus core and VM which are
@@ -95,6 +110,9 @@ type StateDB struct {
 	journal        *journal
 	validRevisions []revision
 	nextRevisionId int
+	tracer         StateTracer
+	trace          bool
+	balanceInc     map[common.Address]*BalanceIncrease // Map of balance increases (without first reading the account)
 
 	lock sync.Mutex
 }
@@ -114,7 +132,16 @@ func New(logger log.Logger, root common.Hash, db Database) (*StateDB, error) {
 		logs:              make(map[common.Hash][]*types.Log),
 		preimages:         make(map[common.Hash][]byte),
 		journal:           newJournal(),
+		balanceInc:        map[common.Address]*BalanceIncrease{},
 	}, nil
+}
+
+func (sdb *StateDB) SetTracer(tracer StateTracer) {
+	sdb.tracer = tracer
+}
+
+func (sdb *StateDB) SetTrace(trace bool) {
+	sdb.trace = trace
 }
 
 // Prepare sets the current transaction hash and index and block hash which is
@@ -199,6 +226,34 @@ func (sdb *StateDB) GetNonce(addr common.Address) uint64 {
 
 // AddBalance adds amount to the account associated with addr.
 func (sdb *StateDB) AddBalance(addr common.Address, amount *big.Int) {
+	if sdb.trace {
+		fmt.Printf("AddBalance %x, %d\n", addr, amount)
+	}
+	if sdb.tracer != nil {
+		err := sdb.tracer.CaptureAccountWrite(addr)
+		if sdb.trace {
+			fmt.Println("CaptureAccountWrite err", err)
+		}
+	}
+	// If this account has not been read, add to the balance increment map
+	_, needAccount := sdb.stateObjects[addr]
+	if !needAccount && addr == ripemd && amount.Cmp(new(big.Int).SetUint64(0)) == 0 {
+		needAccount = true
+	}
+	if !needAccount {
+		sdb.journal.append(balanceIncrease{
+			account:  &addr,
+			increase: amount,
+		})
+		bi, ok := sdb.balanceInc[addr]
+		if !ok {
+			bi = &BalanceIncrease{}
+			sdb.balanceInc[addr] = bi
+		}
+		bi.increase.Add(bi.increase, amount)
+		bi.count++
+		return
+	}
 	stateObject := sdb.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.AddBalance(amount)
@@ -276,6 +331,7 @@ func (sdb *StateDB) Reset(root common.Hash) error {
 	sdb.logs = make(map[common.Hash][]*types.Log)
 	sdb.logSize = 0
 	sdb.preimages = make(map[common.Hash][]byte)
+	sdb.balanceInc = make(map[common.Address]*BalanceIncrease)
 	sdb.clearJournalAndRefund()
 	return nil
 }
@@ -291,6 +347,11 @@ func (sdb *StateDB) IntermediateRoot(deleteEmptyObjects bool) common.Hash {
 // Finalise finalises the state by removing the sdb destructed objects
 // and clears the journal as well as the refunds.
 func (sdb *StateDB) Finalise(deleteEmptyObjects bool) {
+	for addr, bi := range sdb.balanceInc {
+		if !bi.transferred {
+			sdb.getStateObject(addr)
+		}
+	}
 	for addr := range sdb.journal.dirties {
 		stateObject, exist := sdb.stateObjects[addr]
 		if !exist {
@@ -350,6 +411,14 @@ func (sdb *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 		return obj
 	}
 
+	// Load the object from the database.
+	if _, ok := sdb.nilAccounts[addr]; ok {
+		if bi, ok := sdb.balanceInc[addr]; ok && !bi.transferred {
+			obj, _ := sdb.createObject(addr)
+			return obj
+		}
+		return nil
+	}
 	var data *Account
 	enc, err := sdb.trie.TryGet(addr.Bytes())
 	if err != nil {
@@ -357,6 +426,11 @@ func (sdb *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 		return nil
 	}
 	if len(enc) == 0 {
+		sdb.nilAccounts[addr] = struct{}{}
+		if bi, ok := sdb.balanceInc[addr]; ok && !bi.transferred {
+			obj, _ := sdb.createObject(addr)
+			return obj
+		}
 		return nil
 	}
 	data = new(Account)
@@ -372,6 +446,11 @@ func (sdb *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 
 func (sdb *StateDB) setStateObject(object *stateObject) {
 	sdb.lock.Lock()
+	if bi, ok := sdb.balanceInc[object.Address()]; ok && !bi.transferred {
+		object.data.Balance.Add(object.data.Balance, bi.increase)
+		bi.transferred = true
+		sdb.journal.append(balanceIncreaseTransfer{bi: bi})
+	}
 	sdb.stateObjects[object.Address()] = object
 	sdb.lock.Unlock()
 }
@@ -450,6 +529,11 @@ func (sdb *StateDB) clearJournalAndRefund() {
 func (sdb *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error) {
 	defer sdb.clearJournalAndRefund()
 
+	for addr, bi := range sdb.balanceInc {
+		if !bi.transferred {
+			sdb.getStateObject(addr)
+		}
+	}
 	for addr := range sdb.journal.dirties {
 		sdb.stateObjectsDirty[addr] = struct{}{}
 	}
