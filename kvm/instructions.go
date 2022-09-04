@@ -779,12 +779,16 @@ func opStop(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error) {
 
 func opSuicide(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error) {
 	beneficiary := callContext.Stack.pop()
+	callerAddr := callContext.Contract.Address()
 	balance := kvm.StateDB.GetBalance(callContext.Contract.Address())
-	kvm.StateDB.AddBalance(common.Address(beneficiary.Bytes20()), balance)
+	kvm.StateDB.AddBalance(beneficiary.Bytes20(), balance)
 	kvm.StateDB.Suicide(callContext.Contract.Address())
 	if kvm.interpreter.cfg.Debug {
 		kvm.interpreter.cfg.Tracer.CaptureEnter(SELFDESTRUCT, callContext.Contract.Address(), beneficiary.Bytes20(), []byte{}, 0, balance)
 		kvm.interpreter.cfg.Tracer.CaptureExit([]byte{}, 0, nil)
+		if kvm.interpreter.cfg.OETracer != nil {
+			kvm.interpreter.cfg.OETracer.CaptureSelfDestruct(callerAddr, beneficiary.Bytes20(), balance)
+		}
 	}
 	return nil, nil
 }

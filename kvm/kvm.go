@@ -192,7 +192,7 @@ func (kvm *KVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 
 	if !kvm.StateDB.Exist(addr) {
 		if !isPrecompile && value.Sign() == 0 {
-			// Calling a non existing account, don't do anything, but ping the tracer
+			// Calling a non-existing account, don't do anything, but ping the tracer
 			if kvm.vmConfig.Debug {
 				if kvm.depth == 0 {
 					kvm.vmConfig.Tracer.CaptureStart(kvm, caller.Address(), addr, false, input, gas, value)
@@ -221,6 +221,17 @@ func (kvm *KVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			defer func(startGas uint64) {
 				kvm.vmConfig.Tracer.CaptureExit(ret, startGas-gas, err)
 			}(gas)
+		}
+		if kvm.vmConfig.OETracer != nil {
+			var code []byte
+			if !isPrecompile {
+				code = kvm.StateDB.GetCode(addr)
+			}
+			kvm.vmConfig.OETracer.CaptureStart(kvm, kvm.depth, caller.Address(), addr, isPrecompile,
+				false /* create */, CALLT, input, gas, value, code)
+			defer func(startGas uint64, startTime time.Time) { // Lazy evaluation of the parameters
+				kvm.vmConfig.OETracer.CaptureEnd(kvm.depth, ret, startGas, gas, time.Since(startTime), err)
+			}(gas, time.Now())
 		}
 	}
 
@@ -282,6 +293,7 @@ func (kvm *KVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 	}
 
 	var snapshot = kvm.StateDB.Snapshot()
+	p, isPrecompile := kvm.precompile(addr)
 
 	// Invoke tracer hooks that signal entering/exiting a call frame
 	if kvm.vmConfig.Debug {
@@ -289,10 +301,21 @@ func (kvm *KVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 		defer func(startGas uint64) {
 			kvm.vmConfig.Tracer.CaptureExit(ret, startGas-gas, err)
 		}(gas)
+		if kvm.vmConfig.OETracer != nil {
+			var code []byte
+			if !isPrecompile {
+				code = kvm.StateDB.GetCode(addr)
+			}
+			kvm.vmConfig.OETracer.CaptureStart(kvm, kvm.depth, caller.Address(), addr, isPrecompile,
+				false /* create */, CALLCODET, input, gas, value, code)
+			defer func(startGas uint64, startTime time.Time) { // Lazy evaluation of the parameters
+				kvm.vmConfig.OETracer.CaptureEnd(kvm.depth, ret, startGas, gas, time.Since(startTime), err)
+			}(gas, time.Now())
+		}
 	}
 
 	// It is allowed to call precompiles, even via DELEGATECALL
-	if p, isPrecompile := kvm.precompile(addr); isPrecompile {
+	if isPrecompile {
 		ret, gas, err = RunPrecompiledContract(p, input, gas)
 	} else {
 		addrCopy := addr
@@ -327,6 +350,7 @@ func (kvm *KVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 	}
 
 	var snapshot = kvm.StateDB.Snapshot()
+	p, isPrecompile := kvm.precompile(addr)
 
 	// Invoke tracer hooks that signal entering/exiting a call frame
 	if kvm.vmConfig.Debug {
@@ -334,10 +358,21 @@ func (kvm *KVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 		defer func(startGas uint64) {
 			kvm.vmConfig.Tracer.CaptureExit(ret, startGas-gas, err)
 		}(gas)
+		if kvm.vmConfig.OETracer != nil {
+			var code []byte
+			if !isPrecompile {
+				code = kvm.StateDB.GetCode(addr)
+			}
+			kvm.vmConfig.OETracer.CaptureStart(kvm, kvm.depth, caller.Address(), addr, isPrecompile,
+				false /* create */, DELEGATECALLT, input, gas, big.NewInt(-1), code)
+			defer func(startGas uint64, startTime time.Time) { // Lazy evaluation of the parameters
+				kvm.vmConfig.OETracer.CaptureEnd(kvm.depth, ret, startGas, gas, time.Since(startTime), err)
+			}(gas, time.Now())
+		}
 	}
 
 	// It is allowed to call precompiles, even via DELEGATECALL
-	if p, isPrecompile := kvm.precompile(addr); isPrecompile {
+	if isPrecompile {
 		ret, gas, err = RunPrecompiledContract(p, input, gas)
 	} else {
 		addrCopy := addr
@@ -374,6 +409,7 @@ func (kvm *KVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	// then certain tests start failing; stRevertTest/RevertPrecompiledTouchExactOOG.json.
 	// We could change this, but for now it's left for legacy reasons
 	var snapshot = kvm.StateDB.Snapshot()
+	p, isPrecompile := kvm.precompile(addr)
 
 	// We do an AddBalance of zero here, just in order to trigger a touch.
 	// This doesn't matter on Mainnet, where all empties are gone at the time of Byzantium,
@@ -387,9 +423,20 @@ func (kvm *KVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 		defer func(startGas uint64) {
 			kvm.vmConfig.Tracer.CaptureExit(ret, startGas-gas, err)
 		}(gas)
+		if kvm.vmConfig.OETracer != nil {
+			var code []byte
+			if !isPrecompile {
+				code = kvm.StateDB.GetCode(addr)
+			}
+			kvm.vmConfig.OETracer.CaptureStart(kvm, kvm.depth, caller.Address(), addr, isPrecompile,
+				false /* create */, STATICCALLT, input, gas, big.NewInt(-2), code)
+			defer func(startGas uint64, startTime time.Time) { // Lazy evaluation of the parameters
+				kvm.vmConfig.OETracer.CaptureEnd(kvm.depth, ret, startGas, gas, time.Since(startTime), err)
+			}(gas, time.Now())
+		}
 	}
 
-	if p, isPrecompile := kvm.precompile(addr); isPrecompile {
+	if isPrecompile {
 		ret, gas, err = RunPrecompiledContract(p, input, gas)
 	} else {
 		// At this point, we use a copy of address. If we don't, the go compiler will
@@ -463,17 +510,35 @@ func (kvm *KVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 		return nil, address, gas, nil
 	}
 
+	var (
+		ret []byte
+		err error
+	)
+	 
 	if kvm.vmConfig.Debug {
 		if kvm.depth == 0 {
 			kvm.vmConfig.Tracer.CaptureStart(kvm, caller.Address(), address, true, codeAndHash.code, gas, value)
 		} else {
 			kvm.vmConfig.Tracer.CaptureEnter(typ, caller.Address(), address, codeAndHash.code, gas, value)
 		}
+		if kvm.vmConfig.OETracer != nil {
+			var calltype CallType
+			if typ == CREATE {
+				calltype = CREATET
+			} else {
+				calltype = CREATE2T
+			}
+			kvm.vmConfig.OETracer.CaptureStart(kvm, kvm.depth, caller.Address(), address,
+				false /* precompile */, true /* create */, calltype, codeAndHash.code, gas, value, nil)
+			defer func(startGas uint64, startTime time.Time) { // Lazy evaluation of the parameters
+				kvm.vmConfig.OETracer.CaptureEnd(kvm.depth, ret, startGas, gas, time.Since(startTime), err)
+			}(gas, time.Now())
+		}
 	}
 
 	start := time.Now()
 
-	ret, err := run(kvm, contract, nil, false)
+	ret, err = run(kvm, contract, nil, false)
 
 	// check whether the max code size has been exceeded
 	maxCodeSizeExceeded := len(ret) > configs.MaxCodeSize

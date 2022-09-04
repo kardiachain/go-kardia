@@ -152,8 +152,14 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 			if err != nil {
 				if !logged {
 					in.cfg.Tracer.CaptureState(pcCopy, op, gasCopy, cost, callContext, in.returnData, in.kvm.depth, err)
+					if in.cfg.OETracer != nil {
+						in.cfg.OETracer.CaptureState(in.kvm, pcCopy, op, gasCopy, cost, callContext, in.returnData, in.kvm.depth, err) //nolint:errcheck
+					}
 				} else {
 					in.cfg.Tracer.CaptureFault(pcCopy, op, gasCopy, cost, callContext, in.kvm.depth, err)
+					if in.cfg.OETracer != nil {
+						in.cfg.OETracer.CaptureFault(in.kvm, pcCopy, op, gasCopy, cost, callContext, in.kvm.depth, err)
+					}
 				}
 			}
 		}()
@@ -265,6 +271,9 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 
 		if in.cfg.Debug {
 			in.cfg.Tracer.CaptureState(pc, op, gasCopy, cost, callContext, in.returnData, in.kvm.depth, err)
+			if in.cfg.OETracer != nil {
+				in.cfg.OETracer.CaptureState(in.kvm, pc, op, gasCopy, cost, callContext, in.returnData, in.kvm.depth, err) //nolint:errcheck
+			}
 			logged = true
 		}
 
