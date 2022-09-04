@@ -3,14 +3,15 @@ package trace
 import (
 	"context"
 	"encoding/json"
+
 	"github.com/kardiachain/go-kardia/internal/kaiapi"
-
-	jsoniter "github.com/json-iterator/go"
-
 	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
+	"github.com/kardiachain/go-kardia/kai/storage/kvstore/kvcache"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/rpc"
+
+	jsoniter "github.com/json-iterator/go"
 )
 
 // TraceAPI RPC interface into tracing API
@@ -33,9 +34,10 @@ type TraceAPI interface {
 type TraceAPIImpl struct {
 	backend       Backend
 	kv            kvstore.RoDB
+	stateCache    kvcache.Cache // thread-safe
 	maxTraces     uint64
 	gasCap        uint64
-	compatibility bool // Bug for bug compatibility with OpenEthereum
+	compatibility bool // Bug-for-bug compatibility with OpenEthereum
 }
 
 // NewTraceAPI returns NewTraceAPI instance

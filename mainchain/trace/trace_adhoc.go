@@ -500,7 +500,7 @@ func (sd *StateDiff) CreateContract(address common.Address) error {
 }
 
 // CompareStates uses the addresses accumulated in the sdMap and compares balances, nonces, and codes of the accounts, and fills the rest of the sdMap
-func (sd *StateDiff) CompareStates(initialIbs, ibs *state.IntraBlockState) {
+func (sd *StateDiff) CompareStates(initialIbs, ibs *state.StateDB) {
 	var toRemove []common.Address
 	for addr, accountDiff := range sd.sdMap {
 		initialExist := initialIbs.Exist(addr)
@@ -508,8 +508,8 @@ func (sd *StateDiff) CompareStates(initialIbs, ibs *state.IntraBlockState) {
 		if initialExist {
 			if exist {
 				var allEqual = len(accountDiff.Storage) == 0
-				fromBalance := initialIbs.GetBalance(addr).ToBig()
-				toBalance := ibs.GetBalance(addr).ToBig()
+				fromBalance := initialIbs.GetBalance(addr)
+				toBalance := ibs.GetBalance(addr)
 				if fromBalance.Cmp(toBalance) == 0 {
 					accountDiff.Balance = "="
 				} else {
@@ -544,7 +544,7 @@ func (sd *StateDiff) CompareStates(initialIbs, ibs *state.IntraBlockState) {
 			} else {
 				{
 					m := make(map[string]*common.Big)
-					m["-"] = (*common.Big)(initialIbs.GetBalance(addr).ToBig())
+					m["-"] = (*common.Big)(initialIbs.GetBalance(addr))
 					accountDiff.Balance = m
 				}
 				{
@@ -561,7 +561,7 @@ func (sd *StateDiff) CompareStates(initialIbs, ibs *state.IntraBlockState) {
 		} else if exist {
 			{
 				m := make(map[string]*common.Big)
-				m["+"] = (*common.Big)(ibs.GetBalance(addr).ToBig())
+				m["+"] = (*common.Big)(ibs.GetBalance(addr))
 				accountDiff.Balance = m
 			}
 			{
@@ -747,22 +747,22 @@ func (api *TraceAPIImpl) Call(ctx context.Context, args kaiapi.TransactionArgs, 
 	if err != nil {
 		return nil, err
 	}
-	var stateReader state.StateReader
+	var sdb state.StateDB
 	if latest {
 		cacheView, err := api.stateCache.View(ctx, tx)
 		if err != nil {
 			return nil, err
 		}
-		stateReader = state.NewCachedReader2(cacheView, tx)
+		sdb = state.NewCachedReader2(cacheView, tx)
 	} else {
-		stateReader = state.NewPlainState(tx, blockNumber+1)
+		sdb = state.NewPlainState(tx, blockNumber+1)
 	}
-	ibs := state.New(stateReader)
+	ibs := state.New(sdb)
 
 	header := block.Header()
 
 	// Setup context so it may be cancelled the call has completed
-	// or, in case of unmetered gas, setup a context with a timeout.
+	// or, in case of unmetered gas, set up a context with a timeout.
 	var cancel context.CancelFunc
 	if callTimeout > 0 {
 		ctx, cancel = context.WithTimeout(ctx, callTimeout)
@@ -805,7 +805,7 @@ func (api *TraceAPIImpl) Call(ctx context.Context, args kaiapi.TransactionArgs, 
 	txCtx := blockchain.NewKVMTxContext(msg)
 	blockCtx.GasLimit = math.MaxUint64
 
-	vm := kvm.NewKVM(blockCtx, txCtx, ibs, chainConfig, kvm.Config{Debug: traceTypeTrace, Tracer: &ot})
+	vm := kvm.NewKVM(blockCtx, txCtx, ibs, chainConfig, kvm.Config{Debug: traceTypeTrace, OETracer: &ot})
 
 	// Wait for the context to be done and cancel the kvm. Even if the
 	// EVM has finished, cancelling may be done (repeatedly)
@@ -826,11 +826,11 @@ func (api *TraceAPIImpl) Call(ctx context.Context, args kaiapi.TransactionArgs, 
 		sdMap := make(map[common.Address]*StateDiffAccount)
 		traceResult.StateDiff = sdMap
 		sd := &StateDiff{sdMap: sdMap}
-		if err = ibs.FinalizeTx(kvm.ChainRules(), sd); err != nil {
+		if err = ibs.Finalise(kvm.ChainRules(), sd); err != nil {
 			return nil, err
 		}
 		// Create initial IntraBlockState, we will compare it with ibs (IntraBlockState after the transaction)
-		initialIbs := state.New(stateReader)
+		initialIbs := state.New(sdb)
 		sd.CompareStates(initialIbs, ibs)
 	}
 
@@ -915,7 +915,7 @@ func (api *TraceAPIImpl) doCallMany(ctx context.Context, dbtx kvstore.Tx, msgs [
 	if err != nil {
 		return nil, err
 	}
-	var stateReader state.StateReader
+	var stateReader state.StateDB
 	if latest {
 		cacheView, err := api.stateCache.View(ctx, dbtx)
 		if err != nil {
@@ -931,7 +931,7 @@ func (api *TraceAPIImpl) doCallMany(ctx context.Context, dbtx kvstore.Tx, msgs [
 	cachedWriter := state.NewCachedWriter(noop, stateCache)
 
 	// Setup context so it may be cancelled the call has completed
-	// or, in case of unmetered gas, setup a context with a timeout.
+	// or, in case of unmetered gas, set up a context with a timeout.
 	var cancel context.CancelFunc
 	if callTimeout > 0 {
 		ctx, cancel = context.WithTimeout(ctx, callTimeout)
@@ -992,7 +992,10 @@ func (api *TraceAPIImpl) doCallMany(ctx context.Context, dbtx kvstore.Tx, msgs [
 		if useParent {
 			blockCtx.GasLimit = math.MaxUint64
 		}
-		ibs := state.New(cachedReader)
+		ibs, err := state.New(cachedReader)
+		if err != nil {
+			return nil, err
+		}
 		// Create initial IntraBlockState, we will compare it with ibs (IntraBlockState after the transaction)
 
 		evm := kvm.NewKVM(blockCtx, txCtx, ibs, chainConfig, vmConfig)
@@ -1000,7 +1003,7 @@ func (api *TraceAPIImpl) doCallMany(ctx context.Context, dbtx kvstore.Tx, msgs [
 		gp := new(types.GasPool).AddGas(msg.Gas())
 		var execResult *kvm.ExecutionResult
 		// Clone the state cache before applying the changes, clone is discarded
-		var cloneReader state.StateReader
+		var cloneReader state.StateDB
 		if traceTypeStateDiff {
 			cloneCache := stateCache.Clone()
 			cloneReader = state.NewCachedReader(stateReader, cloneCache)
@@ -1016,11 +1019,14 @@ func (api *TraceAPIImpl) doCallMany(ctx context.Context, dbtx kvstore.Tx, msgs [
 		}
 		traceResult.Output = common.CopyBytes(execResult.ReturnData)
 		if traceTypeStateDiff {
-			initialIbs := state.New(cloneReader)
+			initialIbs, err := state.New(cloneReader)
+			if err != nil {
+				return nil, err
+			}
 			sdMap := make(map[common.Address]*StateDiffAccount)
 			traceResult.StateDiff = sdMap
 			sd := &StateDiff{sdMap: sdMap}
-			if err = ibs.FinalizeTx(kvm.ChainRules(), sd); err != nil {
+			if err = ibs.Finalise(kvm.ChainRules(), sd); err != nil {
 				return nil, err
 			}
 			sd.CompareStates(initialIbs, ibs)
@@ -1028,7 +1034,7 @@ func (api *TraceAPIImpl) doCallMany(ctx context.Context, dbtx kvstore.Tx, msgs [
 				return nil, err
 			}
 		} else {
-			if err = ibs.FinalizeTx(kvm.ChainRules(), noop); err != nil {
+			if err = ibs.Finalise(kvm.ChainRules(), noop); err != nil {
 				return nil, err
 			}
 			if err = ibs.CommitBlock(kvm.ChainRules(), cachedWriter); err != nil {
