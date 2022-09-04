@@ -3,13 +3,13 @@ package trace
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
 	"math"
 	"math/big"
 	"strings"
 	"time"
-
-	"github.com/holiman/uint256"
 
 	"github.com/kardiachain/go-kardia/internal/kaiapi"
 	"github.com/kardiachain/go-kardia/kai/accounts"
@@ -19,6 +19,8 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/types"
+
+	"github.com/holiman/uint256"
 )
 
 const (
@@ -837,212 +839,188 @@ func (api *TraceAPIImpl) Call(ctx context.Context, args kaiapi.TransactionArgs, 
 }
 
 // CallMany implements trace_callMany.
-//func (api *TraceAPIImpl) CallMany(ctx context.Context, calls json.RawMessage, parentHeightOrHash *rpc.BlockHeightOrHash) ([]*TraceCallResult, error) {
-//	dbtx, err := api.kv.BeginRo(ctx)
-//	if err != nil {
-//		return nil, err
-//	}
-//	defer dbtx.Rollback()
-//
-//	var callParams []kaiapi.TransactionArgs
-//	dec := json.NewDecoder(bytes.NewReader(calls))
-//	tok, err := dec.Token()
-//	if err != nil {
-//		return nil, err
-//	}
-//	if tok != json.Delim('[') {
-//		return nil, fmt.Errorf("expected array of [callparam, tracetypes]")
-//	}
-//	for dec.More() {
-//		tok, err = dec.Token()
-//		if err != nil {
-//			return nil, err
-//		}
-//		if tok != json.Delim('[') {
-//			return nil, fmt.Errorf("expected [callparam, tracetypes]")
-//		}
-//		callParams = append(callParams, kaiapi.TransactionArgs{})
-//		args := &callParams[len(callParams)-1]
-//		if err = dec.Decode(args); err != nil {
-//			return nil, err
-//		}
-//		if err = dec.Decode(&args.TraceTypes); err != nil {
-//			return nil, err
-//		}
-//		tok, err = dec.Token()
-//		if err != nil {
-//			return nil, err
-//		}
-//		if tok != json.Delim(']') {
-//			return nil, fmt.Errorf("expected end of [callparam, tracetypes]")
-//		}
-//	}
-//	tok, err = dec.Token()
-//	if err != nil {
-//		return nil, err
-//	}
-//	if tok != json.Delim(']') {
-//		return nil, fmt.Errorf("expected end of array of [callparam, tracetypes]")
-//	}
-//
-//	if parentHeightOrHash == nil {
-//		var num = rpc.LatestBlockHeight
-//		parentHeightOrHash = &rpc.BlockHeightOrHash{BlockHeight: &num}
-//	}
-//
-//	msgs := make([]types.Message, len(callParams))
-//	for i, args := range callParams {
-//		msgs[i] = args.ToMessage(api.gasCap)
-//	}
-//	return api.doCallMany(ctx, dbtx, msgs, callParams, parentHeightOrHash, nil, -1 /* all tx indices */)
-//}
-//
-//func (api *TraceAPIImpl) doCallMany(ctx context.Context, dbtx kvstore.Tx, msgs []types.Message, callParams []kaiapi.TransactionArgs,
-//	parentHeightOrHash *rpc.BlockHeightOrHash, header *types.Header, txIndexNeeded int) ([]*TraceCallResult, error) {
-//	chainConfig := api.backend.Config()
-//
-//	if parentHeightOrHash == nil {
-//		var num = rpc.LatestBlockHeight
-//		parentHeightOrHash = &rpc.BlockHeightOrHash{BlockHeight: &num}
-//	}
-//	parentHeader, err := api.backend.HeaderByHeightOrHash(ctx, *parentHeightOrHash)
-//	if err != nil {
-//		return nil, err
-//	}
-//	var stateReader state.StateDB
-//	if latest {
-//		cacheView, err := api.stateCache.View(ctx, dbtx)
-//		if err != nil {
-//			return nil, err
-//		}
-//		stateReader = state.NewCachedReader2(cacheView, dbtx) // this cache stays between RPC calls
-//	} else {
-//		stateReader = state.NewPlainState(dbtx, parentHeader.Height+1)
-//	}
-//	stateCache := shards.NewStateCache(32, 0 /* no limit */) // this cache living only during current RPC call, but required to store state writes
-//	cachedReader := state.NewCachedReader(stateReader, stateCache)
-//	noop := state.NewNoopWriter()
-//	cachedWriter := state.NewCachedWriter(noop, stateCache)
-//
-//	// Setup context so it may be cancelled the call has completed
-//	// or, in case of unmetered gas, set up a context with a timeout.
-//	var cancel context.CancelFunc
-//	if callTimeout > 0 {
-//		ctx, cancel = context.WithTimeout(ctx, callTimeout)
-//	} else {
-//		ctx, cancel = context.WithCancel(ctx)
-//	}
-//
-//	// Make sure the context is cancelled when the call has completed
-//	// this makes sure resources are cleaned up.
-//	defer cancel()
-//	results := []*TraceCallResult{}
-//
-//	useParent := false
-//	if header == nil {
-//		header = parentHeader
-//		useParent = true
-//	}
-//
-//	for txIndex, msg := range msgs {
-//		if err := common.Stopped(ctx.Done()); err != nil {
-//			return nil, err
-//		}
-//		traceResult := &TraceCallResult{Trace: []*ParityTrace{}}
-//		var traceTypeTrace, traceTypeStateDiff, traceTypeVmTrace bool
-//		args := callParams[txIndex]
-//		for _, traceType := range args.TraceTypes {
-//			switch traceType {
-//			case TraceTypeTrace:
-//				traceTypeTrace = true
-//			case TraceTypeStateDiff:
-//				traceTypeStateDiff = true
-//			case TraceTypeVmTrace:
-//				traceTypeVmTrace = true
-//			default:
-//				return nil, fmt.Errorf("unrecognized trace type: %s", traceType)
-//			}
-//		}
-//		vmConfig := kvm.Config{}
-//		if (traceTypeTrace && (txIndexNeeded == -1 || txIndex == txIndexNeeded)) || traceTypeVmTrace {
-//			var ot OeTracer
-//			ot.compat = api.compatibility
-//			ot.r = traceResult
-//			ot.idx = []string{fmt.Sprintf("%d-", txIndex)}
-//			if traceTypeTrace && (txIndexNeeded == -1 || txIndex == txIndexNeeded) {
-//				ot.traceAddr = []int{}
-//			}
-//			if traceTypeVmTrace {
-//				traceResult.VmTrace = &VmTrace{Ops: []*VmTraceOp{}}
-//			}
-//			vmConfig.Debug = true
-//			vmConfig.OETracer = &ot
-//			vmConfig.Tracer = &noopTracer{}
-//		}
-//
-//		// Get a new instance of the kvm.
-//		blockCtx := blockchain.NewKVMBlockContext(header, api.backend)
-//		txCtx := blockchain.NewKVMTxContext(msg)
-//		blockCtx.GasLimit = math.MaxUint64
-//		if useParent {
-//			blockCtx.GasLimit = math.MaxUint64
-//		}
-//		ibs, err := state.New(cachedReader)
-//		if err != nil {
-//			return nil, err
-//		}
-//		// Create initial IntraBlockState, we will compare it with ibs (IntraBlockState after the transaction)
-//
-//		evm := kvm.NewKVM(blockCtx, txCtx, ibs, chainConfig, vmConfig)
-//
-//		gp := new(types.GasPool).AddGas(msg.Gas())
-//		var execResult *kvm.ExecutionResult
-//		// Clone the state cache before applying the changes, clone is discarded
-//		var cloneReader state.StateDB
-//		if traceTypeStateDiff {
-//			cloneCache := stateCache.Clone()
-//			cloneReader = state.NewCachedReader(stateReader, cloneCache)
-//		}
-//		if args.TxHash != nil {
-//			ibs.Prepare(*args.TxHash, header.Hash(), txIndex)
-//		} else {
-//			ibs.Prepare(common.Hash{}, header.Hash(), txIndex)
-//		}
-//		execResult, err = blockchain.ApplyMessage(evm, msg, gp)
-//		if err != nil {
-//			return nil, fmt.Errorf("first run for txIndex %d error: %w", txIndex, err)
-//		}
-//		traceResult.Output = common.CopyBytes(execResult.ReturnData)
-//		if traceTypeStateDiff {
-//			initialIbs, err := state.New(cloneReader)
-//			if err != nil {
-//				return nil, err
-//			}
-//			sdMap := make(map[common.Address]*StateDiffAccount)
-//			traceResult.StateDiff = sdMap
-//			sd := &StateDiff{sdMap: sdMap}
-//			if err = ibs.Finalise(kvm.ChainRules(), sd); err != nil {
-//				return nil, err
-//			}
-//			sd.CompareStates(initialIbs, ibs)
-//			if err = ibs.CommitBlock(kvm.ChainRules(), cachedWriter); err != nil {
-//				return nil, err
-//			}
-//		} else {
-//			if err = ibs.Finalise(kvm.ChainRules(), noop); err != nil {
-//				return nil, err
-//			}
-//			if err = ibs.CommitBlock(kvm.ChainRules(), cachedWriter); err != nil {
-//				return nil, err
-//			}
-//		}
-//		if !traceTypeTrace {
-//			traceResult.Trace = []*ParityTrace{}
-//		}
-//		results = append(results, traceResult)
-//	}
-//	return results, nil
-//}
+func (api *TraceAPIImpl) CallMany(ctx context.Context, calls json.RawMessage, parentHeightOrHash *rpc.BlockHeightOrHash) ([]*TraceCallResult, error) {
+	dbtx, err := api.kv.BeginRo(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer dbtx.Rollback()
+
+	var callParams []kaiapi.TransactionArgs
+	dec := json.NewDecoder(bytes.NewReader(calls))
+	tok, err := dec.Token()
+	if err != nil {
+		return nil, err
+	}
+	if tok != json.Delim('[') {
+		return nil, fmt.Errorf("expected array of [callparam, tracetypes]")
+	}
+	for dec.More() {
+		tok, err = dec.Token()
+		if err != nil {
+			return nil, err
+		}
+		if tok != json.Delim('[') {
+			return nil, fmt.Errorf("expected [callparam, tracetypes]")
+		}
+		callParams = append(callParams, kaiapi.TransactionArgs{})
+		args := &callParams[len(callParams)-1]
+		if err = dec.Decode(args); err != nil {
+			return nil, err
+		}
+		if err = dec.Decode(&args.TraceTypes); err != nil {
+			return nil, err
+		}
+		tok, err = dec.Token()
+		if err != nil {
+			return nil, err
+		}
+		if tok != json.Delim(']') {
+			return nil, fmt.Errorf("expected end of [callparam, tracetypes]")
+		}
+	}
+	tok, err = dec.Token()
+	if err != nil {
+		return nil, err
+	}
+	if tok != json.Delim(']') {
+		return nil, fmt.Errorf("expected end of array of [callparam, tracetypes]")
+	}
+
+	if parentHeightOrHash == nil {
+		var num = rpc.LatestBlockHeight
+		parentHeightOrHash = &rpc.BlockHeightOrHash{BlockHeight: &num}
+	}
+
+	msgs := make([]types.Message, len(callParams))
+	for i, args := range callParams {
+		msgs[i] = args.ToMessage(api.gasCap)
+	}
+	return api.doCallMany(ctx, dbtx, msgs, callParams, parentHeightOrHash, nil, -1 /* all tx indices */)
+}
+
+func (api *TraceAPIImpl) doCallMany(ctx context.Context, dbtx kvstore.Tx, msgs []types.Message, callParams []kaiapi.TransactionArgs,
+	parentHeightOrHash *rpc.BlockHeightOrHash, header *types.Header, txIndexNeeded int) ([]*TraceCallResult, error) {
+	chainConfig := api.backend.Config()
+
+	if parentHeightOrHash == nil {
+		var num = rpc.LatestBlockHeight
+		parentHeightOrHash = &rpc.BlockHeightOrHash{BlockHeight: &num}
+	}
+	parentBlock, err := api.backend.BlockByHeightOrHash(ctx, *parentHeightOrHash)
+	if err != nil {
+		return nil, err
+	}
+
+	// Setup context so it may be cancelled the call has completed
+	// or, in case of unmetered gas, set up a context with a timeout.
+	var cancel context.CancelFunc
+	if callTimeout > 0 {
+		ctx, cancel = context.WithTimeout(ctx, callTimeout)
+	} else {
+		ctx, cancel = context.WithCancel(ctx)
+	}
+
+	// Make sure the context is cancelled when the call has completed
+	// this makes sure resources are cleaned up.
+	defer cancel()
+	results := []*TraceCallResult{}
+
+	useParent := false
+	if header == nil {
+		header = parentBlock.Header()
+		useParent = true
+	}
+
+	for txIndex, msg := range msgs {
+		if err := common.Stopped(ctx.Done()); err != nil {
+			return nil, err
+		}
+		traceResult := &TraceCallResult{Trace: []*ParityTrace{}}
+		var traceTypeTrace, traceTypeStateDiff, traceTypeVmTrace bool
+		args := callParams[txIndex]
+		for _, traceType := range args.TraceTypes {
+			switch traceType {
+			case TraceTypeTrace:
+				traceTypeTrace = true
+			case TraceTypeStateDiff:
+				traceTypeStateDiff = true
+			case TraceTypeVmTrace:
+				traceTypeVmTrace = true
+			default:
+				return nil, fmt.Errorf("unrecognized trace type: %s", traceType)
+			}
+		}
+		vmConfig := kvm.Config{}
+		if (traceTypeTrace && (txIndexNeeded == -1 || txIndex == txIndexNeeded)) || traceTypeVmTrace {
+			var ot OeTracer
+			ot.compat = api.compatibility
+			ot.r = traceResult
+			ot.idx = []string{fmt.Sprintf("%d-", txIndex)}
+			if traceTypeTrace && (txIndexNeeded == -1 || txIndex == txIndexNeeded) {
+				ot.traceAddr = []int{}
+			}
+			if traceTypeVmTrace {
+				traceResult.VmTrace = &VmTrace{Ops: []*VmTraceOp{}}
+			}
+			vmConfig.Debug = true
+			vmConfig.OETracer = &ot
+			vmConfig.Tracer = &noopTracer{}
+		}
+
+		// Get a new instance of the kvm.
+		blockCtx := blockchain.NewKVMBlockContext(header, api.backend)
+		txCtx := blockchain.NewKVMTxContext(msg)
+		blockCtx.GasLimit = math.MaxUint64
+		if useParent {
+			blockCtx.GasLimit = math.MaxUint64
+		}
+		ibs, err := api.backend.StateAtBlock(ctx, parentBlock, defaultTraceReexec, nil, true)
+		if err != nil {
+			return nil, err
+		}
+		// Create initial IntraBlockState, we will compare it with ibs (IntraBlockState after the transaction)
+
+		evm := kvm.NewKVM(blockCtx, txCtx, ibs, chainConfig, vmConfig)
+
+		gp := new(types.GasPool).AddGas(msg.Gas())
+		var execResult *kvm.ExecutionResult
+		if args.TxHash != nil {
+			ibs.Prepare(*args.TxHash, header.Hash(), txIndex)
+		} else {
+			ibs.Prepare(common.Hash{}, header.Hash(), txIndex)
+		}
+		execResult, err = blockchain.ApplyMessage(evm, msg, gp)
+		if err != nil {
+			return nil, fmt.Errorf("first run for txIndex %d error: %w", txIndex, err)
+		}
+		traceResult.Output = common.CopyBytes(execResult.ReturnData)
+		if traceTypeStateDiff {
+			initialIbs, err := api.backend.StateAtBlock(ctx, parentBlock, defaultTraceReexec, nil, true)
+			if err != nil {
+				return nil, err
+			}
+			sdMap := make(map[common.Address]*StateDiffAccount)
+			traceResult.StateDiff = sdMap
+			sd := &StateDiff{sdMap: sdMap}
+			ibs.Finalise(false)
+			sd.CompareStates(initialIbs, ibs)
+			if _, err = ibs.Commit(false); err != nil {
+				return nil, err
+			}
+		} else {
+			ibs.Finalise(false)
+			if _, err = ibs.Commit(false); err != nil {
+				return nil, err
+			}
+		}
+		if !traceTypeTrace {
+			traceResult.Trace = []*ParityTrace{}
+		}
+		results = append(results, traceResult)
+	}
+	return results, nil
+}
 
 // RawTransaction implements trace_rawTransaction.
 func (api *TraceAPIImpl) RawTransaction(ctx context.Context, txHash common.Hash, traceTypes []string) ([]interface{}, error) {

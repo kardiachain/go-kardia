@@ -3,6 +3,7 @@ module github.com/kardiachain/go-kardia
 go 1.18
 
 require (
+	github.com/RoaringBitmap/roaring v1.2.1
 	github.com/VictoriaMetrics/metrics v1.22.2
 	github.com/Workiva/go-datastructures v1.0.52
 	github.com/aristanetworks/goarista v0.0.0-20190712234253-ed1100a1c015
@@ -26,6 +27,7 @@ require (
 	github.com/gtank/merlin v0.1.1
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
 	github.com/holiman/uint256 v1.2.0
+	github.com/json-iterator/go v1.1.10
 	github.com/libp2p/go-buffer-pool v0.0.2
 	github.com/minio/highwayhash v1.0.1
 	github.com/pebbe/zmq4 v1.0.0
@@ -60,6 +62,7 @@ require (
 	github.com/allegro/bigcache v1.2.1 // indirect
 	github.com/antlr/antlr4 v0.0.0-20190819145818-b43a4c3a8015 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/bits-and-blooms/bitset v1.2.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/docker/docker v17.12.0-ce-rc1.0.20200531234253-77e06fda0c94+incompatible // indirect
 	github.com/edsrzf/mmap-go v1.0.0 // indirect
@@ -77,6 +80,9 @@ require (
 	github.com/mattn/go-runewidth v0.0.4 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/mimoo/StrobeGo v0.0.0-20181016162300-f8f6d4d2b643 // indirect
+	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
+	github.com/modern-go/reflect2 v1.0.1 // indirect
+	github.com/mschoch/smat v0.2.0 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/olekukonko/tablewriter v0.0.2-0.20190409134802-7e037d187b0c // indirect
 	github.com/pborman/uuid v1.2.0 // indirect

@@ -54,6 +54,10 @@ type APIBackend interface {
 	HeaderByHash(ctx context.Context, hash common.Hash) *types.Header
 	HeaderByHeightOrHash(ctx context.Context, blockHeightOrHash rpc.BlockHeightOrHash) (*types.Header, error)
 
+	ReadCanonicalHash(ctx context.Context, height uint64) common.Hash
+	ReadHeadBlockHash(ctx context.Context) common.Hash
+	ReadHeaderHeight(ctx context.Context, hash common.Hash) uint64
+
 	StateAndHeaderByHeight(ctx context.Context, height rpc.BlockHeight) (*state.StateDB, *types.Header, error)
 	StateAndHeaderByHeightOrHash(ctx context.Context, blockHeightOrHash rpc.BlockHeightOrHash) (*state.StateDB, *types.Header, error)
 
@@ -385,4 +389,17 @@ func (k *KardiaService) GetHeader(hash common.Hash, height uint64) *types.Header
 		return nil
 	}
 	return header
+}
+
+func (k *KardiaService) ReadCanonicalHash(ctx context.Context, height uint64) common.Hash {
+	return k.kaiDb.ReadCanonicalHash(height)
+}
+
+func (k *KardiaService) ReadHeadBlockHash(ctx context.Context) common.Hash {
+	return k.kaiDb.ReadHeadBlockHash()
+}
+
+func (k *KardiaService) ReadHeaderHeight(ctx context.Context, hash common.Hash) uint64 {
+	height := k.kaiDb.ReadHeaderHeight(hash)
+	return *height
 }
