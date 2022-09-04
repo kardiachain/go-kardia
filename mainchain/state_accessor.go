@@ -61,7 +61,7 @@ func (k *KardiaService) stateAtBlock(block *types.Block, reexec uint64, base *st
 		// Otherwise try to reexec blocks until we find a state or reach our limit
 		current = block
 
-		// Create an ephemeral trie.Database for isolating the live one. Otherwise
+		// Create an ephemeral trie.Database for isolating the live one. Otherwise,
 		// the internal junks created by tracing will be persisted into the disk.
 		database = state.NewDatabase(k.kaiDb.DB())
 

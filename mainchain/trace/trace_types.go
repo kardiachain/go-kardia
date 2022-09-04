@@ -2,7 +2,10 @@ package trace
 
 import (
 	"fmt"
+	"math/big"
+	"time"
 
+	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -157,3 +160,16 @@ func (api *TraceAPIImpl) convertToParityTrace(gethTrace GethTrace, blockHash com
 	var traces ParityTraces // nolint prealloc
 	return traces
 }
+
+type noopTracer struct{}
+
+func (dt *noopTracer) CaptureStart(env *kvm.KVM, from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
+}
+func (dt *noopTracer) CaptureState(pc uint64, op kvm.OpCode, gas, cost uint64, scope *kvm.ScopeContext, rData []byte, depth int, err error) {
+}
+func (dt *noopTracer) CaptureEnter(typ kvm.OpCode, from common.Address, to common.Address, input []byte, gas uint64, value *big.Int) {
+}
+func (dt *noopTracer) CaptureExit(output []byte, gasUsed uint64, err error) {}
+func (dt *noopTracer) CaptureFault(pc uint64, op kvm.OpCode, gas, cost uint64, scope *kvm.ScopeContext, depth int, err error) {
+}
+func (dt *noopTracer) CaptureEnd(output []byte, gasUsed uint64, t time.Duration, err error) {}

@@ -6,7 +6,6 @@ import (
 
 	"github.com/kardiachain/go-kardia/internal/kaiapi"
 	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
-	"github.com/kardiachain/go-kardia/kai/storage/kvstore/kvcache"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/rpc"
@@ -34,7 +33,6 @@ type TraceAPI interface {
 type TraceAPIImpl struct {
 	backend       Backend
 	kv            kvstore.RoDB
-	stateCache    kvcache.Cache // thread-safe
 	maxTraces     uint64
 	gasCap        uint64
 	compatibility bool // Bug-for-bug compatibility with OpenEthereum
