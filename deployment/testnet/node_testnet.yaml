@@ -13,6 +13,7 @@ Node:
     - eth
     - txpool
     - web3
+    - trace
   HTTPVirtualHosts:
     - 0.0.0.0
     - 127.0.0.1
@@ -43,6 +44,10 @@ Node:
     Default: 1000000000     # default gas price. Type string
     MaxPrice: 500000000000  # maximum gas price this node will accept. Type string
   TimeOutForStaticCall: 5000 # default timeout for static calls in milliseconds. Type int
+  TraceAPIConfig:
+    Gascap: 50000000
+    MaxTraces: 200
+    TraceCompatibility: false
 MainChain:
   ServiceName: KARDIA
   ChainId: 7331

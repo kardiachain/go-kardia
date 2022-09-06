@@ -12,6 +12,7 @@ Node:
     - eth
     - txpool
     - web3
+    - trace
   HTTPVirtualHosts:       # virtual hosts connection
     - 0.0.0.0
     - localhost
@@ -36,6 +37,10 @@ Node:
     PeerTimeout: 15      # maximum response time from a peer in second. Type int
     MinRecvRate: 0       # minimum receive rate from peer, otherwise prune. Type int64
   TimeOutForStaticCall: 5000 # default timeout for static calls in milliseconds. Type int
+  TraceAPIConfig:
+    Gascap: 50000000
+    MaxTraces: 200
+    TraceCompatibility: false
 MainChain:
   ServiceName: KARDIA    # mainchain service name
   ChainId: 7331          # default chainid

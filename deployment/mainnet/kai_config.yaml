@@ -13,6 +13,7 @@ Node:
     - eth
     - txpool
     - web3
+    - trace
   HTTPVirtualHosts:       # virtual hosts connection
     - 0.0.0.0
     - 127.0.0.1
@@ -46,6 +47,10 @@ Node:
     Percentile: 10          # percent of gas price increasing based on highest gas of recent transactions. Type int
     Default: 1000000000     # default gas price. Type string
     MaxPrice: 500000000000  # maximum gas price this node will accept. Type string
+  TraceAPIConfig:
+    Gascap: 50000000
+    MaxTraces: 200
+    TraceCompatibility: false
 MainChain:
   ServiceName: KARDIA     # mainchain service name
   AcceptTxs: 1            # accept tx sync process or not (1 is yes, 0 is no)
