@@ -174,7 +174,7 @@ func (ch resetObjectChange) dirtied() *common.Address {
 
 func (ch balanceIncrease) revert(s *StateDB) {
 	if bi, ok := s.balanceInc[*ch.account]; ok {
-		bi.increase.Sub(bi.increase, ch.increase)
+		bi.increase.Sub(&bi.increase, ch.increase)
 		bi.count--
 		if bi.count == 0 {
 			delete(s.balanceInc, *ch.account)

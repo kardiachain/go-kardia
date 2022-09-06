@@ -66,7 +66,7 @@ func (n *proofList) Delete(key []byte) error {
 // BalanceIncrease represents the increase of balance of an account that did not require
 // reading the account first
 type BalanceIncrease struct {
-	increase    *big.Int
+	increase    big.Int
 	transferred bool // Set to true when the corresponding stateObject is created and balance increase is transferred to the stateObject
 	count       int  // Number of increases - this needs tracking for proper reversion
 }
@@ -129,6 +129,7 @@ func New(logger log.Logger, root common.Hash, db Database) (*StateDB, error) {
 		trie:              tr,
 		stateObjects:      make(map[common.Address]*stateObject),
 		stateObjectsDirty: make(map[common.Address]struct{}),
+		nilAccounts:       map[common.Address]struct{}{},
 		logs:              make(map[common.Hash][]*types.Log),
 		preimages:         make(map[common.Hash][]byte),
 		journal:           newJournal(),
@@ -237,7 +238,7 @@ func (sdb *StateDB) AddBalance(addr common.Address, amount *big.Int) {
 	}
 	// If this account has not been read, add to the balance increment map
 	_, needAccount := sdb.stateObjects[addr]
-	if !needAccount && addr == ripemd && amount.Cmp(new(big.Int).SetUint64(0)) == 0 {
+	if !needAccount && amount.Cmp(new(big.Int).SetUint64(0)) == 0 {
 		needAccount = true
 	}
 	if !needAccount {
@@ -250,8 +251,9 @@ func (sdb *StateDB) AddBalance(addr common.Address, amount *big.Int) {
 			bi = &BalanceIncrease{}
 			sdb.balanceInc[addr] = bi
 		}
-		bi.increase.Add(bi.increase, amount)
+		bi.increase.Add(&bi.increase, amount)
 		bi.count++
+		sdb.GetOrNewStateObject(addr)
 		return
 	}
 	stateObject := sdb.GetOrNewStateObject(addr)
@@ -262,6 +264,12 @@ func (sdb *StateDB) AddBalance(addr common.Address, amount *big.Int) {
 
 // Retrieve the balance from the given address or 0 if object not found
 func (sdb *StateDB) GetBalance(addr common.Address) *big.Int {
+	if sdb.tracer != nil {
+		err := sdb.tracer.CaptureAccountRead(addr)
+		if sdb.trace {
+			fmt.Println("CaptureAccountRead err", err)
+		}
+	}
 	stateObject := sdb.getStateObject(addr)
 	if stateObject != nil {
 		return stateObject.Balance()
@@ -411,14 +419,6 @@ func (sdb *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 		return obj
 	}
 
-	// Load the object from the database.
-	if _, ok := sdb.nilAccounts[addr]; ok {
-		if bi, ok := sdb.balanceInc[addr]; ok && !bi.transferred {
-			obj, _ := sdb.createObject(addr)
-			return obj
-		}
-		return nil
-	}
 	var data *Account
 	enc, err := sdb.trie.TryGet(addr.Bytes())
 	if err != nil {
@@ -426,11 +426,6 @@ func (sdb *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 		return nil
 	}
 	if len(enc) == 0 {
-		sdb.nilAccounts[addr] = struct{}{}
-		if bi, ok := sdb.balanceInc[addr]; ok && !bi.transferred {
-			obj, _ := sdb.createObject(addr)
-			return obj
-		}
 		return nil
 	}
 	data = new(Account)
@@ -447,7 +442,7 @@ func (sdb *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 func (sdb *StateDB) setStateObject(object *stateObject) {
 	sdb.lock.Lock()
 	if bi, ok := sdb.balanceInc[object.Address()]; ok && !bi.transferred {
-		object.data.Balance.Add(object.data.Balance, bi.increase)
+		object.data.Balance.Add(object.data.Balance, &bi.increase)
 		bi.transferred = true
 		sdb.journal.append(balanceIncreaseTransfer{bi: bi})
 	}
