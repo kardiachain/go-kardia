@@ -157,7 +157,7 @@ func New(conf *Config) (*Node, error) {
 	// are required to add the backends later on.
 	node.accMan = accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: conf.InsecureUnlockAllowed})
 
-	borKv, err := mdbx.NewMDBX(logger).Path(filepath.Join(conf.DataDir, "bor")).Label(kvstore.ConsensusDB).Readonly().Open()
+	borKv, err := mdbx.NewMDBX(logger).Path(filepath.Join(conf.DataDir, conf.Name, "bor")).Label(kvstore.ConsensusDB).Open()
 	if err != nil {
 		return nil, err
 	}
