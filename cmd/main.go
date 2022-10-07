@@ -176,8 +176,11 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 	if args.network == Mainnet {
 		mainChainConfig.ChainId = configs.MainnetChainID
 		mainChainConfig.NetworkId = configs.MainnetNetworkID
-	} else {
+	} else if args.network == Testnet {
 		mainChainConfig.ChainId = configs.TestnetChainID
+		mainChainConfig.NetworkId = configs.TestnetNetworkID
+	} else {
+		mainChainConfig.ChainId = c.Genesis.ChainConfig.ChainID
 		mainChainConfig.NetworkId = configs.TestnetNetworkID
 	}
 	return &mainChainConfig, nil
