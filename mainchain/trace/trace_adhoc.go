@@ -799,6 +799,7 @@ func (api *TraceAPIImpl) Call(ctx context.Context, args kaiapi.TransactionArgs, 
 	blockCtx := blockchain.NewKVMBlockContext(header, api.backend)
 	txCtx := blockchain.NewKVMTxContext(msg)
 	blockCtx.GasLimit = math.MaxUint64
+	blockCtx.MaxGasLimit = true
 
 	vm := kvm.NewKVM(blockCtx, txCtx, ibs, chainConfig, kvm.Config{Debug: traceTypeTrace, Tracer: &noopTracer{}, OETracer: &ot})
 
@@ -971,9 +972,9 @@ func (api *TraceAPIImpl) doCallMany(ctx context.Context, dbtx kvstore.Tx, msgs [
 		// Get a new instance of the kvm.
 		blockCtx := blockchain.NewKVMBlockContext(header, api.backend)
 		txCtx := blockchain.NewKVMTxContext(msg)
-		blockCtx.GasLimit = math.MaxUint64
 		if useParent {
 			blockCtx.GasLimit = math.MaxUint64
+			blockCtx.MaxGasLimit = true
 		}
 		ibs, err := api.backend.StateAtBlock(ctx, parentBlock, defaultTraceReexec, nil, true)
 		if err != nil {

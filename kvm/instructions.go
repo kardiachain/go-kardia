@@ -391,16 +391,21 @@ func opExtCodeCopy(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, err
 // opExtCodeHash returns the code hash of a specified account.
 // There are several cases when the function is called, while we can relay everything
 // to `state.GetCodeHash` function to ensure the correctness.
-//   (1) Caller tries to get the code hash of a normal contract account, state
+//
+//	(1) Caller tries to get the code hash of a normal contract account, state
+//
 // should return the relative code hash and set it as the result.
 //
-//   (2) Caller tries to get the code hash of a non-existent account, state should
+//	(2) Caller tries to get the code hash of a non-existent account, state should
+//
 // return common.Hash{} and zero will be set as the result.
 //
-//   (3) Caller tries to get the code hash for an account without contract code,
+//	(3) Caller tries to get the code hash for an account without contract code,
+//
 // state should return emptyCodeHash(0xc5d246...) as the result.
 //
-//   (4) Caller tries to get the code hash of a precompiled account, the result
+//	(4) Caller tries to get the code hash of a precompiled account, the result
+//
 // should be zero or emptyCodeHash.
 //
 // It is worth noting that in order to avoid unnecessary create and clean,
@@ -409,10 +414,12 @@ func opExtCodeCopy(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, err
 // If the precompile account is not transferred any amount on a private or
 // customized chain, the return value will be zero.
 //
-//   (5) Caller tries to get the code hash for an account which is marked as suicided
+//	(5) Caller tries to get the code hash for an account which is marked as suicided
+//
 // in the current transaction, the code hash of this account should be returned.
 //
-//   (6) Caller tries to get the code hash for an account which is marked as deleted,
+//	(6) Caller tries to get the code hash for an account which is marked as deleted,
+//
 // this account should be regarded as a non-existent account and zero should be returned.
 func opExtCodeHash(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error) {
 	slot := callContext.Stack.peek()
@@ -471,7 +478,11 @@ func opNumber(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error) {
 }
 
 func opGasLimit(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error) {
-	callContext.Stack.push(new(uint256.Int).SetUint64(kvm.GasLimit))
+	if kvm.interpreter.kvm.BlockContext.MaxGasLimit {
+		callContext.Stack.push(new(uint256.Int).SetAllOne())
+	} else {
+		callContext.Stack.push(new(uint256.Int).SetUint64(kvm.interpreter.kvm.BlockContext.GasLimit))
+	}
 	return nil, nil
 }
 

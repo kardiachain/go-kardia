@@ -75,6 +75,7 @@ type BlockContext struct {
 	// Block information
 	Coinbase    common.Address // Provides information for COINBASE
 	GasLimit    uint64         // Provides information for GASLIMIT
+	MaxGasLimit bool           // Use GasLimit override for 2^256-1 (to be compatible with OpenEthereum's trace_call)
 	BlockHeight *big.Int       // Provides information for HEIGHT
 	Time        *big.Int       // Provides information for TIME
 }
@@ -514,7 +515,7 @@ func (kvm *KVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 		ret []byte
 		err error
 	)
-	 
+
 	if kvm.vmConfig.Debug {
 		if kvm.depth == 0 {
 			kvm.vmConfig.Tracer.CaptureStart(kvm, caller.Address(), address, true, codeAndHash.code, gas, value)
