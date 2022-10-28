@@ -94,11 +94,11 @@ func processBlockInfo(store types.StoreDB, block *types.Block, bi *types.BlockIn
 			}
 		} else {
 			correctBi := store.ReadBlockInfo(blockHash, blockHeight)
-			correctReceipt := getReceiptInList(block.Transactions()[i].Hash(), correctBi.Receipts)
+			correctReceipt, index := getReceiptInList(block.Transactions()[i].Hash(), correctBi.Receipts)
 			if correctReceipt != nil {
 				fmt.Printf("Correcting receipt of a bad tx, hash: %v, wrong block height %v, correct block height %v\n", block.Transactions()[i].Hash().Hex(), block.Height(), blockHeight)
 				receipts = insertReceipts(receipts, i, correctReceipt)
-				if err := rewriteTxLookupIndex(store.DB(), block.Hash(), block.Height(), correctReceipt, i); err != nil {
+				if err := rewriteTxLookupIndex(store.DB(), block.Hash(), block.Height(), correctReceipt, index); err != nil {
 					return err
 				}
 				continue
@@ -155,11 +155,11 @@ func insertReceipts(a types.Receipts, index uint64, value *types.Receipt) types.
 	return a
 }
 
-func getReceiptInList(txHash common.Hash, receipts types.Receipts) *types.Receipt {
+func getReceiptInList(txHash common.Hash, receipts types.Receipts) (*types.Receipt, uint64) {
 	for i := 0; i < receipts.Len(); i++ {
 		if receipts[i].TxHash.Equal(txHash) {
-			return receipts[i]
+			return receipts[i], uint64(i)
 		}
 	}
-	return nil
+	return nil, 0
 }
