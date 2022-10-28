@@ -80,7 +80,7 @@ func processBlockInfo(store types.StoreDB, block *types.Block, bi *types.BlockIn
 	txs := types.Transactions{}
 	receipts := bi.Receipts
 	for i := uint64(0); i < block.NumTxs(); i++ {
-		if getReceiptInList(block.Transactions()[i].Hash(), receipts) != nil {
+		if r, _ := getReceiptInList(block.Transactions()[i].Hash(), receipts); r != nil {
 			txs = append(txs, block.Transactions()[i])
 			continue
 		}
