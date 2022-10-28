@@ -300,6 +300,23 @@ func WriteTxLookupEntries(db kaidb.Writer, block *types.Block) {
 	}
 }
 
+// WriteTxLookupEntry stores a positional metadata for a transaction,
+// enabling hash based transaction and receipt lookups.
+func WriteTxLookupEntry(db kaidb.Writer, blockHash common.Hash, blockHeight uint64, txHash common.Hash, txIndex uint64) {
+	entry := TxLookupEntry{
+		BlockHash:  blockHash,
+		BlockIndex: blockHeight,
+		Index:      txIndex,
+	}
+	data, err := rlp.EncodeToBytes(entry)
+	if err != nil {
+		log.Crit("Failed to encode transaction lookup entry", "err", err)
+	}
+	if err := db.Put(TxLookupKey(txHash), data); err != nil {
+		log.Crit("Failed to store transaction lookup entry", "err", err)
+	}
+}
+
 // DeleteTxLookupEntry removes all transaction data associated with a hash.
 func DeleteTxLookupEntry(db kaidb.KeyValueWriter, hash common.Hash) error {
 	if err := db.Delete(TxLookupKey(hash)); err != nil {

@@ -85,6 +85,12 @@ func (s *StoreDB) WriteTxLookupEntries(block *types.Block) {
 	WriteTxLookupEntries(s.db, block)
 }
 
+// WriteTxLookupEntry stores a positional metadata for a transaction,
+// enabling hash based transaction and receipt lookups.
+func (s *StoreDB) WriteTxLookupEntry(blockHash common.Hash, blockHeight uint64, txHash common.Hash, txIndex uint64) {
+	WriteTxLookupEntry(s.db, blockHash, blockHeight, txHash, txIndex)
+}
+
 // WriteHeadBlockHash stores head blockhash to db
 func (s *StoreDB) WriteHeadBlockHash(hash common.Hash) {
 	WriteHeadBlockHash(s.db, hash)

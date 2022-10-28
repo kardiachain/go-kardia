@@ -147,7 +147,7 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCom
 
 	bo.saveBlockInfo(blockInfo, block)
 	bo.blockchain.DB().WriteHeadBlockHash(block.Hash())
-	bo.blockchain.DB().WriteTxLookupEntries(block)
+	//bo.blockchain.DB().WriteTxLookupEntries(block)
 	bo.blockchain.DB().WriteAppHash(block.Height(), root)
 	bo.blockchain.InsertHeadBlock(block)
 
@@ -175,9 +175,10 @@ func (bo *BlockOperations) CommitBlockTxsIfNotFound(block *types.Block, lastComm
 
 // SaveBlock saves the given block, blockParts, and seenCommit to the underlying storage.
 // seenCommit: The +2/3 precommits that were seen which committed at height.
-//             If all the nodes restart after committing a block,
-//             we need this to reload the precommits to catch-up nodes to the
-//             most recent height.  Otherwise they'd stall at H-1.
+//
+//	If all the nodes restart after committing a block,
+//	we need this to reload the precommits to catch-up nodes to the
+//	most recent height.  Otherwise they'd stall at H-1.
 func (bo *BlockOperations) SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) {
 	if block == nil {
 		common.PanicSanity("BlockOperations try to save a nil block")
@@ -308,10 +309,31 @@ LOOP:
 		if err != nil {
 			bo.logger.Error("ApplyTransaction failed", "tx", tx.Hash().Hex(), "nonce", tx.Nonce(), "err", err)
 			state.RevertToSnapshot(snap)
+
+			// Adding the correct receipt (or a fake one)
+			var correctReceipt *types.Receipt
+			cBlockHash, cBlockHeight, cTxIndex := bo.blockchain.DB().ReadTxLookupEntry(tx.Hash())
+			if cBlockHash.Equal(common.Hash{}) {
+				// add a fake one
+				correctReceipt = reconstructBadReceipt(tx)
+				cBlockHeight = header.Height
+				cBlockHash = header.Hash()
+				cTxIndex = uint64(i)
+			} else {
+				// add the correct receipt
+				correctBi := bo.blockchain.DB().ReadBlockInfo(cBlockHash, cBlockHeight)
+				correctReceipt, cTxIndex = getReceiptInList(tx.Hash(), correctBi.Receipts)
+			}
+
+			i++
+			receipts = append(receipts, correctReceipt)
+			bo.blockchain.DB().WriteTxLookupEntry(cBlockHash, cBlockHeight, tx.Hash(), cTxIndex)
+
 			continue LOOP
 		}
 		i++
 		receipts = append(receipts, receipt)
+		bo.blockchain.DB().WriteTxLookupEntry(header.Hash(), header.Height, tx.Hash(), uint64(i))
 	}
 
 	vals, err := bo.staking.ApplyAndReturnValidatorSets(state, header, bo.blockchain, kvmConfig)
@@ -344,4 +366,26 @@ LOOP:
 // saveReceipts saves receipts of block transactions to storage.
 func (bo *BlockOperations) saveBlockInfo(blockInfo *types.BlockInfo, block *types.Block) {
 	bo.blockchain.WriteBlockInfo(block, blockInfo)
+}
+
+func reconstructBadReceipt(tx *types.Transaction) *types.Receipt {
+	return &types.Receipt{
+		PostState:         nil,
+		Status:            0,
+		CumulativeGasUsed: 0,
+		Bloom:             types.Bloom{},
+		Logs:              []*types.Log{},
+		TxHash:            tx.Hash(),
+		ContractAddress:   common.Address{},
+		GasUsed:           0,
+	}
+}
+
+func getReceiptInList(txHash common.Hash, receipts types.Receipts) (*types.Receipt, uint64) {
+	for i := 0; i < receipts.Len(); i++ {
+		if receipts[i].TxHash.Equal(txHash) {
+			return receipts[i], uint64(i)
+		}
+	}
+	return nil, 0
 }
