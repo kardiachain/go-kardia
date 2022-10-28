@@ -86,24 +86,32 @@ func processBlockInfo(store types.StoreDB, block *types.Block, bi *types.BlockIn
 		tx, blockHash, blockHeight, _ := store.ReadTransaction(block.Transactions()[i].Hash())
 		if tx == nil {
 			fmt.Printf("Inserting fake receipt of a bad tx, hash: %v, block height %v\n", block.Transactions()[i].Hash().Hex(), block.Height())
-			receipts = insertReceipts(receipts, i, reconstructBadReceipt(block.Transactions()[i]))
+			badReceipt := reconstructBadReceipt(block.Transactions()[i])
+			receipts = insertReceipts(receipts, i, badReceipt)
+			if err := rewriteTxLookupIndex(store.DB(), block.Hash(), block.Height(), badReceipt, i); err != nil {
+				return err
+			}
 		} else {
 			correctBi := store.ReadBlockInfo(blockHash, blockHeight)
 			correctReceipt := getReceiptInList(block.Transactions()[i].Hash(), correctBi.Receipts)
 			if correctReceipt != nil {
 				fmt.Printf("Correcting receipt of a bad tx, hash: %v, wrong block height %v, correct block height %v\n", block.Transactions()[i].Hash().Hex(), block.Height(), blockHeight)
 				receipts = insertReceipts(receipts, i, correctReceipt)
+				if err := rewriteTxLookupIndex(store.DB(), block.Hash(), block.Height(), correctReceipt, i); err != nil {
+					return err
+				}
 				continue
 			}
 			fmt.Printf("Not found correct receipts, inserting fake receipt of a bad tx, hash: %v, block height %v\n", block.Transactions()[i].Hash().Hex(), block.Height())
-			receipts = insertReceipts(receipts, i, reconstructBadReceipt(block.Transactions()[i]))
+			badReceipt := reconstructBadReceipt(block.Transactions()[i])
+			receipts = insertReceipts(receipts, i, badReceipt)
+			if err := rewriteTxLookupIndex(store.DB(), block.Hash(), block.Height(), badReceipt, i); err != nil {
+				return err
+			}
 		}
 	}
 	bi.Receipts = receipts
 	store.WriteBlockInfo(block.Hash(), block.Height(), bi)
-	if err := rewriteTxLookupIndex(store.DB(), block.Hash(), block.Height(), txs); err != nil {
-		return err
-	}
 	fmt.Printf("Bad block %v, NumTxs %v, NumReceipts %v and %v\n", block.Height(), block.NumTxs(), len(bi.Receipts), len(receipts))
 	return nil
 }
@@ -121,20 +129,18 @@ func reconstructBadReceipt(tx *types.Transaction) *types.Receipt {
 	}
 }
 
-func rewriteTxLookupIndex(db kaidb.Database, blockHash common.Hash, blockHeight uint64, blockTxs types.Transactions) error {
-	for i, tx := range blockTxs {
-		entry := kvstore.TxLookupEntry{
-			BlockHash:  blockHash,
-			BlockIndex: blockHeight,
-			Index:      uint64(i),
-		}
-		data, err := rlp.EncodeToBytes(entry)
-		if err != nil {
-			fmt.Printf("Failed to encode transaction lookup entry: %v\n", err)
-		}
-		if err := db.Put(kvstore.TxLookupKey(tx.Hash()), data); err != nil {
-			fmt.Printf("Failed to store transaction lookup entry %v\n", err)
-		}
+func rewriteTxLookupIndex(db kaidb.Database, blockHash common.Hash, blockHeight uint64, correctReceipts *types.Receipt, index uint64) error {
+	entry := kvstore.TxLookupEntry{
+		BlockHash:  blockHash,
+		BlockIndex: blockHeight,
+		Index:      index,
+	}
+	data, err := rlp.EncodeToBytes(entry)
+	if err != nil {
+		fmt.Printf("Failed to encode transaction lookup entry: %v\n", err)
+	}
+	if err := db.Put(kvstore.TxLookupKey(correctReceipts.TxHash), data); err != nil {
+		fmt.Printf("Failed to store transaction lookup entry %v\n", err)
 	}
 	return nil
 }
