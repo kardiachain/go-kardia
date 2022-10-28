@@ -72,7 +72,7 @@ func loadStoreDB(cfg *Config) (types.StoreDB, error) {
 }
 
 func processBlockInfo(store types.StoreDB, block *types.Block, bi *types.BlockInfo) error {
-	if block.NumTxs() == uint64(len(bi.Receipts)) || block.NumTxs() == 0 {
+	if block.NumTxs() == 0 {
 		return nil
 	}
 
