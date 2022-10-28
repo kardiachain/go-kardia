@@ -57,3 +57,5 @@ GenTxs: # Devnet config to dynamize txs processing
   Index: 1
 Debug: # Devnet config for debugging purposes 
   Port: ":6000"
+  FromBlock: 1
+  ToBlock:

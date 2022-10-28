@@ -45,6 +45,7 @@ func recoverTxLookupEntry(cfg *Config) error {
 		block *types.Block
 		bi    *types.BlockInfo
 	)
+	fmt.Printf("Processing...\n")
 	for i := cfg.Debug.FromBlock; i <= cfg.Debug.EndBlock; i++ {
 		if i%100000 == 0 {
 			fmt.Printf("Processing block %v...\n", i)
