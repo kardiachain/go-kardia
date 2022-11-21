@@ -19,22 +19,23 @@
 package genesis
 
 import (
+	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
 	"math/big"
 	"time"
 
-	"github.com/kardiachain/go-kardia/kvm"
-
-	"github.com/kardiachain/go-kardia/mainchain/staking"
-
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/kaidb"
 	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardia/kai/state"
+	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
+	kmath "github.com/kardiachain/go-kardia/lib/math"
+	"github.com/kardiachain/go-kardia/mainchain/staking"
 	kaiproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -86,6 +87,42 @@ type GenesisAccount struct {
 	Storage map[common.Hash]common.Hash `json:"storage,omitempty"`
 	Balance *big.Int                    `json:"balance" gencodec:"required"`
 	Nonce   uint64                      `json:"nonce,omitempty"`
+}
+
+// field type overrides for gencodec
+type genesisSpecMarshaling struct {
+	Timestamp     time.Time
+	GasLimit      uint64
+	InitialHeight uint64
+	Alloc         map[common.UnprefixedAddress]GenesisAccount
+}
+
+type genesisAccountMarshaling struct {
+	Code    common.Bytes
+	Balance *kmath.HexOrDecimal256
+	Nonce   uint64
+	Storage map[storageJSON]storageJSON
+}
+
+// storageJSON represents a 256 bit byte array, but allows less than 256 bits when
+// unmarshaling from hex.
+type storageJSON common.Hash
+
+func (h *storageJSON) UnmarshalText(text []byte) error {
+	text = bytes.TrimPrefix(text, []byte("0x"))
+	if len(text) > 64 {
+		return fmt.Errorf("too many hex characters in storage key/value %q", text)
+	}
+	offset := len(h) - len(text)/2 // pad on the left
+	if _, err := hex.Decode(h[offset:], text); err != nil {
+		fmt.Println(err)
+		return fmt.Errorf("invalid hex storage key/value %q", text)
+	}
+	return nil
+}
+
+func (h storageJSON) MarshalText() ([]byte, error) {
+	return common.Bytes(h[:]).MarshalText()
 }
 
 // GenesisMismatchError is raised when trying to overwrite an existing

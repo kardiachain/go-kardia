@@ -20,17 +20,21 @@ package types
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
 	"sync/atomic"
 	"unsafe"
 
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/rlp"
 )
 
-//go:generate gencodec -type Receipt -field-override receiptMarshaling -out gen_receipt_json.go
+//go:generate go run github.com/fjl/gencodec@latest -type Receipt -field-override receiptMarshaling -out gen_receipt_json.go
+//go:generate go run ../lib/rlp/rlpgen -type storageBlockInfo -out gen_blockInfo_rlp.go
 
 var (
 	receiptStatusFailedRLP     = []byte{}
@@ -58,6 +62,12 @@ type Receipt struct {
 	TxHash          common.Hash    `json:"transactionHash" gencodec:"required"`
 	ContractAddress common.Address `json:"contractAddress"`
 	GasUsed         uint64         `json:"gasUsed" gencodec:"required"`
+
+	// Inclusion information: These fields provide information about the inclusion of the
+	// transaction corresponding to this receipt.
+	BlockHash        common.Hash `json:"blockHash,omitempty"`
+	BlockHeight      *big.Int    `json:"blockNumber,omitempty"`
+	TransactionIndex uint        `json:"transactionIndex"`
 }
 
 type receiptMarshaling struct {
@@ -158,20 +168,24 @@ type ReceiptForStorage Receipt
 
 // EncodeRLP implements rlp.Encoder, and flattens all content fields of a receipt
 // into an RLP stream.
-func (r *ReceiptForStorage) EncodeRLP(w io.Writer) error {
-	enc := &receiptStorageRLP{
-		PostStateOrStatus: (*Receipt)(r).statusEncoding(),
-		CumulativeGasUsed: r.CumulativeGasUsed,
-		Bloom:             r.Bloom,
-		TxHash:            r.TxHash,
-		ContractAddress:   r.ContractAddress,
-		Logs:              make([]*LogForStorage, len(r.Logs)),
-		GasUsed:           r.GasUsed,
+func (r *ReceiptForStorage) EncodeRLP(_w io.Writer) error {
+	w := rlp.NewEncoderBuffer(_w)
+	outerList := w.List()
+	w.WriteBytes((*Receipt)(r).statusEncoding())
+	w.WriteUint64(r.CumulativeGasUsed)
+	w.WriteBytes(r.Bloom.Bytes())
+	w.WriteBytes(r.TxHash.Bytes())
+	w.WriteBytes(r.ContractAddress.Bytes())
+	logList := w.List()
+	for _, log := range r.Logs {
+		if err := rlp.Encode(w, log); err != nil {
+			return err
+		}
 	}
-	for i, log := range r.Logs {
-		enc.Logs[i] = (*LogForStorage)(log)
-	}
-	return rlp.Encode(w, enc)
+	w.ListEnd(logList)
+	w.WriteUint64(r.GasUsed)
+	w.ListEnd(outerList)
+	return w.Flush()
 }
 
 // DecodeRLP implements rlp.Decoder, and loads both consensus and implementation
@@ -210,6 +224,48 @@ func (r Receipts) GetRlp(i int) []byte {
 	return bytes
 }
 
+// DeriveFields fills the receipts with their computed fields based on consensus
+// data and contextual infos like containing block and transactions.
+func (rs Receipts) DeriveFields(config *configs.ChainConfig, hash common.Hash, height uint64, txs Transactions) error {
+	logIndex := uint(0)
+	if len(txs) != len(rs) {
+		return errors.New("transaction and receipt count mismatch")
+	}
+	for i := 0; i < len(rs); i++ {
+		// The transaction hash can be retrieved from the transaction itself
+		rs[i].TxHash = txs[i].Hash()
+
+		// block location fields
+		rs[i].BlockHash = hash
+		rs[i].BlockHeight = new(big.Int).SetUint64(height)
+		rs[i].TransactionIndex = uint(i)
+
+		// The contract address can be derived from the transaction itself
+		if txs[i].To() == nil && config != nil {
+			// Deriving the signer is expensive, only do if it's actually needed
+			signer := MakeSigner(config, &height)
+			from, _ := Sender(signer, txs[i])
+			rs[i].ContractAddress = crypto.CreateAddress(from, txs[i].Nonce())
+		}
+		// The used gas can be calculated based on previous r
+		if i == 0 {
+			rs[i].GasUsed = rs[i].CumulativeGasUsed
+		} else {
+			rs[i].GasUsed = rs[i].CumulativeGasUsed - rs[i-1].CumulativeGasUsed
+		}
+		// The derived log fields can simply be set from the block and transaction
+		for j := 0; j < len(rs[i].Logs); j++ {
+			rs[i].Logs[j].BlockHeight = height
+			rs[i].Logs[j].BlockHash = hash
+			rs[i].Logs[j].TxHash = rs[i].TxHash
+			rs[i].Logs[j].TxIndex = uint(i)
+			rs[i].Logs[j].Index = logIndex
+			logIndex++
+		}
+	}
+	return nil
+}
+
 type BlockInfo struct {
 	GasUsed  uint64
 	Rewards  *big.Int // block reward
@@ -221,17 +277,17 @@ type BlockInfo struct {
 
 // EncodeRLP implements rlp.Encoder, and flattens all content fields of a block info
 // into an RLP stream.
-func (bi *BlockInfo) EncodeRLP(w io.Writer) error {
-	sbi := storageBlockInfo{
-		Receipts: make([]*ReceiptForStorage, len(bi.Receipts)),
+func (bi *BlockInfo) EncodeRLP(_w io.Writer) error {
+	sbi := &storageBlockInfo{
 		GasUsed:  bi.GasUsed,
 		Rewards:  bi.Rewards,
+		Receipts: make([]*ReceiptForStorage, len(bi.Receipts)),
 		Bloom:    bi.Bloom,
 	}
-	for i, receipt := range bi.Receipts {
-		sbi.Receipts[i] = (*ReceiptForStorage)(receipt)
+	for i, r := range bi.Receipts {
+		sbi.Receipts[i] = (*ReceiptForStorage)(r)
 	}
-	return rlp.Encode(w, sbi)
+	return sbi.EncodeRLP(_w)
 }
 
 func (bi *BlockInfo) DecodeRLP(s *rlp.Stream) error {

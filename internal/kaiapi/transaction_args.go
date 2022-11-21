@@ -146,15 +146,17 @@ func (args *TransactionArgs) UnmarshalJSON(data []byte) error {
 	fromAddress := common.HexToAddress(fromAddressStr)
 	args.From = &fromAddress
 
-	inputStr, ok := params["input"].(string)
-	if !ok {
-		inputStr, ok = params["data"].(string)
+	if params["input"] != nil || params["data"] != nil {
+		inputStr, ok := params["input"].(string)
 		if !ok {
-			return &parseError{param: "input (data)"}
+			inputStr, ok = params["data"].(string)
+			if !ok {
+				return &parseError{param: "input (data)"}
+			}
+			inputField := (common.Bytes)(common.FromHex(inputStr))
+			args.Input = &inputField
+			args.Data = &inputField
 		}
-		inputField := (common.Bytes)(common.FromHex(inputStr))
-		args.Input = &inputField
-		args.Data = &inputField
 	}
 
 	if gas, ok := params["gas"].(float64); ok {

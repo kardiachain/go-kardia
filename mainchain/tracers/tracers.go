@@ -22,6 +22,7 @@ package tracers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -70,5 +71,5 @@ func New(code string, ctx *Context) (Tracer, error) {
 			return tracer, nil
 		}
 	}
-	return nil, errors.New("tracer not found")
+	return nil, errors.New(fmt.Sprintf("tracer not found: %v", code))
 }

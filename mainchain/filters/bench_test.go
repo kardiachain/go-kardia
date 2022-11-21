@@ -99,7 +99,7 @@ func benchmarkBloomBits(b *testing.B, sectionSize uint64) {
 			if header == nil {
 				b.Fatalf("Error creating bloomBits data")
 			}
-			blockInfo := db.ReadBlockInfo(hash, i)
+			blockInfo := db.ReadBlockInfo(hash, i, nil)
 			if blockInfo == nil {
 				b.Fatalf("Error getting block info")
 			}

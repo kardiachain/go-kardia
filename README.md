@@ -1,5 +1,7 @@
 # Go-Kardia
 
+(DEPRECATED) We're moving to [RUST Core](https://github.com/kardiachain/rust-kardia)
+
 [![version](https://img.shields.io/github/release/qubyte/rubidium.svg)](https://github.com/kardiachain/go-kardia/releases/latest)
 [![Go version](https://img.shields.io/badge/go-1.14-blue.svg)](https://github.com/moovweb/gvm)
 [![License: LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)

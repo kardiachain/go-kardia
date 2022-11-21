@@ -37,16 +37,23 @@ func init() {
 }
 
 type callFrame struct {
-	Type    string      `json:"type"`
-	From    string      `json:"from"`
-	To      string      `json:"to,omitempty"`
-	Value   string      `json:"value,omitempty"`
-	Gas     string      `json:"gas"`
-	GasUsed string      `json:"gasUsed"`
-	Input   string      `json:"input"`
-	Output  string      `json:"output,omitempty"`
-	Error   string      `json:"error,omitempty"`
-	Calls   []callFrame `json:"calls,omitempty"`
+	Type         string      `json:"type"`
+	CallType     string      `json:"callType,omitempty"`
+	From         string      `json:"from"`
+	To           string      `json:"to,omitempty"`
+	Value        string      `json:"value,omitempty"`
+	Gas          string      `json:"gas"`
+	GasUsed      string      `json:"gasUsed"`
+	Input        string      `json:"input"`
+	Output       string      `json:"output,omitempty"`
+	Error        string      `json:"error,omitempty"`
+	TraceAddress []int       `json:"traceAddress"`
+	Calls        []callFrame `json:"calls,omitempty"`
+
+	// optional CREATE fields
+	Init                       string `json:"init,omitempty"`
+	CreatedContractAddressHash string `json:"createdContractAddressHash,omitempty"`
+	CreatedContractCode        string `json:"createdContractCode,omitempty"`
 }
 
 type callTracer struct {
@@ -54,6 +61,7 @@ type callTracer struct {
 	callstack []callFrame
 	interrupt uint32 // Atomic flag to signal execution interruption
 	reason    error  // Textual reason for the interruption
+	name      string // to distinguish the native call tracer from the replay tracer
 }
 
 // newCallTracer returns a native go tracer which tracks
@@ -61,20 +69,23 @@ type callTracer struct {
 func newCallTracer() tracers.Tracer {
 	// First callframe contains tx context info
 	// and is populated on start and end.
-	t := &callTracer{callstack: make([]callFrame, 1)}
-	return t
+	return &callTracer{
+		callstack: make([]callFrame, 1),
+		name:      "callTracer",
+	}
 }
 
 // CaptureStart implements the KVMLogger interface to initialize the tracing operation.
 func (t *callTracer) CaptureStart(env *kvm.KVM, from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
 	t.env = env
 	t.callstack[0] = callFrame{
-		Type:  "CALL",
-		From:  addrToHex(from),
-		To:    addrToHex(to),
-		Input: bytesToHex(input),
-		Gas:   uintToHex(gas),
-		Value: bigToHex(value),
+		Type:         "CALL",
+		From:         addrToHex(from),
+		To:           addrToHex(to),
+		Input:        bytesToHex(input),
+		Gas:          uintToHex(gas),
+		Value:        bigToHex(value),
+		TraceAddress: []int{},
 	}
 	if create {
 		t.callstack[0].Type = "CREATE"
@@ -151,7 +162,15 @@ func (t *callTracer) GetResult() (json.RawMessage, error) {
 	if len(t.callstack) != 1 {
 		return nil, errors.New("incorrect number of top-level calls")
 	}
-	res, err := json.Marshal(t.callstack[0])
+	var (
+		res []byte
+		err error
+	)
+	if t.name == "replayTracer" {
+		res, err = json.Marshal(t.formatReplayedStack())
+	} else {
+		res, err = json.Marshal(t.callstack[0])
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -181,4 +200,47 @@ func uintToHex(n uint64) string {
 
 func addrToHex(a common.Address) string {
 	return strings.ToLower(a.Hex())
+}
+
+func (t *callTracer) formatReplayedStack() []callFrame {
+	replayedStack := sequence(t.callstack[0], []callFrame{}, []int{})
+	for i := range replayedStack {
+		formatCallType(&replayedStack[i])
+	}
+	return replayedStack
+}
+
+func sequence(call callFrame, callSequence []callFrame, traceAddress []int) []callFrame {
+	subcalls := call.Calls
+	call.Calls = nil
+
+	call.TraceAddress = traceAddress
+
+	newCallSequence := append(callSequence, call)
+	if subcalls != nil {
+		for i := range subcalls {
+			newCallSequence = sequence(subcalls[i], newCallSequence, append(traceAddress, i))
+		}
+	}
+	return newCallSequence
+}
+
+func formatCallType(in *callFrame) {
+	switch in.Type {
+	case "CALL", "DELEGATECALL", "STATICCALL":
+		in.CallType = strings.ToLower(in.Type)
+		in.Type = "call"
+	case "CREATE", "CREATE2":
+		in.CallType = strings.ToLower(in.Type)
+		in.Type = "create"
+		in.Init = in.Input
+		in.CreatedContractCode = in.Output
+		in.CreatedContractAddressHash = in.To
+		in.Input = ""
+		in.Output = ""
+		in.To = ""
+	case "SELFDESTRUCT":
+		in.CallType = strings.ToLower(in.Type)
+		in.Type = "selfdestruct"
+	}
 }

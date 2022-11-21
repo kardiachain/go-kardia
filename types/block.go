@@ -45,7 +45,8 @@ var (
 	EmptyRootHash = DeriveSha(Transactions{})
 )
 
-//go:generate gencodec -type Header -field-override headerMarshaling -out gen_header_json.go
+//go:generate go run github.com/fjl/gencodec -type Header -field-override headerMarshaling -out gen_header_json.go
+//go:generate go run ../lib/rlp/rlpgen -type Header -out gen_header_rlp.go
 
 // Header represents a block header in the Kardia blockchain.
 type Header struct {
@@ -72,6 +73,14 @@ type Header struct {
 	AppHash            common.Hash `json:"appHash"`           // state after txs from the previous block
 	// consensus info
 	EvidenceHash common.Hash `json:"evidenceHash"` // evidence included in the block
+}
+
+// field type overrides for gencodec
+type headerMarshaling struct {
+	Height   uint64
+	GasLimit uint64
+	Time     time.Time
+	Hash     common.Hash `json:"hash"` // adds call to Hash() in MarshalJSON
 }
 
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its

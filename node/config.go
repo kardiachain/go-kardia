@@ -21,6 +21,7 @@ package node
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -144,6 +145,22 @@ type Config struct {
 
 	// Configuration of peer-to-peer networking.
 	P2P *configs.P2PConfig
+
+	// KeyStoreDir is the file system folder that contains private keys. The directory can
+	// be specified as a relative path, in which case it is resolved relative to the
+	// current directory.
+	//
+	// If KeyStoreDir is empty, the default location is the "keystore" subdirectory of
+	// DataDir. If DataDir is unspecified and KeyStoreDir is empty, an ephemeral directory
+	// is created by New and destroyed when the node is stopped.
+	KeyStoreDir string
+
+	// UseLightweightKDF lowers the memory and CPU requirements of the key store
+	// scrypt KDF at the expense of security.
+	UseLightweightKDF bool
+
+	// InsecureUnlockAllowed allows user to unlock accounts in unsafe http environment.
+	InsecureUnlockAllowed bool
 
 	// IPCPath is the requested location to place the IPC endpoint. If the path is
 	// a simple file name, it is placed inside the data directory (or on the root
@@ -434,4 +451,49 @@ func NewNodeMetadata(privateKey *string, publicKey *string, votingPower uint64, 
 		node.PublicKey = pubKey
 	}
 	return node, nil
+}
+
+// KeyDirConfig determines the settings for keydirectory
+func (c *Config) KeyDirConfig() (string, error) {
+	var (
+		keydir string
+		err    error
+	)
+	switch {
+	case filepath.IsAbs(c.KeyStoreDir):
+		keydir = c.KeyStoreDir
+	case c.DataDir != "":
+		if c.KeyStoreDir == "" {
+			keydir = filepath.Join(c.DataDir, datadirDefaultKeyStore)
+		} else {
+			keydir, err = filepath.Abs(c.KeyStoreDir)
+		}
+	case c.KeyStoreDir != "":
+		keydir, err = filepath.Abs(c.KeyStoreDir)
+	}
+	return keydir, err
+}
+
+// getKeyStoreDir retrieves the key directory and will create
+// and ephemeral one if necessary.
+func getKeyStoreDir(conf *Config) (string, bool, error) {
+	keydir, err := conf.KeyDirConfig()
+	if err != nil {
+		return "", false, err
+	}
+	isEphemeral := false
+	if keydir == "" {
+		// There is no datadir.
+		keydir, err = ioutil.TempDir("", "go-ethereum-keystore")
+		isEphemeral = true
+	}
+
+	if err != nil {
+		return "", false, err
+	}
+	if err := os.MkdirAll(keydir, 0700); err != nil {
+		return "", false, err
+	}
+
+	return keydir, isEphemeral, nil
 }

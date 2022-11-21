@@ -83,7 +83,7 @@ func (b *testBackend) BlockInfoByBlockHash(ctx context.Context, hash common.Hash
 	if height == nil {
 		return nil
 	}
-	return b.db.ReadBlockInfo(hash, *height)
+	return b.db.ReadBlockInfo(hash, *height, nil)
 }
 
 func (b *testBackend) GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error) {

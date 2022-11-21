@@ -49,52 +49,49 @@ import (
 )
 
 // To generate a new callTracer test, copy paste the makeTest method below into
-// a Geth console and call it with a transaction hash you which to export.
+// a Gkai console and call it with a transaction hash you which to export.
 
 /*
-// makeTest generates a callTracer test by running a prestate reassembled and a
+// makeTest generates a callTracer test by running a pre-state reassembled and a
 // call trace run, assembling all the gathered information into a test case.
-var makeTest = function(tx, rewind) {
-  // Generate the genesis block from the block, transaction and prestate data
-  var block   = eth.getBlock(eth.getTransaction(tx).blockHash);
-  var genesis = eth.getBlock(block.parentHash);
+var makeTest = function (tx, rewind) {
+    // Generate the genesis block from the block, transaction and prestate data
+    var block = eth.getBlock(eth.getTransaction(tx).blockHash);
+    var genesis = eth.getBlock(block.parentHash);
 
-  delete genesis.gasUsed;
-  delete genesis.logsBloom;
-  delete genesis.parentHash;
-  delete genesis.receiptsRoot;
-  delete genesis.sha3Uncles;
-  delete genesis.size;
-  delete genesis.transactions;
-  delete genesis.transactionsRoot;
-  delete genesis.uncles;
+    delete genesis.gasUsed;
+    delete genesis.logsBloom;
+    delete genesis.parentHash;
+    delete genesis.receiptsRoot;
+    delete genesis.sha3Uncles;
+    delete genesis.size;
+    delete genesis.transactions;
+    delete genesis.transactionsRoot;
+    delete genesis.uncles;
 
-  genesis.gasLimit  = genesis.gasLimit.toString();
-  genesis.number    = genesis.number.toString();
-  genesis.timestamp = genesis.timestamp.toString();
+    genesis.gasLimit = genesis.gasLimit.toString();
+    genesis.number = genesis.number.toString();
+    genesis.timestamp = genesis.timestamp.toString();
 
-  genesis.alloc = debug.traceTransaction(tx, {tracer: "prestateTracer", rewind: rewind});
-  for (var key in genesis.alloc) {
-    genesis.alloc[key].nonce = genesis.alloc[key].nonce.toString();
-  }
-  genesis.config = admin.nodeInfo.protocols.eth.config;
+    genesis.alloc = debug.traceTransaction(tx, { tracer: "prestateTracer", rewind: rewind });
+    genesis.config = node.nodeInfo.config;
 
-  // Generate the call trace and produce the test input
-  var result = debug.traceTransaction(tx, {tracer: "callTracer", rewind: rewind});
-  delete result.time;
+    // Generate the call trace and produce the test input
+    var result = debug.traceTransaction(tx, { tracer: "callTracer", rewind: rewind });
+    delete result.time;
 
-  console.log(JSON.stringify({
-    genesis: genesis,
-    context: {
-      number:     block.number.toString(),
-      difficulty: block.difficulty,
-      timestamp:  block.timestamp.toString(),
-      gasLimit:   block.gasLimit.toString(),
-      miner:      block.miner,
-    },
-    input:  eth.getRawTransaction(tx),
-    result: result,
-  }, null, 2));
+    console.log(JSON.stringify({
+        genesis: genesis,
+        context: {
+            number: block.number.toString(),
+            difficulty: block.difficulty,
+            timestamp: block.timestamp.toString(),
+            gasLimit: block.gasLimit.toString(),
+            miner: block.miner,
+        },
+        input: eth.getRawTransaction(tx),
+        result: result,
+    }, null, 2));
 }
 */
 
@@ -126,96 +123,92 @@ type callTracerTest struct {
 	Context *callContext     `json:"context"`
 	Input   string           `json:"input"`
 	Result  *callTrace       `json:"result"`
+	TxHash  string           `json:"txHash"`
 }
 
-// Iterates over all the input-output datasets in the tracer test harness and
-// runs the JavaScript tracers against them.
-// func TestCallTracerLegacy(t *testing.T) {
-// 	testCallTracer("callTracerLegacy", "call_tracer_legacy", t)
-// }
+func testCallTracer(tracer string, dirPath string, t *testing.T) {
+	files, err := ioutil.ReadDir(filepath.Join("testdata", dirPath))
+	if err != nil {
+		t.Fatalf("failed to retrieve tracer test suite: %v", err)
+	}
+	for _, file := range files {
+		if !strings.HasSuffix(file.Name(), ".json") {
+			continue
+		}
+		file := file // capture range variable
+		t.Run(camel(strings.TrimSuffix(file.Name(), ".json")), func(t *testing.T) {
+			t.Parallel()
 
-// func testCallTracer(tracer string, dirPath string, t *testing.T) {
-// 	files, err := ioutil.ReadDir(filepath.Join("testdata", dirPath))
-// 	if err != nil {
-// 		t.Fatalf("failed to retrieve tracer test suite: %v", err)
-// 	}
-// 	for _, file := range files {
-// 		if !strings.HasSuffix(file.Name(), ".json") {
-// 			continue
-// 		}
-// 		file := file // capture range variable
-// 		t.Run(camel(strings.TrimSuffix(file.Name(), ".json")), func(t *testing.T) {
-// 			t.Parallel()
+			var (
+				test = new(callTracerTest)
+				tx   = new(types.Transaction)
+			)
+			// Call tracer test found, read if from disk
+			if blob, err := ioutil.ReadFile(filepath.Join("testdata", dirPath, file.Name())); err != nil {
+				t.Fatalf("failed to read testcase: %v", err)
+			} else if err := json.Unmarshal(blob, test); err != nil {
+				t.Fatalf("failed to parse testcase: %v", err)
+			}
+			// Configure a blockchain with the given prestate
+			if err := rlp.DecodeBytes(common.FromHex(test.Input), tx); err != nil {
+				t.Fatalf("failed to parse testcase input: %v", err)
+			}
+			blockHeight := (uint64)(test.Context.Number)
+			signer := types.MakeSigner(test.Genesis.Config, &blockHeight)
+			origin, _ := signer.Sender(tx)
+			txContext := kvm.TxContext{
+				Origin:   origin,
+				GasPrice: tx.GasPrice(),
+			}
+			context := kvm.BlockContext{
+				CanTransfer: vm.CanTransfer,
+				Transfer:    vm.Transfer,
+				Coinbase:    test.Context.Miner,
+				BlockHeight: new(big.Int).SetUint64(uint64(test.Context.Number)),
+				Time:        new(big.Int).SetUint64(uint64(test.Context.Time)),
+				GasLimit:    uint64(test.Context.GasLimit),
+			}
+			statedb := tests.MakePreState(storage.NewMemoryDatabase().DB(), test.Genesis.Alloc)
 
-// 			// Call tracer test found, read if from disk
-// 			blob, err := ioutil.ReadFile(filepath.Join("testdata", dirPath, file.Name()))
-// 			if err != nil {
-// 				t.Fatalf("failed to read testcase: %v", err)
-// 			}
-// 			test := new(callTracerTest)
-// 			if err := json.Unmarshal(blob, test); err != nil {
-// 				t.Fatalf("failed to parse testcase: %v", err)
-// 			}
-// 			// Configure a blockchain with the given prestate
-// 			tx := new(types.Transaction)
-// 			if err := rlp.DecodeBytes(common.FromHex(test.Input), tx); err != nil {
-// 				t.Fatalf("failed to parse testcase input: %v", err)
-// 			}
-// 			signer := types.HomesteadSigner{}
-// 			origin, _ := signer.Sender(tx)
-// 			txContext := kvm.TxContext{
-// 				Origin:   origin,
-// 				GasPrice: tx.GasPrice(),
-// 			}
-// 			context := kvm.BlockContext{
-// 				CanTransfer: vm.CanTransfer,
-// 				Transfer:    vm.Transfer,
-// 				Coinbase:    test.Context.Miner,
-// 				BlockHeight: new(big.Int).SetUint64(uint64(test.Context.Number)),
-// 				Time:        new(big.Int).SetUint64(uint64(test.Context.Time)),
-// 				GasLimit:    uint64(test.Context.GasLimit),
-// 			}
-// 			_, statedb := tests.MakePreState(kaidb.NewMemoryDatabase(), test.Genesis.Alloc, false)
+			// Create the tracer, the kvm environment and run it
+			tracer, err := tracers.New(tracer, new(tracers.Context))
+			if err != nil {
+				t.Fatalf("failed to create call tracer: %v", err)
+			}
+			kvm := kvm.NewKVM(context, txContext, statedb, test.Genesis.Config, kvm.Config{Debug: true, Tracer: tracer})
 
-// 			// Create the tracer, the kvm environment and run it
-// 			tracer, err := New(tracer, new(Context))
-// 			if err != nil {
-// 				t.Fatalf("failed to create call tracer: %v", err)
-// 			}
-// 			kvm := kvm.NewKVM(context, txContext, statedb, test.Genesis.Config, kvm.Config{Debug: true, Tracer: tracer})
+			msg, err := tx.AsMessage(signer)
+			if err != nil {
+				t.Fatalf("failed to prepare transaction for tracing: %v", err)
+			}
+			st := blockchain.NewStateTransition(kvm, msg, new(types.GasPool).AddGas(tx.Gas()))
+			if _, err = st.TransitionDb(); err != nil {
+				t.Fatalf("failed to execute transaction: %v", err)
+			}
+			// Retrieve the trace result and compare against the etalon
+			res, err := tracer.GetResult()
+			if err != nil {
+				t.Fatalf("failed to retrieve trace result: %v", err)
+			}
+			ret := new(callTrace)
+			if err := json.Unmarshal(res, ret); err != nil {
+				t.Fatalf("failed to unmarshal trace result: %v", err)
+			}
 
-// 			msg, err := tx.AsMessage(signer)
-// 			if err != nil {
-// 				t.Fatalf("failed to prepare transaction for tracing: %v", err)
-// 			}
-// 			st := blockchain.NewStateTransition(kvm, msg, new(types.GasPool).AddGas(tx.Gas()))
-// 			if _, err = st.TransitionDb(); err != nil {
-// 				t.Fatalf("failed to execute transaction: %v", err)
-// 			}
-// 			// Retrieve the trace result and compare against the etalon
-// 			res, err := tracer.GetResult()
-// 			if err != nil {
-// 				t.Fatalf("failed to retrieve trace result: %v", err)
-// 			}
-// 			ret := new(callTrace)
-// 			if err := json.Unmarshal(res, ret); err != nil {
-// 				t.Fatalf("failed to unmarshal trace result: %v", err)
-// 			}
+			if !jsonEqual(ret, test.Result) {
+				// uncomment this for easier debugging
+				//have, _ := json.MarshalIndent(ret, "", " ")
+				//want, _ := json.MarshalIndent(test.Result, "", " ")
+				//t.Fatalf("trace mismatch: \nhave %+v\nwant %+v", string(have), string(want))
+				t.Fatalf("trace mismatch: \nhave %+v\nwant %+v", ret, test.Result)
+			}
+		})
+	}
+}
 
-// 			if !jsonEqual(ret, test.Result) {
-// 				// uncomment this for easier debugging
-// 				//have, _ := json.MarshalIndent(ret, "", " ")
-// 				//want, _ := json.MarshalIndent(test.Result, "", " ")
-// 				//t.Fatalf("trace mismatch: \nhave %+v\nwant %+v", string(have), string(want))
-// 				t.Fatalf("trace mismatch: \nhave %+v\nwant %+v", ret, test.Result)
-// 			}
-// 		})
-// 	}
-// }
-
-// func TestCallTracer(t *testing.T) {
-// 	testCallTracer("callTracer", "call_tracer", t)
-// }
+func TestCallTracer(t *testing.T) {
+	testCallTracer("callTracer", "call_tracer", t)
+}
 
 // jsonEqual is similar to reflect.DeepEqual, but does a 'bounce' via json prior to
 // comparison
@@ -263,7 +256,8 @@ func BenchmarkTracers(b *testing.B) {
 			if err := json.Unmarshal(blob, test); err != nil {
 				b.Fatalf("failed to parse testcase: %v", err)
 			}
-			benchTracer("callTracerNative", test, b)
+			benchTracer("callTracer", test, b)
+			//benchTracer("replayTracerLegacy", test, b) // for benchmarking purposes
 		})
 	}
 }
@@ -274,12 +268,14 @@ func benchTracer(tracerName string, test *callTracerTest, b *testing.B) {
 	if err := rlp.DecodeBytes(common.FromHex(test.Input), tx); err != nil {
 		b.Fatalf("failed to parse testcase input: %v", err)
 	}
-	signer := types.HomesteadSigner{}
+	blockHeight := uint64(test.Context.Number)
+	signer := types.MakeSigner(test.Genesis.Config, &blockHeight)
+	origin, _ := signer.Sender(tx)
 	msg, err := tx.AsMessage(signer)
 	if err != nil {
 		b.Fatalf("failed to prepare transaction for tracing: %v", err)
 	}
-	origin, _ := signer.Sender(tx)
+	origin, _ = signer.Sender(tx)
 	txContext := kvm.TxContext{
 		Origin:   origin,
 		GasPrice: tx.GasPrice(),

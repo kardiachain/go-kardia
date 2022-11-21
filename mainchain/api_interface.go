@@ -82,8 +82,10 @@ type APIBackend interface {
 
 func (k *KardiaService) HeaderByHeight(ctx context.Context, height rpc.BlockHeight) *types.Header {
 	// Return the latest block if rpc.LatestBlockHeight or rpc.PendingBlockHeight has been passed in
-	if height.Uint64() >= rpc.PendingBlockHeight.Uint64() {
+	if height.Uint64() == rpc.PendingBlockHeight.Uint64() {
 		return k.blockchain.CurrentBlock().Header()
+	} else if height.Uint64() == rpc.LatestBlockHeight.Uint64() {
+		return k.blockchain.GetHeaderByHeight(k.blockchain.CurrentBlock().Header().Height - 1)
 	}
 	return k.blockchain.GetHeaderByHeight(height.Uint64())
 }
@@ -156,7 +158,7 @@ func (k *KardiaService) BlockInfoByBlockHash(ctx context.Context, hash common.Ha
 			Bloom:    types.Bloom{},
 		}
 	}
-	return k.DB().ReadBlockInfo(hash, *height)
+	return k.DB().ReadBlockInfo(hash, *height, k.chainConfig)
 }
 
 func (k *KardiaService) StateAndHeaderByHeight(ctx context.Context, height rpc.BlockHeight) (*state.StateDB, *types.Header, error) {
@@ -191,7 +193,7 @@ func (k *KardiaService) GetKVM(ctx context.Context, msg types.Message, state *st
 	vmError := func() error { return nil }
 
 	context := vm.NewKVMContext(msg, header, k.BlockChain())
-	return kvm.NewKVM(context, blockchain.NewKVMTxContext(msg), state, configs.MainnetChainConfig, *k.blockchain.GetVMConfig()), vmError, nil
+	return kvm.NewKVM(context, blockchain.NewKVMTxContext(msg), state, k.chainConfig, *k.blockchain.GetVMConfig()), vmError, nil
 }
 
 // ValidatorsListFromStakingContract returns all validators on staking

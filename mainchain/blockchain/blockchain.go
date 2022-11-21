@@ -298,11 +298,11 @@ func (bc *BlockChain) repair(head **types.Block) error {
 			return nil
 		}
 		// Otherwise rewind one block and recheck state availability there
-		lastCommitHash := (*head).LastCommitHash()
+		lastBlockHash := (*head).LastBlockHash()
 		lastHeight := (*head).Height() - 1
-		block := bc.GetBlock(lastCommitHash, lastHeight)
+		block := bc.GetBlock(lastBlockHash, lastHeight)
 		if block == nil {
-			return fmt.Errorf("Missing block height: %d [%x]", lastHeight, lastCommitHash)
+			return fmt.Errorf("missing block height: %d [%x]", lastHeight, lastBlockHash)
 		}
 		*head = block
 	}
@@ -341,6 +341,7 @@ func (bc *BlockChain) SetHead(head uint64) error {
 
 	// Rewind the header chain, deleting all block bodies until then
 	delFn := func(db types.StoreDB, height uint64) {
+		db.DeleteBlockMeta(height)
 		db.DeleteBlockPart(height)
 	}
 	bc.hc.SetHead(head, delFn)
@@ -389,7 +390,7 @@ func (bc *BlockChain) WriteBlockInfo(block *types.Block, blockInfo *types.BlockI
 }
 
 // CommitTrie commits trie node such as statedb forcefully to disk.
-func (bc BlockChain) CommitTrie(root common.Hash) error {
+func (bc *BlockChain) CommitTrie(root common.Hash) error {
 	triedb := bc.stateCache.TrieDB()
 	return triedb.Commit(root, false)
 }

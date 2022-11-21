@@ -192,7 +192,7 @@ func (b *BloomIndexer) processSection(section uint64, lastHead common.Hash) (com
 		if header == nil {
 			return common.Hash{}, fmt.Errorf("block #%d [%x…] not found", number, hash[:4])
 		}
-		blockInfo := db.ReadBlockInfo(hash, number)
+		blockInfo := db.ReadBlockInfo(hash, number, nil)
 		if blockInfo == nil {
 			return common.Hash{}, fmt.Errorf("block info #%d [%x…] not found", number, hash[:4])
 		}

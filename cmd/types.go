@@ -52,6 +52,7 @@ type (
 		GasOracle            *GasOracle `yaml:"GasOracle"`
 		Genesis              *Genesis   `yaml:"Genesis,omitempty"`
 		TimeOutForStaticCall int        `yaml:"TimeOutForStaticCall,omitempty"`
+		KeyStoreConfig       `yaml:"KeyStoreConfig,omitempty"`
 	}
 	GasOracle struct {
 		Blocks     int    `yaml:"Blocks"`
@@ -153,6 +154,11 @@ type (
 		MaxAgeNumBlocks int64 `yaml:"MaxAgeNumBlocks"`
 		MaxAgeDuration  int   `yaml:"MaxAgeDuration"`
 		MaxBytes        int64 `yaml:"MaxBytes"`
+	}
+	KeyStoreConfig struct {
+		KeyStoreDir           string `yaml:"KeyStoreDir"`
+		UseLightweightKDF     bool   `yaml:"UseLightweightKDF"`
+		InsecureUnlockAllowed bool   `yaml:"InsecureUnlockAllowed"`
 	}
 	Debug struct {
 		Port string `yaml:"Port"`

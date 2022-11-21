@@ -23,9 +23,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/kardiachain/go-kardia/kai/accounts/abi"
 	"github.com/kardiachain/go-kardia/ksml"
 	message "github.com/kardiachain/go-kardia/ksml/proto"
-	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/stretchr/testify/require"
 )

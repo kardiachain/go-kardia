@@ -162,9 +162,9 @@ func (hc *HeaderChain) SetHead(head uint64, delFn DeleteCallback) {
 		if delFn != nil {
 			delFn(hc.kaiDb, height)
 		}
+		hc.kaiDb.DeleteBlockMeta(height)
 		hc.kaiDb.DeleteBlockPart(height)
-
-		hc.currentHeader.Store(hc.GetHeader(hdr.LastCommitHash, hdr.Height-1))
+		hc.currentHeader.Store(hc.GetHeader(hdr.LastBlockID.Hash, hdr.Height-1))
 	}
 	// Roll back the canonical chain numbering
 	for i := height; i > head; i-- {
