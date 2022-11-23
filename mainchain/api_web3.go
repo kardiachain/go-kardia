@@ -106,10 +106,10 @@ func (s *PublicWeb3API) GetHeaderByHash(ctx context.Context, hash common.Hash) m
 }
 
 // GetBlockByNumber returns the requested canonical block.
-// * When blockNr is -1 the chain head is returned.
-// * When blockNr is -2 the pending chain head is returned.
-// * When fullTx is true all transactions in the block are returned, otherwise
-//   only the transaction hash is returned.
+//   - When blockNr is -1 the chain head is returned.
+//   - When blockNr is -2 the pending chain head is returned.
+//   - When fullTx is true all transactions in the block are returned, otherwise
+//     only the transaction hash is returned.
 func (s *PublicWeb3API) GetBlockByNumber(ctx context.Context, height rpc.BlockHeight, fullTx bool) (map[string]interface{}, error) {
 	block := s.kaiService.BlockByHeight(ctx, height)
 	if block != nil {
@@ -333,41 +333,9 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	if blockInfo == nil {
 		return nil, ErrBlockInfoNotFound
 	}
-	// return the receipt if tx and receipt hashes at index are the same
-	if len(blockInfo.Receipts) > int(index) && blockInfo.Receipts[index].TxHash.Equal(hash) {
-		receipt := blockInfo.Receipts[index]
-		return getWeb3Receipt(s.kaiService.chainConfig, receipt, tx, blockHash, blockHeight, index, blockInfo), nil
-	}
-	// else traverse receipts list to find the corresponding receipt of txHash
-	for _, r := range blockInfo.Receipts {
-		if !r.TxHash.Equal(hash) {
-			continue
-		} else {
-			receipt := r
-			return getWeb3Receipt(s.kaiService.chainConfig, receipt, tx, blockHash, blockHeight, index, blockInfo), nil
-		}
-	}
 
-	// dirty hack searching receipt in the few previous block
-	for i := uint64(1); i <= 2; i++ {
-		block := s.kaiService.BlockByHeight(ctx, rpc.BlockHeight(blockHeight-i))
-		// get receipts from db
-		blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, block.Hash())
-		if blockInfo == nil {
-			return nil, ErrBlockInfoNotFound
-		}
-		for _, r := range blockInfo.Receipts {
-			if !r.TxHash.Equal(hash) {
-				continue
-			} else {
-				// update the correct lookup entry and try again
-				s.kaiService.kaiDb.WriteTxLookupEntries(block, blockInfo.Receipts)
-				return s.GetTransactionReceipt(ctx, hash)
-			}
-		}
-	}
-	// return nil if not found
-	return nil, nil
+	receipt := blockInfo.Receipts[index]
+	return getWeb3Receipt(s.kaiService.chainConfig, receipt, tx, blockHash, blockHeight, index, blockInfo), nil
 }
 
 func getWeb3Receipt(config *configs.ChainConfig, receipt *types.Receipt, tx *types.Transaction, blockHash common.Hash, blockHeight, index uint64, blockInfo *types.BlockInfo) map[string]interface{} {
