@@ -641,41 +641,8 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 	if blockInfo == nil {
 		return nil, ErrBlockInfoNotFound
 	}
-	// return the receipt if tx and receipt hashes at index are the same
-	if len(blockInfo.Receipts) > int(index) && blockInfo.Receipts[index].TxHash.Equal(txHash) {
-		receipt := blockInfo.Receipts[index]
-		return getPublicReceipt(a.s.chainConfig, *receipt, tx, blockHash, height, index), nil
-	}
-	// else traverse receipts list to find the corresponding receipt of txHash
-	for _, r := range blockInfo.Receipts {
-		if !r.TxHash.Equal(txHash) {
-			continue
-		} else {
-			receipt := r
-			return getPublicReceipt(a.s.chainConfig, *receipt, tx, blockHash, height, index), nil
-		}
-	}
-
-	// dirty hack searching receipt in the few previous block
-	for i := uint64(1); i <= 2; i++ {
-		block := a.s.BlockByHeight(ctx, rpc.BlockHeight(height-i))
-		// get receipts from db
-		blockInfo := a.s.BlockInfoByBlockHash(ctx, block.Hash())
-		if blockInfo == nil {
-			return nil, ErrBlockInfoNotFound
-		}
-		for _, r := range blockInfo.Receipts {
-			if !r.TxHash.Equal(txHash) {
-				continue
-			} else {
-				// update the correct lookup entry and try again
-				a.s.kaiDb.WriteTxLookupEntries(block, blockInfo.Receipts)
-				return a.GetTransactionReceipt(ctx, hash)
-			}
-		}
-	}
-	// return nil if not found
-	return nil, nil
+	receipt := blockInfo.Receipts[index]
+	return getPublicReceipt(a.s.chainConfig, *receipt, tx, blockHash, height, index), nil
 }
 
 // GetRawTransactionByHash returns the bytes of the transaction for the given hash.
