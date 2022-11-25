@@ -63,4 +63,5 @@ type StoreDB interface {
 	DeleteBlockMeta(height uint64) error
 	DeleteBlockPart(height uint64) error
 	DeleteCanonicalHash(height uint64)
+	DeleteTxLookupEntry(txHash common.Hash) error
 }

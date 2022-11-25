@@ -91,6 +91,11 @@ func (s *StoreDB) WriteTxLookupEntry(blockHash common.Hash, blockHeight uint64, 
 	WriteTxLookupEntry(s.db, blockHash, blockHeight, txHash, txIndex)
 }
 
+// DeleteTxLookupEntry
+func (s *StoreDB) DeleteTxLookupEntry(txHash common.Hash) error {
+	return DeleteTxLookupEntry(s.db, txHash)
+}
+
 // WriteHeadBlockHash stores head blockhash to db
 func (s *StoreDB) WriteHeadBlockHash(hash common.Hash) {
 	WriteHeadBlockHash(s.db, hash)

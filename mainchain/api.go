@@ -597,7 +597,7 @@ func getReceiptLogs(receipt types.Receipt) []Log {
 	return nil
 }
 
-// getTransactionReceipt gets transaction receipt from transaction, blockHash, blockHeight and index.
+// getPublicReceipt gets transaction receipt from transaction, blockHash, blockHeight and index.
 func getPublicReceipt(config *configs.ChainConfig, receipt types.Receipt, tx *types.Transaction, blockHash common.Hash, blockHeight, index uint64) *PublicReceipt {
 	from, _ := types.Sender(types.LatestSigner(config), tx)
 	logs := getReceiptLogs(receipt)
