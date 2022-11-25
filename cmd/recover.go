@@ -117,7 +117,7 @@ func processBlockInfo(store types.StoreDB, block *types.Block, bi *types.BlockIn
 		return nil
 	}
 
-	if block.NumTxs() == uint64(len(bi.Receipts)) {
+	if bi == nil || block.NumTxs() == uint64(len(bi.Receipts)) {
 		// Normal block detected
 		// UPDATE TxLookupIndex of every good tx which also has the corresponding receipt on the way because we deleted it all
 		store.WriteTxLookupEntries(block)
