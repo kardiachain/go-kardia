@@ -455,6 +455,7 @@ func init() {
 	app.Name = "root"
 	app.Commands = []cli.Command{
 		recoverTxLookupIndexCmd,
+		removeTxLookupIndexCmd,
 	}
 
 	app.Flags = []cli.Flag{
