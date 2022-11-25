@@ -324,16 +324,15 @@ LOOP:
 				correctBi := bo.blockchain.DB().ReadBlockInfo(cBlockHash, cBlockHeight)
 				correctReceipt, cTxIndex = getReceiptInList(tx.Hash(), correctBi.Receipts)
 			}
-
-			i++
 			receipts = append(receipts, correctReceipt)
 			bo.blockchain.DB().WriteTxLookupEntry(cBlockHash, cBlockHeight, tx.Hash(), cTxIndex)
+			i++
 
 			continue LOOP
 		}
-		i++
 		receipts = append(receipts, receipt)
 		bo.blockchain.DB().WriteTxLookupEntry(header.Hash(), header.Height, tx.Hash(), uint64(i))
+		i++
 	}
 
 	vals, err := bo.staking.ApplyAndReturnValidatorSets(state, header, bo.blockchain, kvmConfig)
