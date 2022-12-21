@@ -334,13 +334,11 @@ func (db *TrieDatabase) node(hash common.Hash, cachegen uint16) node {
 	if node != nil {
 		return node.obj(hash, cachegen)
 	}
-
 	// Content unavailable in memory, attempt to retrieve from disk
 	enc, err := db.diskdb.Get(hash[:])
 	if err != nil || enc == nil {
 		return nil
 	}
-
 	return mustDecodeNode(hash[:], enc, cachegen)
 }
 
@@ -356,12 +354,7 @@ func (db *TrieDatabase) Node(hash common.Hash) ([]byte, error) {
 		return node.rlp(), nil
 	}
 	// Content unavailable in memory, attempt to retrieve from disk
-	data, err := db.diskdb.Get(hash[:])
-	if err != nil {
-		return nil, err
-	}
-
-	return data, nil
+	return db.diskdb.Get(hash[:])
 }
 
 // preimage retrieves a cached trie node pre-image from memory. If it cannot be
@@ -376,12 +369,7 @@ func (db *TrieDatabase) preimage(hash common.Hash) ([]byte, error) {
 		return preimage, nil
 	}
 	// Content unavailable in memory, attempt to retrieve from disk
-	data, err := db.diskdb.Get(db.secureKey(hash[:]))
-	if err != nil {
-		return nil, err
-	}
-
-	return data, nil
+	return db.diskdb.Get(db.secureKey(hash[:]))
 }
 
 // secureKey returns the database key for the preimage of key, as an ephemeral
@@ -480,9 +468,14 @@ func (db *TrieDatabase) dereference(child common.Hash, parent common.Hash) {
 	}
 	if node.parents == 0 {
 		// Remove the node from the flush-list
-		if child == db.oldest {
+		switch child {
+		case db.oldest:
 			db.oldest = node.flushNext
-		} else {
+			db.nodes[node.flushNext].flushPrev = common.Hash{}
+		case db.newest:
+			db.newest = node.flushPrev
+			db.nodes[node.flushPrev].flushNext = common.Hash{}
+		default:
 			db.nodes[node.flushPrev].flushNext = node.flushNext
 			db.nodes[node.flushNext].flushPrev = node.flushPrev
 		}
@@ -702,9 +695,14 @@ func (db *TrieDatabase) uncache(hash common.Hash) {
 		return
 	}
 	// Node still exists, remove it from the flush-list
-	if hash == db.oldest {
+	switch hash {
+	case db.oldest:
 		db.oldest = node.flushNext
-	} else {
+		db.nodes[node.flushNext].flushPrev = common.Hash{}
+	case db.newest:
+		db.newest = node.flushPrev
+		db.nodes[node.flushPrev].flushNext = common.Hash{}
+	default:
 		db.nodes[node.flushPrev].flushNext = node.flushNext
 		db.nodes[node.flushNext].flushPrev = node.flushPrev
 	}
