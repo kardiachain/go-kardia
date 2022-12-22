@@ -424,6 +424,11 @@ func (db *TrieDatabase) reference(child common.Hash, parent common.Hash) {
 
 // Dereference removes an existing reference from a root node.
 func (db *TrieDatabase) Dereference(root common.Hash) {
+	// Sanity check to ensure that the meta-root is not removed
+	if root == (common.Hash{}) {
+		log.Error("Attempted to dereference the trie cache meta root")
+		return
+	}
 	db.lock.Lock()
 	defer db.lock.Unlock()
 
