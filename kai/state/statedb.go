@@ -30,7 +30,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
-	"github.com/kardiachain/go-kardia/trie"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -477,8 +476,10 @@ func (sdb *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error
 		delete(sdb.stateObjectsDirty, addr)
 	}
 	// Write trie changes.
+	// The onleaf func is called _serially_, so we can reuse the same account
+ 	// for unmarshalling every time.
+ 	var account Account
 	root, err = sdb.trie.Commit(func(leaf []byte, parent common.Hash) error {
-		var account Account
 		if err := rlp.DecodeBytes(leaf, &account); err != nil {
 			return nil
 		}
@@ -491,7 +492,6 @@ func (sdb *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error
 		}
 		return nil
 	})
-	sdb.logger.Debug("Trie cache stats after commit", "misses", trie.CacheMisses(), "unloads", trie.CacheUnloads())
 	return root, err
 }
 

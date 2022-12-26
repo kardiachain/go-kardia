@@ -102,7 +102,7 @@ func (db *cachingDB) OpenTrie(root common.Hash) (Trie, error) {
 			return cachedTrie{db.pastTries[i].Copy(), db}, nil
 		}
 	}
-	tr, err := trie.NewSecure(root, db.db, MaxTrieCacheGen)
+	tr, err := trie.NewSecure(root, db.db)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func (db *cachingDB) OpenTrie(root common.Hash) (Trie, error) {
 
 // OpenStorageTrie opens the storage trie of an account.
 func (db *cachingDB) OpenStorageTrie(addrHash, root common.Hash) (Trie, error) {
-	return trie.NewSecure(root, db.db, 0)
+	return trie.NewSecure(root, db.db)
 }
 
 // CopyTrie returns an independent copy of the given trie.

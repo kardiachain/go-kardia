@@ -1,4 +1,4 @@
-// Copyright 2014 The go-ethereum Authors
+// Copyright 2015 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
 // The go-ethereum library is free software: you can redistribute it and/or modify
@@ -51,7 +51,7 @@ type SecureTrie struct {
 // Loaded nodes are kept around until their 'cache generation' expires.
 // A new cache generation is created by each call to Commit.
 // cachelimit sets the number of past cache generations to keep.
-func NewSecure(root common.Hash, db *TrieDatabase, cachelimit uint16) (*SecureTrie, error) {
+func NewSecure(root common.Hash, db *TrieDatabase) (*SecureTrie, error) {
 	if db == nil {
 		panic("trie.NewSecure called without a database")
 	}
@@ -59,20 +59,7 @@ func NewSecure(root common.Hash, db *TrieDatabase, cachelimit uint16) (*SecureTr
 	if err != nil {
 		return nil, err
 	}
-	trie.SetCacheLimit(cachelimit)
 	return &SecureTrie{trie: *trie}, nil
-}
-
-// Hash returns the root hash of SecureTrie. It does not write to the
-// database and can be used even if the trie doesn't have one.
-func (t *SecureTrie) Hash() common.Hash {
-	return t.trie.Hash()
-}
-
-// Copy returns a copy of SecureTrie.
-func (t *SecureTrie) Copy() *SecureTrie {
-	cpy := *t
-	return &cpy
 }
 
 // Get returns the value for key stored in the trie.
@@ -90,16 +77,6 @@ func (t *SecureTrie) Get(key []byte) []byte {
 // If a node was not found in the database, a MissingNodeError is returned.
 func (t *SecureTrie) TryGet(key []byte) ([]byte, error) {
 	return t.trie.TryGet(t.hashKey(key))
-}
-
-// GetKey returns the sha3 preimage of a hashed key that was
-// previously used to store a value.
-func (t *SecureTrie) GetKey(shaKey []byte) []byte {
-	if key, ok := t.getSecKeyCache()[string(shaKey)]; ok {
-		return key
-	}
-	key, _ := t.trie.db.preimage(common.BytesToHash(shaKey))
-	return key
 }
 
 // Update associates key with value in the trie. Subsequent calls to
@@ -147,10 +124,14 @@ func (t *SecureTrie) TryDelete(key []byte) error {
 	return t.trie.TryDelete(hk)
 }
 
-// NodeIterator returns an iterator that returns nodes of the underlying trie. Iteration
-// starts at the key after the given start key.
-func (t *SecureTrie) NodeIterator(start []byte) NodeIterator {
-	return t.trie.NodeIterator(start)
+// GetKey returns the sha3 preimage of a hashed key that was
+// previously used to store a value.
+func (t *SecureTrie) GetKey(shaKey []byte) []byte {
+	if key, ok := t.getSecKeyCache()[string(shaKey)]; ok {
+		return key
+	}
+	key, _ := t.trie.db.preimage(common.BytesToHash(shaKey))
+	return key
 }
 
 // Commit writes all nodes and the secure hash pre-images to the trie's database.
@@ -173,11 +154,29 @@ func (t *SecureTrie) Commit(onleaf LeafCallback) (root common.Hash, err error) {
 	return t.trie.Commit(onleaf)
 }
 
+// Hash returns the root hash of SecureTrie. It does not write to the
+// database and can be used even if the trie doesn't have one.
+func (t *SecureTrie) Hash() common.Hash {
+	return t.trie.Hash()
+}
+
+// Copy returns a copy of SecureTrie.
+func (t *SecureTrie) Copy() *SecureTrie {
+	cpy := *t
+	return &cpy
+}
+
+// NodeIterator returns an iterator that returns nodes of the underlying trie. Iteration
+// starts at the key after the given start key.
+func (t *SecureTrie) NodeIterator(start []byte) NodeIterator {
+	return t.trie.NodeIterator(start)
+}
+
 // hashKey returns the hash of key as an ephemeral buffer.
 // The caller must not hold onto the return value because it will become
 // invalid on the next call to hashKey or secKey.
 func (t *SecureTrie) hashKey(key []byte) []byte {
-	h := newHasher(0, 0, nil)
+	h := newHasher()
 	h.sha.Reset()
 	h.sha.Write(key)
 	buf := h.sha.Sum(t.hashKeyBuf[:0])
