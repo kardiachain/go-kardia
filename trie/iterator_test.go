@@ -151,7 +151,7 @@ func TestNodeIteratorCoverage(t *testing.T) {
 			}
 		}
 	}
-	it := db.diskdb.NewIterator()
+	it := db.diskdb.NewIterator(nil, nil)
 	for it.Next() {
 		key := it.Key()
 		if _, ok := hashes[common.BytesToHash(key)]; !ok {
@@ -343,7 +343,7 @@ func testIteratorContinueAfterError(t *testing.T, memonly bool) {
 	if memonly {
 		memKeys = triedb.Nodes()
 	} else {
-		it := diskdb.NewIterator()
+		it := diskdb.NewIterator(nil, nil)
 		for it.Next() {
 			diskKeys = append(diskKeys, it.Key())
 		}
