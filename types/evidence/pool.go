@@ -253,7 +253,7 @@ func (evpool *Pool) listEvidence(prefixKey []byte, maxBytes int64) ([]types.Evid
 	var evList kproto.EvidenceData // used for calculating the bytes size
 	var evSize int64
 	var totalSize int64
-	iter := evpool.evidenceDB.NewIteratorWithPrefix(prefixKey)
+	iter := evpool.evidenceDB.NewIterator(prefixKey, nil)
 	for iter.Next() {
 		var evp kproto.Evidence
 		if err := evp.Unmarshal(iter.Value()); err != nil {
@@ -280,7 +280,7 @@ func (evpool *Pool) listEvidence(prefixKey []byte, maxBytes int64) ([]types.Evid
 }
 
 func (evpool *Pool) removeExpiredPendingEvidence() (uint64, time.Time) {
-	iter := evpool.evidenceDB.NewIteratorWithPrefix([]byte(baseKeyPending))
+	iter := evpool.evidenceDB.NewIterator([]byte(baseKeyPending), nil)
 	blockEvidenceMap := make(map[string]struct{})
 	for iter.Next() {
 		ev, err := bytesToEv(iter.Value())

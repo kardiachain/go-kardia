@@ -423,8 +423,8 @@ func (sdb *StateDB) updateStateObject(stateObject *stateObject) {
 // CreateAccount is called during the EVM CREATE operation. The situation might arise that
 // a contract does the following:
 //
-//   1. sends funds to sha(account ++ (nonce + 1))
-//   2. tx_create(sha(account ++ nonce)) (note that this gets the address of 1)
+//  1. sends funds to sha(account ++ (nonce + 1))
+//  2. tx_create(sha(account ++ nonce)) (note that this gets the address of 1)
 //
 // Carrying over the balance ensures that Ether doesn't disappear.
 func (sdb *StateDB) CreateAccount(addr common.Address) {
@@ -476,10 +476,8 @@ func (sdb *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error
 		delete(sdb.stateObjectsDirty, addr)
 	}
 	// Write trie changes.
-	// The onleaf func is called _serially_, so we can reuse the same account
- 	// for unmarshalling every time.
- 	var account Account
 	root, err = sdb.trie.Commit(func(leaf []byte, parent common.Hash) error {
+		var account Account
 		if err := rlp.DecodeBytes(leaf, &account); err != nil {
 			return nil
 		}

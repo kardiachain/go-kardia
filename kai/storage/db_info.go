@@ -51,7 +51,7 @@ func (info *LevelDbInfo) Name() string {
 }
 
 func (info *LevelDbInfo) Start() (types.StoreDB, error) {
-	db, err := leveldb.New(info.ChainData, info.DbCaches, info.DbHandles, "")
+	db, err := leveldb.New(info.ChainData, info.DbCaches, info.DbHandles)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +66,7 @@ func NewMemoryDatabase() types.StoreDB {
 // NewLevelDBDatabase creates a persistent key-value database without a freezer
 // moving immutable chain segments into cold storage.
 func NewLevelDBDatabase(file string, cache int, handles int, namespace string) (types.StoreDB, error) {
-	db, err := leveldb.New(file, cache, handles, namespace)
+	db, err := leveldb.New(file, cache, handles)
 	if err != nil {
 		return nil, err
 	}
