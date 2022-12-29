@@ -1,4 +1,4 @@
-// Copyright 2014 The go-ethereum Authors
+// Copyright 2015 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
 // The go-ethereum library is free software: you can redistribute it and/or modify
@@ -22,13 +22,13 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 )
 
 func newEmptySecure() *SecureTrie {
-	trie, _ := NewSecure(common.Hash{}, NewDatabase(memorydb.New()), 0)
+	trie, _ := NewSecure(common.Hash{}, NewDatabase(memorydb.New()))
 	return trie
 }
 
@@ -36,8 +36,7 @@ func newEmptySecure() *SecureTrie {
 func makeTestSecureTrie() (*TrieDatabase, *SecureTrie, map[string][]byte) {
 	// Create an empty trie
 	triedb := NewDatabase(memorydb.New())
-
-	trie, _ := NewSecure(common.Hash{}, triedb, 0)
+	trie, _ := NewSecure(common.Hash{}, triedb)
 
 	// Fill it with some arbitrary data
 	content := make(map[string][]byte)

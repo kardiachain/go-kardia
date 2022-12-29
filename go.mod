@@ -3,6 +3,7 @@ module github.com/kardiachain/go-kardia
 go 1.14
 
 require (
+	github.com/VictoriaMetrics/fastcache v1.5.7 // indirect
 	github.com/Workiva/go-datastructures v1.0.52
 	github.com/allegro/bigcache v1.2.1 // indirect
 	github.com/aristanetworks/goarista v0.0.0-20190712234253-ed1100a1c015
@@ -44,10 +45,10 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/syndtr/goleveldb v1.0.1-0.20200815110645-5c35d600f0ca
 	github.com/tyler-smith/go-bip39 v1.0.2 // indirect
-	golang.org/x/crypto v0.0.0-20201117144127-c1f2f97bffc9
-	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4
-	golang.org/x/sys v0.0.0-20210510120138-977fb7262007
-	golang.org/x/tools v0.0.0-20210106214847-113979e3529a
+	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
+	golang.org/x/net v0.3.0
+	golang.org/x/sys v0.3.0
+	golang.org/x/tools v0.4.0
 	google.golang.org/genproto v0.0.0-20201111145450-ac7456db90a6
 	gopkg.in/check.v1 v1.0.0-20200902074654-038fdea0a05b
 	gopkg.in/olebedev/go-duktape.v3 v3.0.0-20200603215123-a4a8cb9d2cbc

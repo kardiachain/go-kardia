@@ -21,19 +21,40 @@ import (
 	"fmt"
 	"math/rand"
 	"testing"
-	"time"
 
 	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardia/lib/common"
 )
 
-func interfaceToHash(v interface{}) common.Hash {
-	switch v.(type) {
-	case common.Hash:
-		return v.(common.Hash)
-	default:
-		return common.BytesToHash(v.([]byte))
+// makeTestTrie create a sample test trie to test node-wise reconstruction.
+func makeTestTrie() (*TrieDatabase, *Trie, map[string][]byte) {
+	// Create an empty trie
+	triedb := NewDatabase(memorydb.New())
+	trie, _ := New(common.Hash{}, triedb)
+
+	// Fill it with some arbitrary data
+	content := make(map[string][]byte)
+	for i := byte(0); i < 255; i++ {
+		// Map the same data under multiple keys
+		key, val := common.LeftPadBytes([]byte{1, i}, 32), []byte{i}
+		content[string(key)] = val
+		trie.Update(key, val)
+
+		key, val = common.LeftPadBytes([]byte{2, i}, 32), []byte{i}
+		content[string(key)] = val
+		trie.Update(key, val)
+
+		// Add some other data to inflate the trie
+		for j := byte(3); j < 13; j++ {
+			key, val = common.LeftPadBytes([]byte{j, i}, 32), []byte{j, i}
+			content[string(key)] = val
+			trie.Update(key, val)
+		}
 	}
+	trie.Commit(nil)
+
+	// Return the generated trie
+	return triedb, trie, content
 }
 
 func TestIterator(t *testing.T) {
@@ -123,19 +144,21 @@ func TestNodeIteratorCoverage(t *testing.T) {
 			t.Errorf("failed to retrieve reported node %x: %v", hash, err)
 		}
 	}
-	for hash, obj := range db.nodes {
+	for hash, obj := range db.dirties {
 		if obj != nil && hash != (common.Hash{}) {
 			if _, ok := hashes[hash]; !ok {
 				t.Errorf("state entry not reported %x", hash)
 			}
 		}
 	}
-	iterator := db.diskdb.NewIterator(nil, nil)
-	for iterator.Next() {
-		if _, ok := hashes[common.BytesToHash(iterator.Key())]; !ok {
-			t.Errorf("state entry not reported %x", iterator.Key())
+	it := db.diskdb.NewIterator()
+	for it.Next() {
+		key := it.Key()
+		if _, ok := hashes[common.BytesToHash(key)]; !ok {
+			t.Errorf("state entry not reported %x", key)
 		}
 	}
+	it.Release()
 }
 
 type kvs struct{ k, v string }
@@ -295,25 +318,11 @@ func TestIteratorNoDups(t *testing.T) {
 	checkIteratorNoDups(t, tr.NodeIterator(nil), nil)
 }
 
-func checkIteratorNoDups(t *testing.T, it NodeIterator, seen map[string]bool) int {
-	if seen == nil {
-		seen = make(map[string]bool)
-	}
-	for it.Next(true) {
-		if seen[string(it.Path())] {
-			t.Fatalf("iterator visited node path %x twice", it.Path())
-		}
-		seen[string(it.Path())] = true
-	}
-	return len(seen)
-}
-
 // This test checks that nodeIterator.Next can be retried after inserting missing trie nodes.
-//func TestIteratorContinueAfterErrorDisk(t *testing.T)    { testIteratorContinueAfterError(t, false) }
+func TestIteratorContinueAfterErrorDisk(t *testing.T)    { testIteratorContinueAfterError(t, false) }
 func TestIteratorContinueAfterErrorMemonly(t *testing.T) { testIteratorContinueAfterError(t, true) }
 
 func testIteratorContinueAfterError(t *testing.T, memonly bool) {
-	rand.Seed(time.Now().UnixNano())
 	diskdb := memorydb.New()
 	triedb := NewDatabase(diskdb)
 
@@ -334,10 +343,11 @@ func testIteratorContinueAfterError(t *testing.T, memonly bool) {
 	if memonly {
 		memKeys = triedb.Nodes()
 	} else {
-		iterator := diskdb.NewIterator(nil, nil)
-		for iterator.Next() {
-			diskKeys = append(diskKeys, iterator.Key())
+		it := diskdb.NewIterator()
+		for it.Next() {
+			diskKeys = append(diskKeys, it.Key())
 		}
+		it.Release()
 	}
 	for i := 0; i < 20; i++ {
 		// Create trie that will load all nodes from DB.
@@ -346,50 +356,41 @@ func testIteratorContinueAfterError(t *testing.T, memonly bool) {
 		// Remove a random node from the database. It can't be the root node
 		// because that one is already loaded.
 		var (
-			rkey interface{}
-			rval interface{}
+			rkey common.Hash
+			rval []byte
 			robj *cachedNode
 		)
 		for {
 			if memonly {
 				rkey = memKeys[rand.Intn(len(memKeys))]
 			} else {
-				rkey = make([]byte, common.HashLength)
-				copy(rkey.([]byte)[:], diskKeys[rand.Intn(len(diskKeys))])
+				copy(rkey[:], diskKeys[rand.Intn(len(diskKeys))])
 			}
 			if rkey != tr.Hash() {
 				break
 			}
 		}
 		if memonly {
-			robj = triedb.nodes[rkey.(common.Hash)]
-			delete(triedb.nodes, rkey.(common.Hash))
+			robj = triedb.dirties[rkey]
+			delete(triedb.dirties, rkey)
 		} else {
-			rval, _ = diskdb.Get(rkey.([]byte)[:])
-			diskdb.Delete(rkey.([]byte)[:])
+			rval, _ = diskdb.Get(rkey[:])
+			diskdb.Delete(rkey[:])
 		}
 		// Iterate until the error is hit.
 		seen := make(map[string]bool)
 		it := tr.NodeIterator(nil)
 		checkIteratorNoDups(t, it, seen)
 		missing, ok := it.Error().(*MissingNodeError)
-		var key common.Hash
-		switch rkey.(type) {
-		case common.Hash:
-			key = rkey.(common.Hash)
-		default:
-			key = common.BytesToHash(rkey.([]byte))
-		}
-
-		if !ok || missing.NodeHash != key {
+		if !ok || missing.NodeHash != rkey {
 			t.Fatal("didn't hit missing node, got", it.Error())
 		}
 
 		// Add the node back and continue iteration.
 		if memonly {
-			triedb.nodes[rkey.(common.Hash)] = robj
+			triedb.dirties[rkey] = robj
 		} else {
-			diskdb.Put(rkey.([]byte)[:], rval.([]byte))
+			diskdb.Put(rkey[:], rval)
 		}
 		checkIteratorNoDups(t, it, seen)
 		if it.Error() != nil {
@@ -424,19 +425,17 @@ func testIteratorContinueAfterSeekError(t *testing.T, memonly bool) {
 	if !memonly {
 		triedb.Commit(root, true)
 	}
-	var barNodeHash interface{}
-	barNodeHash = common.HexToHash("05041990364eb72fcb1127652ce40d8bab765f2bfe53225b1170d276cc101c2e")
+	barNodeHash := common.HexToHash("05041990364eb72fcb1127652ce40d8bab765f2bfe53225b1170d276cc101c2e")
 	var (
-		barNodeBlob interface{}
+		barNodeBlob []byte
 		barNodeObj  *cachedNode
 	)
-	hash := interfaceToHash(barNodeHash)
 	if memonly {
-		barNodeObj = triedb.nodes[interfaceToHash(hash)]
-		delete(triedb.nodes, barNodeHash.(common.Hash))
+		barNodeObj = triedb.dirties[barNodeHash]
+		delete(triedb.dirties, barNodeHash)
 	} else {
-		barNodeBlob, _ = diskdb.Get(interfaceToHash(barNodeHash).Bytes()[:])
-		diskdb.Delete(interfaceToHash(barNodeHash).Bytes()[:])
+		barNodeBlob, _ = diskdb.Get(barNodeHash[:])
+		diskdb.Delete(barNodeHash[:])
 	}
 	// Create a new iterator that seeks to "bars". Seeking can't proceed because
 	// the node is missing.
@@ -450,9 +449,9 @@ func testIteratorContinueAfterSeekError(t *testing.T, memonly bool) {
 	}
 	// Reinsert the missing node.
 	if memonly {
-		triedb.nodes[interfaceToHash(barNodeHash)] = barNodeObj
+		triedb.dirties[barNodeHash] = barNodeObj
 	} else {
-		diskdb.Put(interfaceToHash(barNodeHash).Bytes()[:], barNodeBlob.([]byte))
+		diskdb.Put(barNodeHash[:], barNodeBlob)
 	}
 	// Check that iteration produces the right set of values.
 	if err := checkIteratorOrder(testdata1[2:], NewIterator(it)); err != nil {
@@ -460,33 +459,15 @@ func testIteratorContinueAfterSeekError(t *testing.T, memonly bool) {
 	}
 }
 
-// makeTestTrie create a sample test trie to test node-wise reconstruction.
-func makeTestTrie() (*TrieDatabase, *Trie, map[string][]byte) {
-	// Create an empty trie
-	triedb := NewDatabase(memorydb.New())
-	trie, _ := New(common.Hash{}, triedb)
-
-	// Fill it with some arbitrary data
-	content := make(map[string][]byte)
-	for i := byte(0); i < 255; i++ {
-		// Map the same data under multiple keys
-		key, val := common.LeftPadBytes([]byte{1, i}, 32), []byte{i}
-		content[string(key)] = val
-		trie.Update(key, val)
-
-		key, val = common.LeftPadBytes([]byte{2, i}, 32), []byte{i}
-		content[string(key)] = val
-		trie.Update(key, val)
-
-		// Add some other data to inflate the trie
-		for j := byte(3); j < 13; j++ {
-			key, val = common.LeftPadBytes([]byte{j, i}, 32), []byte{j, i}
-			content[string(key)] = val
-			trie.Update(key, val)
-		}
+func checkIteratorNoDups(t *testing.T, it NodeIterator, seen map[string]bool) int {
+	if seen == nil {
+		seen = make(map[string]bool)
 	}
-	trie.Commit(nil)
-
-	// Return the generated trie
-	return triedb, trie, content
+	for it.Next(true) {
+		if seen[string(it.Path())] {
+			t.Fatalf("iterator visited node path %x twice", it.Path())
+		}
+		seen[string(it.Path())] = true
+	}
+	return len(seen)
 }
