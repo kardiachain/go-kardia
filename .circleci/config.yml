@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/golang:1.19.4
+      - image: cimg/go:1.19.4
     working_directory: /go/src/github.com/kardiachain/go-kardia
 
     environment:
