@@ -19,12 +19,11 @@ phases:
       - echo Building the Docker image...
       - export DOCKER_CLI_EXPERIMENTAL=enabled
       - mkdir -p ~/.docker/cli-plugins/
-      - curl --silent -L "https://github.com/docker/buildx/releases/download/v0.6.3/buildx-v0.6.3.linux-arm64" > ~/.docker/cli-plugins/docker-buildx
+      - curl --silent -L "https://github.com/docker/buildx/releases/download/v0.9.1/buildx-v0.9.1.linux-arm64" > ~/.docker/cli-plugins/docker-buildx
       - chmod a+x ~/.docker/cli-plugins/docker-buildx
       - docker run --privileged --rm public.ecr.aws/x4e9f8w5/go-kardia:binfmt --install all
       - docker buildx create --use --name build --node build
       - echo "$REPOSITORY_URI:$IMAGE_TAG"
-      #- docker buildx build --cache-from $REPOSITORY_URI:latest --platform linux/arm64 --tag $REPOSITORY_URI:$IMAGE_TAG -f Dockerfile.arm . --push
       - docker buildx build --platform linux/arm64 --tag $REPOSITORY_URI:$IMAGE_TAG -f Dockerfile.arm . --push
   post_build:
     commands:
