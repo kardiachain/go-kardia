@@ -82,6 +82,12 @@ func New(root common.Hash, db *TrieDatabase) (*Trie, error) {
 	return trie, nil
 }
 
+// NewEmpty is a shortcut to create empty tree. It's mostly used in tests.
+func NewEmpty(db *TrieDatabase) *Trie {
+	tr, _ := New(common.Hash{}, db)
+	return tr
+}
+
 // NodeIterator returns an iterator that returns nodes of the trie. Iteration starts at
 // the key after the given start key.
 func (t *Trie) NodeIterator(start []byte) NodeIterator {
@@ -472,6 +478,12 @@ func (t *Trie) hashRoot(db *TrieDatabase) (node, node, error) {
 	hashed, cached := h.hash(t.root, true)
 	t.unhashed = 0
 	return hashed, cached, nil
+}
+
+// Reset drops the referenced root node and cleans all internal state.
+func (t *Trie) Reset() {
+	t.root = nil
+	t.unhashed = 0
 }
 
 // MissingNodeError is returned by the trie functions (TryGet, TryUpdate, TryDelete)
