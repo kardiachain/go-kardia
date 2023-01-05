@@ -88,7 +88,7 @@ func TestDatabaseSuite(t *testing.T, New func() kaidb.KeyValueStore) {
 				}
 			}
 			// Iterate over the database with the given configs and verify the results
-			it, idx := db.NewIteratorWithPrefix([]byte(tt.prefix)), 0
+			it, idx := db.NewIterator([]byte(tt.prefix), nil), 0
 			for it.Next() {
 				if len(tt.order) <= idx {
 					t.Errorf("test %d: prefix=%q more items than expected: checking idx=%d (key %q), expecting len=%d", i, tt.prefix, idx, it.Key(), len(tt.order))
@@ -126,7 +126,7 @@ func TestDatabaseSuite(t *testing.T, New func() kaidb.KeyValueStore) {
 		}
 
 		{
-			it := db.NewIterator()
+			it := db.NewIterator(nil, nil)
 			got, want := iterateKeys(it), keys
 			if err := it.Error(); err != nil {
 				t.Fatal(err)
@@ -138,7 +138,7 @@ func TestDatabaseSuite(t *testing.T, New func() kaidb.KeyValueStore) {
 		}
 
 		{
-			it := db.NewIteratorWithPrefix([]byte("1"))
+			it := db.NewIterator([]byte("1"), nil)
 			got, want := iterateKeys(it), []string{"1", "10", "11", "12"}
 			if err := it.Error(); err != nil {
 				t.Fatal(err)
@@ -150,7 +150,7 @@ func TestDatabaseSuite(t *testing.T, New func() kaidb.KeyValueStore) {
 		}
 
 		{
-			it := db.NewIteratorWithPrefix([]byte("5"))
+			it := db.NewIterator([]byte("5"), nil)
 			got, want := iterateKeys(it), []string{}
 			if err := it.Error(); err != nil {
 				t.Fatal(err)
@@ -162,7 +162,7 @@ func TestDatabaseSuite(t *testing.T, New func() kaidb.KeyValueStore) {
 		}
 
 		{
-			it := db.NewIteratorWithStart([]byte("2"))
+			it := db.NewIterator(nil, []byte("2"))
 			got, want := iterateKeys(it), []string{"2", "20", "21", "22", "3", "4", "6"}
 			if err := it.Error(); err != nil {
 				t.Fatal(err)
@@ -174,7 +174,7 @@ func TestDatabaseSuite(t *testing.T, New func() kaidb.KeyValueStore) {
 		}
 
 		{
-			it := db.NewIteratorWithStart([]byte("5"))
+			it := db.NewIterator(nil, []byte("5"))
 			got, want := iterateKeys(it), []string{"6"}
 			if err := it.Error(); err != nil {
 				t.Fatal(err)
@@ -248,7 +248,7 @@ func TestDatabaseSuite(t *testing.T, New func() kaidb.KeyValueStore) {
 		}
 
 		{
-			it := db.NewIterator()
+			it := db.NewIterator(nil, nil)
 			if got, want := iterateKeys(it), []string{"1", "2", "3", "4"}; !reflect.DeepEqual(got, want) {
 				t.Errorf("got: %s; want: %s", got, want)
 			}
@@ -269,7 +269,7 @@ func TestDatabaseSuite(t *testing.T, New func() kaidb.KeyValueStore) {
 		}
 
 		{
-			it := db.NewIterator()
+			it := db.NewIterator(nil, nil)
 			if got, want := iterateKeys(it), []string{"2", "3", "4", "5", "6"}; !reflect.DeepEqual(got, want) {
 				t.Errorf("got: %s; want: %s", got, want)
 			}
@@ -298,7 +298,7 @@ func TestDatabaseSuite(t *testing.T, New func() kaidb.KeyValueStore) {
 			t.Fatal(err)
 		}
 
-		it := db.NewIterator()
+		it := db.NewIterator(nil, nil)
 		if got := iterateKeys(it); !reflect.DeepEqual(got, want) {
 			t.Errorf("got: %s; want: %s", got, want)
 		}
