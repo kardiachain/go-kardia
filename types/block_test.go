@@ -66,7 +66,7 @@ func createHeaderRandom() *Header {
 
 func TestBlockCreation(t *testing.T) {
 	block := CreateNewBlock(1)
-	if err := block.ValidateBasic(); err != nil {
+	if err := block.ValidateBasic(nil); err != nil {
 		t.Fatal("Init block error", err)
 	}
 }
@@ -167,7 +167,7 @@ func CreateNewBlock(height uint64) *Block {
 }
 
 func TestBlockValidateBasic(t *testing.T) {
-	require.Error(t, (*Block)(nil).ValidateBasic())
+	require.Error(t, (*Block)(nil).ValidateBasic(nil))
 
 	addr1 := common.BytesToAddress([]byte("0x01"))
 	txs := []*Transaction{
@@ -225,7 +225,7 @@ func TestBlockValidateBasic(t *testing.T) {
 			block := NewBlock(&Header{Height: h}, txs, commit, evList, trie.NewStackTrie(nil))
 			block.header.ProposerAddress = valSet.GetProposer().Address
 			tc.malleateBlock(block)
-			err := block.ValidateBasic()
+			err := block.ValidateBasic(nil)
 			t.Log(err)
 			assert.Equal(t, tc.expErr, err != nil, "#%d: %v", i, err)
 		})

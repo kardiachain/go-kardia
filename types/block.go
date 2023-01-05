@@ -481,7 +481,7 @@ func (b *Block) Size() common.StorageSize {
 
 // ValidateBasic performs basic validation that doesn't involve state data.
 // It checks the internal consistency of the block.
-func (b *Block) ValidateBasic() error {
+func (b *Block) ValidateBasic(hasher TrieHasher) error {
 	if b == nil {
 		return errors.New("nil block")
 	}
@@ -508,10 +508,11 @@ func (b *Block) ValidateBasic() error {
 		return fmt.Errorf("wrong Block.Header.LastCommitHash.  Expected %v, got %v.  Last commit %v", b.header.LastCommitHash, b.lastCommit.Hash(), b.lastCommit)
 	}
 
-	// TODO(trinhdn97): temporarily skip checking tx due to import cycle
-	// if w, g := b.transactions.Hash(), b.header.TxHash; !w.Equal(g) {
-	// 	return fmt.Errorf("wrong Header.DataHash. Expected %X, got %X", w, g)
-	// }
+	if hasher != nil {
+		if w, g := b.transactions.Hash(hasher), b.header.TxHash; !w.Equal(g) {
+			return fmt.Errorf("wrong Header.DataHash. Expected %X, got %X", w, g)
+		}
+	}
 
 	for i, ev := range b.evidence.Evidence {
 		if err := ev.ValidateBasic(); err != nil {
@@ -621,7 +622,7 @@ func BlockFromProto(bp *kproto.Block) (*Block, error) {
 		b.lastCommit = lc
 	}
 
-	return b, b.ValidateBasic()
+	return b, b.ValidateBasic(nil)
 }
 
 type BlockID struct {
