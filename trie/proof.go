@@ -23,7 +23,6 @@ import (
 	"github.com/kardiachain/go-kardia/kai/kaidb"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/lib/rlp"
 )
 
 // Prove constructs a merkle proof for key. The result contains all encoded nodes
@@ -77,7 +76,7 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb kaidb.KeyValueWriter) e
 		if hash, ok := hn.(hashNode); ok || i == 0 {
 			// If the node's database encoding is a hash (or is the
 			// root node), it becomes a proof element.
-			enc, _ := rlp.EncodeToBytes(n)
+			enc := nodeToBytes(n)
 			if !ok {
 				hash = hasher.hashData(enc)
 			}
