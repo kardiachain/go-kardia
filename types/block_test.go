@@ -193,13 +193,12 @@ func TestBlockValidateBasic(t *testing.T) {
 			blk.lastCommit.hash = common.Hash{}
 		}, true},
 		{"Remove LastCommitHash", func(blk *Block) { blk.header.LastCommitHash = common.BytesToHash([]byte("something else")) }, true},
-		// TODO(trinhdn97): temporarily skip checking tx due to import cycle
-		// {"Tampered Data", func(blk *Block) {
-		// 	blk.transactions[0] = NewTransaction(1, addr1, big.NewInt(1), 1, big.NewInt(1), []byte("something else"))
-		// }, true},
-		// {"Tampered DataHash", func(blk *Block) {
-		// 	blk.header.TxHash = common.BytesToHash([]byte("txhash"))
-		// }, true},
+		{"Tampered Data", func(blk *Block) {
+			blk.transactions[0] = NewTransaction(1, addr1, big.NewInt(1), 1, big.NewInt(1), []byte("something else"))
+		}, true},
+		{"Tampered DataHash", func(blk *Block) {
+			blk.header.TxHash = common.BytesToHash([]byte("txhash"))
+		}, true},
 		{"Tampered EvidenceHash", func(blk *Block) {
 			blk.header.EvidenceHash = common.BytesToHash([]byte("EvidenceHash"))
 		}, true},
@@ -225,7 +224,7 @@ func TestBlockValidateBasic(t *testing.T) {
 			block := NewBlock(&Header{Height: h}, txs, commit, evList, trie.NewStackTrie(nil))
 			block.header.ProposerAddress = valSet.GetProposer().Address
 			tc.malleateBlock(block)
-			err := block.ValidateBasic(nil)
+			err := block.ValidateBasic(trie.NewStackTrie(nil))
 			t.Log(err)
 			assert.Equal(t, tc.expErr, err != nil, "#%d: %v", i, err)
 		})
