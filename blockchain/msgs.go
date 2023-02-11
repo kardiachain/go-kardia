@@ -7,6 +7,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 
 	bcproto "github.com/kardiachain/go-kardia/proto/kardiachain/blockchain"
+	"github.com/kardiachain/go-kardia/trie"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -83,7 +84,7 @@ func ValidateMsg(pb proto.Message) error {
 			return fmt.Errorf("invalid height")
 		}
 	case *bcproto.BlockResponse:
-		_, err := types.BlockFromProto(msg.Block)
+		_, err := types.BlockFromProto(msg.Block, trie.NewStackTrie(nil))
 		if err != nil {
 			return err
 		}

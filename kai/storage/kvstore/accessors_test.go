@@ -23,10 +23,10 @@ import (
 	"time"
 
 	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
-	"github.com/kardiachain/go-kardia/trie"
 
 	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/trie"
 	"github.com/kardiachain/go-kardia/types"
 )
 

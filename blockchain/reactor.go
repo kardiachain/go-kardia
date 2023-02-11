@@ -12,6 +12,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	ksync "github.com/kardiachain/go-kardia/lib/sync"
 	bcproto "github.com/kardiachain/go-kardia/proto/kardiachain/blockchain"
+	"github.com/kardiachain/go-kardia/trie"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -493,7 +494,7 @@ func (r *BlockchainReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 
 	case *bcproto.BlockResponse:
 		r.mtx.RLock()
-		bi, err := types.BlockFromProto(msg.Block)
+		bi, err := types.BlockFromProto(msg.Block, trie.NewStackTrie(nil))
 		if err != nil {
 			r.logger.Error("error transitioning block from protobuf", "err", err)
 			return

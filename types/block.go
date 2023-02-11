@@ -593,7 +593,7 @@ func (b *Block) ToProto() (*kproto.Block, error) {
 
 // FromProto sets a protobuf Block to the given pointer.
 // It returns an error if the block is invalid.
-func BlockFromProto(bp *kproto.Block) (*Block, error) {
+func BlockFromProto(bp *kproto.Block, hasher TrieHasher) (*Block, error) {
 	if bp == nil {
 		return nil, errors.New("nil block")
 	}
@@ -622,7 +622,7 @@ func BlockFromProto(bp *kproto.Block) (*Block, error) {
 		b.lastCommit = lc
 	}
 
-	return b, b.ValidateBasic(nil)
+	return b, b.ValidateBasic(hasher)
 }
 
 type BlockID struct {
