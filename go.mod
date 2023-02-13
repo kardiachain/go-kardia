@@ -3,12 +3,12 @@ module github.com/kardiachain/go-kardia
 go 1.14
 
 require (
-	github.com/VictoriaMetrics/fastcache v1.5.7 // indirect
+	github.com/VictoriaMetrics/fastcache v1.5.7
 	github.com/Workiva/go-datastructures v1.0.52
 	github.com/allegro/bigcache v1.2.1 // indirect
 	github.com/aristanetworks/goarista v0.0.0-20190712234253-ed1100a1c015
 	github.com/btcsuite/btcd v0.21.0-beta
-	github.com/cespare/cp v1.1.1 // indirect
+	github.com/cespare/cp v1.1.1
 	github.com/davecgh/go-spew v1.1.1
 	github.com/deckarep/golang-set v1.7.1
 	github.com/docker/docker v17.12.0-ce-rc1.0.20200531234253-77e06fda0c94+incompatible // indirect
@@ -22,7 +22,7 @@ require (
 	github.com/golang/protobuf v1.4.3
 	github.com/google/cel-go v0.3.2
 	github.com/google/go-cmp v0.5.2 // indirect
-	github.com/google/uuid v1.0.0 // indirect
+	github.com/google/uuid v1.0.0
 	github.com/gorilla/mux v1.7.3
 	github.com/gorilla/websocket v1.4.2
 	github.com/gtank/merlin v0.1.1
@@ -37,7 +37,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.8.0
 	github.com/prometheus/tsdb v0.10.0
-	github.com/rjeczalik/notify v0.9.2 // indirect
+	github.com/rjeczalik/notify v0.9.2
 	github.com/rs/cors v1.7.0
 	github.com/sasha-s/go-deadlock v0.2.0
 	github.com/shirou/gopsutil v2.20.5+incompatible

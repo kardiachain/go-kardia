@@ -32,6 +32,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
 	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/trie"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -563,7 +564,7 @@ func ReadBlock(db kaidb.Reader, height uint64) *types.Block {
 		panic(fmt.Sprintf("Error reading block: %v", err))
 	}
 
-	block, err := types.BlockFromProto(pbb)
+	block, err := types.BlockFromProto(pbb, trie.NewStackTrie(nil))
 	if err != nil {
 		panic(fmt.Errorf("error from proto block: %w", err))
 	}

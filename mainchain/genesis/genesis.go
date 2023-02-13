@@ -37,6 +37,7 @@ import (
 	kmath "github.com/kardiachain/go-kardia/lib/math"
 	"github.com/kardiachain/go-kardia/mainchain/staking"
 	kaiproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/trie"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -138,10 +139,10 @@ func (e *GenesisMismatchError) Error() string {
 // SetupGenesisBlock writes or updates the genesis block in db.
 // The block that will be used is:
 //
-//                          genesis == nil       genesis != nil
-//                       +------------------------------------------
-//     db has no genesis |  main-net default  |  genesis
-//     db has genesis    |  from DB           |  genesis (if compatible)
+//	                     genesis == nil       genesis != nil
+//	                  +------------------------------------------
+//	db has no genesis |  main-net default  |  genesis
+//	db has genesis    |  from DB           |  genesis (if compatible)
 //
 // The returned chain configuration is never nil.
 func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, staking *staking.StakingSmcUtil) (*configs.ChainConfig, common.Hash, error) {
@@ -247,7 +248,7 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database, staking *staking
 		head.GasLimit = configs.GenesisGasLimit
 	}
 
-	block := types.NewBlock(head, nil, &types.Commit{}, nil)
+	block := types.NewBlock(head, nil, &types.Commit{}, nil, trie.NewStackTrie(nil))
 	if err := setupGenesisStaking(staking, statedb, block.Header(), kvm.Config{}, g.Validators); err != nil {
 		panic(err)
 	}
@@ -331,7 +332,7 @@ func GenesisAllocFromData(data map[string]*big.Int) (GenesisAlloc, error) {
 	return ga, nil
 }
 
-//same as DefaultTestnetGenesisBlock, but with smart contract data
+// same as DefaultTestnetGenesisBlock, but with smart contract data
 func DefaultTestnetGenesisBlockWithContract(allocData map[string]string) *Genesis {
 	ga, err := GenesisAllocFromContractData(allocData)
 	if err != nil {

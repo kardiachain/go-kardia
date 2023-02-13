@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/trie"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
@@ -82,7 +83,7 @@ func TestBcStatusResponseMessageValidateBasic(t *testing.T) {
 
 // nolint:lll // ignore line length in tests
 func TestBlockchainMessageVectors(t *testing.T) {
-	block := types.NewBlock(&types.Header{Height: 3}, []*types.Transaction{TestTx}, nil, nil)
+	block := types.NewBlock(&types.Header{Height: 3}, []*types.Transaction{TestTx}, nil, nil, trie.NewStackTrie(nil))
 	//block.Version.Block = 11 // overwrite updated protocol version
 
 	bpb, err := block.ToProto()

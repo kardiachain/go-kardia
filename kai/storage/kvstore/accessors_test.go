@@ -26,6 +26,7 @@ import (
 
 	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/trie"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -71,7 +72,7 @@ func TestBlockStorage(t *testing.T) {
 		TxHash:         types.EmptyRootHash,
 		LastCommitHash: lastCommit.Hash(),
 	}
-	block := types.NewBlock(header, nil, lastCommit, nil)
+	block := types.NewBlock(header, nil, lastCommit, nil, trie.NewStackTrie(nil))
 	partsSet := block.MakePartSet(types.BlockPartSizeBytes)
 
 	// Check that no entries are in a pristine database

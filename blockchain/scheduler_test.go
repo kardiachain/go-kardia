@@ -13,6 +13,7 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
 	"github.com/kardiachain/go-kardia/lib/p2p"
+	"github.com/kardiachain/go-kardia/trie"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -1327,7 +1328,7 @@ func TestScSelectPeer(t *testing.T) {
 
 // makeScBlock makes an empty block.
 func makeScBlock(height uint64) *types.Block {
-	return types.NewBlock(&types.Header{Height: height}, nil, nil, nil)
+	return types.NewBlock(&types.Header{Height: height}, nil, nil, nil, trie.NewStackTrie(nil))
 }
 
 // used in place of assert.Equal(t, want, actual) to avoid failures due to

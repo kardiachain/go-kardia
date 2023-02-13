@@ -42,6 +42,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/lib/service"
 	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/trie"
 	"github.com/kardiachain/go-kardia/types"
 	ktime "github.com/kardiachain/go-kardia/types/time"
 )
@@ -941,7 +942,7 @@ func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2p
 		if err != nil {
 			return added, err
 		}
-		block, err := types.BlockFromProto(pbb)
+		block, err := types.BlockFromProto(pbb, trie.NewStackTrie(nil))
 		if err != nil {
 			return added, err
 		}

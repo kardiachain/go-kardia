@@ -21,12 +21,13 @@ package cstate
 import (
 	"fmt"
 
+	"github.com/kardiachain/go-kardia/trie"
 	"github.com/kardiachain/go-kardia/types"
 )
 
 func validateBlock(evidencePool EvidencePool, store Store, state LatestBlockState, block *types.Block) error {
 	// Validate internal consistency
-	if err := block.ValidateBasic(); err != nil {
+	if err := block.ValidateBasic(trie.NewStackTrie(nil)); err != nil {
 		return err
 	}
 

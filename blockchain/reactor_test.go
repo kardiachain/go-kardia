@@ -28,6 +28,7 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	bcproto "github.com/kardiachain/go-kardia/proto/kardiachain/blockchain"
 	kaiproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/trie"
 	"github.com/kardiachain/go-kardia/types"
 	kaitime "github.com/kardiachain/go-kardia/types/time"
 )
@@ -466,14 +467,14 @@ func makeBlock(height uint64, state cstate.LatestBlockState, lastCommit *types.C
 		ValidatorsHash:     state.Validators.Hash(),
 		NextValidatorsHash: state.NextValidators.Hash(),
 		ProposerAddress:    state.Validators.Validators[0].Address,
-	}, makeTxs(height), lastCommit, nil)
+	}, makeTxs(height), lastCommit, nil, trie.NewStackTrie(nil))
 	return block
 }
 
 //func makeBlock(height uint64, state cstate.LatestBlockState, lastCommit *types.Commit) *types.Block {
 //	block := types.NewBlock(&types.Header{
 //		Height: height,
-//	}, makeTxs(height), lastCommit, nil)
+//	}, makeTxs(height), lastCommit, nil, trie.NewStackTrie(nil))
 //	return block
 //}
 
