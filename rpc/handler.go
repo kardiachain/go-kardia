@@ -319,8 +319,7 @@ func (h *handler) handleCallMsg(ctx *callProc, msg *jsonrpcMessage) *jsonrpcMess
 // handleCall processes method calls.
 func (h *handler) handleCall(cp *callProc, msg *jsonrpcMessage) *jsonrpcMessage {
 	// increase the counter for corresponding RPC calls
-	// TODO(trinhdn97): pre-register metrics first
-	m := metrics.RPCRegistry.GetOrRegister(msg.Method, metrics.NewGauge())
+	m := metrics.RPCRegistry.Get(msg.Method)
 	if m != nil {
 		m.(metrics.Gauge).Inc(1)
 	}
