@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/metrics"
 )
 
 // handler handles JSON-RPC messages. There is one handler per connection. Note that
@@ -317,6 +318,12 @@ func (h *handler) handleCallMsg(ctx *callProc, msg *jsonrpcMessage) *jsonrpcMess
 
 // handleCall processes method calls.
 func (h *handler) handleCall(cp *callProc, msg *jsonrpcMessage) *jsonrpcMessage {
+	// increase the counter for corresponding RPC calls
+	counter := metrics.RPCRegistry.Get(msg.Method)
+	if counter != nil {
+		counter.(metrics.Counter).Inc(1)
+	}
+
 	if msg.isSubscribe() {
 		return h.handleSubscribe(cp, msg)
 	}

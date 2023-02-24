@@ -39,3 +39,11 @@ func newRPCServingTimer(method string, valid bool) metrics.Timer {
 	m := fmt.Sprintf("rpc/duration/%s/%s", method, flag)
 	return metrics.GetOrRegisterTimer(m, nil)
 }
+
+// list of RPC APIS need to be counted
+var rpcMethods = []string{
+	"tx_sendTransaction",
+	"account_getCode",
+	"account_getBalance",
+	"account_getNonce",
+}
