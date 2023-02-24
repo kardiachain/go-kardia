@@ -19,6 +19,7 @@ package rpc
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
@@ -132,6 +133,7 @@ func (h *handler) handleBatch(msgs []*jsonrpcMessage) {
 
 // handleMsg handles a single message.
 func (h *handler) handleMsg(msg *jsonrpcMessage) {
+	fmt.Printf("@@@@@@@@@@@@@@@@@@@@@@@@@ %+v\n", msg)
 	if ok := h.handleImmediate(msg); ok {
 		return
 	}
