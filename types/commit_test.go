@@ -29,6 +29,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/rand"
 	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/trie"
 )
 
 func makeBlockIDRandom() BlockID {
@@ -138,5 +139,5 @@ func CreateNewBlockWithTwoVotes(height uint64) *Block {
 		Round:      1,
 		Signatures: []CommitSig{vote.CommitSig(), NewCommitSigAbsent()},
 	}
-	return NewBlock(&header, txns, lastCommit, nil)
+	return NewBlock(&header, txns, lastCommit, nil, trie.NewStackTrie(nil))
 }

@@ -19,7 +19,6 @@
 package types
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"math/big"
@@ -37,12 +36,11 @@ import (
 	"github.com/kardiachain/go-kardia/lib/math"
 	"github.com/kardiachain/go-kardia/lib/rlp"
 	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
-	"github.com/kardiachain/go-kardia/trie"
 )
 
 var (
 	// EmptyRootHash ...
-	EmptyRootHash = DeriveSha(Transactions{})
+	EmptyRootHash = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
 )
 
 //go:generate go run github.com/fjl/gencodec -type Header -field-override headerMarshaling -out gen_header_json.go
@@ -289,7 +287,7 @@ type extblock struct {
 //
 // The values of TxHash and NumTxs in header are ignored and set to values
 // derived from the given txs.
-func NewBlock(header *Header, txs []*Transaction, lastCommit *Commit, evidence []Evidence) *Block {
+func NewBlock(header *Header, txs []*Transaction, lastCommit *Commit, evidence []Evidence, hasher TrieHasher) *Block {
 	b := &Block{
 		header:     CopyHeader(header),
 		lastCommit: CopyCommit(lastCommit),
@@ -300,7 +298,7 @@ func NewBlock(header *Header, txs []*Transaction, lastCommit *Commit, evidence [
 		b.header.TxHash = EmptyRootHash
 		b.header.NumTxs = 0
 	} else {
-		b.header.TxHash = DeriveSha(Transactions(txs))
+		b.header.TxHash = DeriveSha(Transactions(txs), hasher)
 		b.header.NumTxs = uint64(len(txs))
 		b.transactions = make(Transactions, len(txs))
 		copy(b.transactions, txs)
@@ -483,7 +481,7 @@ func (b *Block) Size() common.StorageSize {
 
 // ValidateBasic performs basic validation that doesn't involve state data.
 // It checks the internal consistency of the block.
-func (b *Block) ValidateBasic() error {
+func (b *Block) ValidateBasic(hasher TrieHasher) error {
 	if b == nil {
 		return errors.New("nil block")
 	}
@@ -510,8 +508,10 @@ func (b *Block) ValidateBasic() error {
 		return fmt.Errorf("wrong Block.Header.LastCommitHash.  Expected %v, got %v.  Last commit %v", b.header.LastCommitHash, b.lastCommit.Hash(), b.lastCommit)
 	}
 
-	if w, g := b.transactions.Hash(), b.header.TxHash; !w.Equal(g) {
-		return fmt.Errorf("wrong Header.DataHash. Expected %X, got %X", w, g)
+	if hasher != nil {
+		if w, g := b.transactions.Hash(hasher), b.header.TxHash; !w.Equal(g) {
+			return fmt.Errorf("wrong Header.DataHash. Expected %X, got %X", w, g)
+		}
 	}
 
 	for i, ev := range b.evidence.Evidence {
@@ -593,7 +593,7 @@ func (b *Block) ToProto() (*kproto.Block, error) {
 
 // FromProto sets a protobuf Block to the given pointer.
 // It returns an error if the block is invalid.
-func BlockFromProto(bp *kproto.Block) (*Block, error) {
+func BlockFromProto(bp *kproto.Block, hasher TrieHasher) (*Block, error) {
 	if bp == nil {
 		return nil, errors.New("nil block")
 	}
@@ -622,7 +622,7 @@ func BlockFromProto(bp *kproto.Block) (*Block, error) {
 		b.lastCommit = lc
 	}
 
-	return b, b.ValidateBasic()
+	return b, b.ValidateBasic(hasher)
 }
 
 type BlockID struct {
@@ -738,25 +738,6 @@ func (bs blockSorter) Swap(i, j int) {
 func (bs blockSorter) Less(i, j int) bool { return bs.by(bs.blocks[i], bs.blocks[j]) }
 
 func Height(b1, b2 *Block) bool { return b1.header.Height < b2.header.Height }
-
-// Helper function
-type DerivableList interface {
-	Len() int
-	GetRlp(i int) []byte
-}
-
-func DeriveSha(list DerivableList) common.Hash {
-	keybuf := new(bytes.Buffer)
-	t := new(trie.Trie)
-	for i := 0; i < list.Len(); i++ {
-		keybuf.Reset()
-		if err := rlp.Encode(keybuf, uint(i)); err != nil {
-			return common.Hash{}
-		}
-		t.Update(keybuf.Bytes(), list.GetRlp(i))
-	}
-	return t.Hash()
-}
 
 //-----------------------------------------------------------------------------
 

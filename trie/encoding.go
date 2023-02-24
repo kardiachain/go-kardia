@@ -51,17 +51,6 @@ func hexToCompact(hex []byte) []byte {
 	return buf
 }
 
-func compactToHex(compact []byte) []byte {
-	base := keybytesToHex(compact)
-	// delete terminator flag
-	if base[0] < 2 {
-		base = base[:len(base)-1]
-	}
-	// apply odd flag
-	chop := 2 - base[0]&1
-	return base[chop:]
-}
-
 // hexToCompactInPlace places the compact key in input buffer, returning the length
 // needed for the representation
 func hexToCompactInPlace(hex []byte) int {
@@ -89,6 +78,20 @@ func hexToCompactInPlace(hex []byte) int {
 	}
 	hex[0] = firstByte
 	return binLen
+}
+
+func compactToHex(compact []byte) []byte {
+	if len(compact) == 0 {
+		return compact
+	}
+	base := keybytesToHex(compact)
+	// delete terminator flag
+	if base[0] < 2 {
+		base = base[:len(base)-1]
+	}
+	// apply odd flag
+	chop := 2 - base[0]&1
+	return base[chop:]
 }
 
 func keybytesToHex(str []byte) []byte {

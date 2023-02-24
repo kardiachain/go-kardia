@@ -30,7 +30,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
-	"github.com/kardiachain/go-kardia/trie"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -424,8 +423,8 @@ func (sdb *StateDB) updateStateObject(stateObject *stateObject) {
 // CreateAccount is called during the EVM CREATE operation. The situation might arise that
 // a contract does the following:
 //
-//   1. sends funds to sha(account ++ (nonce + 1))
-//   2. tx_create(sha(account ++ nonce)) (note that this gets the address of 1)
+//  1. sends funds to sha(account ++ (nonce + 1))
+//  2. tx_create(sha(account ++ nonce)) (note that this gets the address of 1)
 //
 // Carrying over the balance ensures that Ether doesn't disappear.
 func (sdb *StateDB) CreateAccount(addr common.Address) {
@@ -491,7 +490,6 @@ func (sdb *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error
 		}
 		return nil
 	})
-	sdb.logger.Debug("Trie cache stats after commit", "misses", trie.CacheMisses(), "unloads", trie.CacheUnloads())
 	return root, err
 }
 

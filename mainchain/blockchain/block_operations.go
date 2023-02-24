@@ -31,6 +31,7 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/staking/misc"
 	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardia/trie"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -175,9 +176,10 @@ func (bo *BlockOperations) CommitBlockTxsIfNotFound(block *types.Block, lastComm
 
 // SaveBlock saves the given block, blockParts, and seenCommit to the underlying storage.
 // seenCommit: The +2/3 precommits that were seen which committed at height.
-//             If all the nodes restart after committing a block,
-//             we need this to reload the precommits to catch-up nodes to the
-//             most recent height.  Otherwise they'd stall at H-1.
+//
+//	If all the nodes restart after committing a block,
+//	we need this to reload the precommits to catch-up nodes to the
+//	most recent height.  Otherwise they'd stall at H-1.
 func (bo *BlockOperations) SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) {
 	if block == nil {
 		common.PanicSanity("BlockOperations try to save a nil block")
@@ -248,7 +250,7 @@ func (bo *BlockOperations) newHeader(time time.Time, height uint64, numTxs uint6
 
 // newBlock creates new block from given data.
 func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transaction, commit *types.Commit, ev []types.Evidence) *types.Block {
-	block := types.NewBlock(header, txs, commit, ev)
+	block := types.NewBlock(header, txs, commit, ev, trie.NewStackTrie(nil))
 	return block
 }
 

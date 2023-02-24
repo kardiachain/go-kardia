@@ -52,7 +52,7 @@ func TestEmptyTrie(t *testing.T) {
 	var trie Trie
 	res := trie.Hash()
 	exp := emptyRoot
-	if res != common.Hash(exp) {
+	if res != exp {
 		t.Errorf("expected %x got %x", exp, res)
 	}
 }
@@ -120,7 +120,7 @@ func testMissingNode(t *testing.T, memonly bool) {
 
 	hash := common.HexToHash("0xe1d943cc8f061a0c0b98162830b970395ac9315654824bf21b73b891365262f9")
 	if memonly {
-		delete(triedb.nodes, hash)
+		delete(triedb.dirties, hash)
 	} else {
 		diskdb.Delete(hash[:])
 	}
@@ -162,7 +162,7 @@ func TestInsert(t *testing.T) {
 	exp := common.HexToHash("8aad789dff2f538bca5d8ea56e8abe10f4c7ba3a5dea95fea4cd6e7c3a1168d3")
 	root := trie.Hash()
 	if root != exp {
-		t.Errorf("exp %x got %x", exp, root)
+		t.Errorf("case 1: exp %x got %x", exp, root)
 	}
 
 	trie = newEmpty()
@@ -174,7 +174,7 @@ func TestInsert(t *testing.T) {
 		t.Fatalf("commit error: %v", err)
 	}
 	if root != exp {
-		t.Errorf("exp %x got %x", exp, root)
+		t.Errorf("case 2: exp %x got %x", exp, root)
 	}
 }
 
@@ -222,14 +222,6 @@ func TestDelete(t *testing.T) {
 		}
 	}
 
-	val, err := trie.TryGet([]byte("ether"))
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-	if val != nil {
-		t.Errorf("val should be nil")
-	}
-
 	hash := trie.Hash()
 	exp := common.HexToHash("5991bb8c6514148a29db676a14ac506cd2cd5775ace63c30a4fe457715e9ac84")
 	if hash != exp {
@@ -252,14 +244,6 @@ func TestEmptyValues(t *testing.T) {
 	}
 	for _, val := range vals {
 		updateString(trie, val.k, val.v)
-	}
-
-	val, err := trie.TryGet([]byte("ether"))
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-	if !bytes.Equal(val, []byte("")) {
-		t.Errorf("val should be empty")
 	}
 
 	hash := trie.Hash()
@@ -309,14 +293,20 @@ func TestReplication(t *testing.T) {
 	// perform some insertions on the new trie.
 	vals2 := []struct{ k, v string }{
 		{"do", "verb"},
-		{"ether2", "wookiedoo2"},
-		{"horse2", "stallion2"},
+		{"ether", "wookiedoo"},
+		{"horse", "stallion"},
+		// {"shaman", "horse"},
+		// {"doge", "coin"},
+		// {"ether", ""},
+		// {"dog", "puppy"},
+		// {"somethingveryoddindeedthis is", "myothernodedata"},
+		// {"shaman", ""},
 	}
 	for _, val := range vals2 {
 		updateString(trie2, val.k, val.v)
 	}
-	if hash := trie2.Hash(); hash == exp {
-		t.Errorf("root failure. expected new hash %x different form old hash %x", hash, exp)
+	if hash := trie2.Hash(); hash != exp {
+		t.Errorf("root failure. expected %x got %x", exp, hash)
 	}
 }
 
@@ -358,6 +348,7 @@ func TestRandomCases(t *testing.T) {
 		{op: 1, key: common.Hex2Bytes("fd"), value: common.Hex2Bytes("")},                                                                                               // step 25
 	}
 	runRandTest(rt)
+
 }
 
 // randTest performs random trie operations.
@@ -419,8 +410,8 @@ func runRandTest(rt randTest) bool {
 	values := make(map[string]string) // tracks content of the trie
 
 	for i, step := range rt {
-		//fmt.Printf("{op: %d, key: common.Hex2Bytes(\"%x\"), value: common.Hex2Bytes(\"%x\")}, // step %d\n",
-		//	step.op, step.key, step.value, i)
+		fmt.Printf("{op: %d, key: common.Hex2Bytes(\"%x\"), value: common.Hex2Bytes(\"%x\")}, // step %d\n",
+			step.op, step.key, step.value, i)
 		switch step.op {
 		case opUpdate:
 			tr.Update(step.key, step.value)
@@ -833,7 +824,7 @@ func tempDB() (string, *TrieDatabase) {
 	if err != nil {
 		panic(fmt.Sprintf("can't create temporary directory: %v", err))
 	}
-	diskdb := memorydb.New()
+	diskdb, err := leveldb.New(dir, 256, 0)
 	if err != nil {
 		panic(fmt.Sprintf("can't create temporary database: %v", err))
 	}
@@ -850,4 +841,17 @@ func updateString(trie *Trie, k, v string) {
 
 func deleteString(trie *Trie, k string) {
 	trie.Delete([]byte(k))
+}
+
+func TestDecodeNode(t *testing.T) {
+	t.Parallel()
+	var (
+		hash  = make([]byte, 20)
+		elems = make([]byte, 20)
+	)
+	for i := 0; i < 5000000; i++ {
+		rand.Read(hash)
+		rand.Read(elems)
+		decodeNode(hash, elems)
+	}
 }

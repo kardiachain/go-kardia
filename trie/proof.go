@@ -21,8 +21,8 @@ import (
 	"fmt"
 
 	"github.com/kardiachain/go-kardia/kai/kaidb"
+	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/lib/rlp"
 )
 
 // Prove constructs a merkle proof for key. The result contains all encoded nodes
@@ -63,7 +63,7 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb kaidb.KeyValueWriter) e
 			panic(fmt.Sprintf("%T: invalid node: %v", tn, tn))
 		}
 	}
-	hasher := newHasher(t.cachegen, t.cachelimit, nil)
+	hasher := newHasher(false)
 	defer returnHasherToPool(hasher)
 
 	for i, n := range nodes {
@@ -72,13 +72,13 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb kaidb.KeyValueWriter) e
 			continue
 		}
 		var hn node
-		n, hn = hasher.proofHash(n, t.db)
+		n, hn = hasher.proofHash(n)
 		if hash, ok := hn.(hashNode); ok || i == 0 {
 			// If the node's database encoding is a hash (or is the
 			// root node), it becomes a proof element.
-			enc, _ := rlp.EncodeToBytes(n)
+			enc := nodeToBytes(n)
 			if !ok {
-				hash = hasher.makeHashNode(enc)
+				hash = hasher.hashData(enc)
 			}
 			proofDb.Put(hash, enc)
 		}
@@ -95,4 +95,57 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb kaidb.KeyValueWriter) e
 // with the node that proves the absence of the key.
 func (t *SecureTrie) Prove(key []byte, fromLevel uint, proofDb kaidb.KeyValueWriter) error {
 	return t.trie.Prove(key, fromLevel, proofDb)
+}
+
+// VerifyProof checks merkle proofs. The given proof must contain the value for
+// key in a trie with the given root hash. VerifyProof returns an error if the
+// proof contains invalid trie nodes or the wrong value.
+func VerifyProof(rootHash common.Hash, key []byte, proofDb kaidb.KeyValueReader) (value []byte, nodes int, err error) {
+	key = keybytesToHex(key)
+	wantHash := rootHash
+	for i := 0; ; i++ {
+		buf, _ := proofDb.Get(wantHash[:])
+		if buf == nil {
+			return nil, i, fmt.Errorf("proof node %d (hash %064x) missing", i, wantHash)
+		}
+		n, err := decodeNode(wantHash[:], buf)
+		if err != nil {
+			return nil, i, fmt.Errorf("bad proof node %d: %v", i, err)
+		}
+		keyrest, cld := get(n, key)
+		switch cld := cld.(type) {
+		case nil:
+			// The trie doesn't contain the key.
+			return nil, i, nil
+		case hashNode:
+			key = keyrest
+			copy(wantHash[:], cld)
+		case valueNode:
+			return cld, i + 1, nil
+		}
+	}
+}
+
+func get(tn node, key []byte) ([]byte, node) {
+	for {
+		switch n := tn.(type) {
+		case *shortNode:
+			if len(key) < len(n.Key) || !bytes.Equal(n.Key, key[:len(n.Key)]) {
+				return nil, nil
+			}
+			tn = n.Val
+			key = key[len(n.Key):]
+		case *fullNode:
+			tn = n.Children[key[0]]
+			key = key[1:]
+		case hashNode:
+			return key, n
+		case nil:
+			return key, nil
+		case valueNode:
+			return nil, n
+		default:
+			panic(fmt.Sprintf("%T: invalid node: %v", tn, tn))
+		}
+	}
 }
