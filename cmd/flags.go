@@ -29,9 +29,11 @@ import (
 )
 
 type flags struct {
-	genesis string
-	kardia  string
-	network string
+	genesis          string
+	kardia           string
+	network          string
+	metrics          bool
+	metricsExpensive bool
 }
 
 const (
@@ -61,6 +63,8 @@ func initFlag(args *flags) {
 	flag.StringVar(&args.genesis, "genesis", "", "Path to genesis config file. Default: ${wd}/cfg/genesis.yaml")
 	flag.StringVar(&args.kardia, "node", "", "Path to Kardia node config file. Default: ${wd}/cfg/kai_config.yaml")
 	flag.StringVar(&args.network, "network", "mainnet", "Target network, choose one [mainnet, testnet, devnet]. Default: \"mainnet\"")
+	flag.BoolVar(&args.metrics, "metrics", false, "Enable metrics")
+	flag.BoolVar(&args.metricsExpensive, "metrics.expensive", false, "Enable expensive metrics")
 }
 
 func init() {

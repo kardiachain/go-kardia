@@ -39,7 +39,6 @@ import (
 	"github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/lib/metrics"
 	"github.com/kardiachain/go-kardia/lib/sysutils"
 	kai "github.com/kardiachain/go-kardia/mainchain"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
@@ -366,11 +365,6 @@ func (c *Config) Start() {
 	if err := n.Start(); err != nil {
 		logger.Error("error while starting node", "err", err)
 		return
-	}
-
-	if c.Metrics {
-		logger.Warn("Collect metrics enabled")
-		metrics.Enabled = true
 	}
 
 	if c.Debug != nil {
