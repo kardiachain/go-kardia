@@ -18,7 +18,6 @@ package rpc
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"sync/atomic"
 
@@ -53,10 +52,7 @@ type Server struct {
 // NewServer creates a new server instance with no registered handlers.
 func NewServer() *Server {
 	for i := range rpcMethods {
-		err := metrics.RPCRegistry.GetOrRegister(rpcMethods[i], metrics.NewCounter())
-		if err != nil {
-			fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@@@ ", err)
-		}
+		metrics.RPCRegistry.GetOrRegister(rpcMethods[i], metrics.NewCounter())
 	}
 	server := &Server{idgen: randomIDGenerator(), codecs: mapset.NewSet(), run: 1}
 	// Register the default service providing meta information about the RPC service such
