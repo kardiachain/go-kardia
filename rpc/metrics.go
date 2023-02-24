@@ -29,6 +29,9 @@ var (
 	successfulRequestGauge = metrics.NewRegisteredGauge("rpc/success", nil)
 	failedReqeustGauge     = metrics.NewRegisteredGauge("rpc/failure", nil)
 	rpcServingTimer        = metrics.NewRegisteredTimer("rpc/duration/all", nil)
+
+	accountNonceCounter      = metrics.NewRegisteredGauge("account_nonce", metrics.RPCRegistry)
+	accountGetBalanceCounter = metrics.NewRegisteredGauge("account_balance", metrics.RPCRegistry)
 )
 
 func newRPCServingTimer(method string, valid bool) metrics.Timer {
@@ -38,12 +41,4 @@ func newRPCServingTimer(method string, valid bool) metrics.Timer {
 	}
 	m := fmt.Sprintf("rpc/duration/%s/%s", method, flag)
 	return metrics.GetOrRegisterTimer(m, nil)
-}
-
-// list of RPC APIS need to be counted
-var rpcMethods = []string{
-	"tx_sendTransaction",
-	"account_getCode",
-	"account_getBalance",
-	"account_getNonce",
 }

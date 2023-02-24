@@ -40,7 +40,6 @@ func Handler(reg metrics.Registry) http.Handler {
 		c := newCollector()
 
 		for _, name := range names {
-			fmt.Println("@@@@@@@@@@@@@@@@@@@@@@ metric name: ", name)
 			i := reg.Get(name)
 
 			switch m := i.(type) {

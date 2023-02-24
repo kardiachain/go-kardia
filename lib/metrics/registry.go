@@ -289,7 +289,7 @@ func findPrefix(registry Registry, prefix string) (Registry, string) {
 
 // Get the metric by the given name or nil if none is registered.
 func (r *PrefixedRegistry) Get(name string) interface{} {
-	realName := r.prefix + name
+	realName := r.prefix + strings.TrimPrefix(name, r.prefix)
 	return r.underlying.Get(realName)
 }
 
@@ -334,7 +334,7 @@ var (
 	DBRegistry      = NewPrefixedRegistry("db/")
 	TxPoolRegistry  = NewPrefixedRegistry("tx_pool/")
 	P2PRegistry     = NewPrefixedRegistry("p2p/")
-	RPCRegistry     = NewPrefixedRegistry("rpc/method")
+	RPCRegistry     = NewPrefixedRegistry("rpc/method/")
 )
 
 // Call the given function for each registered metric.

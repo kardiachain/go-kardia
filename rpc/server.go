@@ -23,7 +23,6 @@ import (
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/lib/metrics"
 )
 
 const MetadataApi = "rpc"
@@ -51,9 +50,6 @@ type Server struct {
 
 // NewServer creates a new server instance with no registered handlers.
 func NewServer() *Server {
-	for i := range rpcMethods {
-		metrics.RPCRegistry.GetOrRegister(rpcMethods[i], metrics.NewCounter())
-	}
 	server := &Server{idgen: randomIDGenerator(), codecs: mapset.NewSet(), run: 1}
 	// Register the default service providing meta information about the RPC service such
 	// as the services and methods it offers.
