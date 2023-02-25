@@ -392,6 +392,9 @@ func (c *Config) StartDebug() error {
 		router.Handle("/debug/pprof/block", pprof.Handler("block"))
 		router.Handle("/debug/vars", http.DefaultServeMux)
 		router.Handle("/metrics", prometheus.Handler(metrics.DefaultRegistry))
+		router.Handle("/metrics/system", prometheus.Handler(metrics.SystemRegistry))
+		router.Handle("/metrics/db", prometheus.Handler(metrics.DBRegistry))
+		router.Handle("/metrics/txpool", prometheus.Handler(metrics.TxPoolRegistry))
 		router.Handle("/metrics/rpc", prometheus.Handler(metrics.RPCRegistry))
 
 		if err := http.ListenAndServe(c.Debug.Port, cors.AllowAll().Handler(router)); err != nil {
