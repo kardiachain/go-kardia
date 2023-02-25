@@ -205,7 +205,6 @@ func (c *Config) getNodeConfig() (*node.Config, error) {
 		WSPort:           n.WSPort,
 		WSOrigins:        n.WSOrigins,
 		MainChainConfig:  node.MainChainConfig{},
-		Metrics:          n.Metrics,
 		FastSync:         c.getFastSyncConfig(),
 		GasOracle:        c.getGasOracleConfig(),
 		KeyStoreDir:      n.KeyStoreDir,
