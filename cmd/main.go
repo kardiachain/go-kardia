@@ -40,6 +40,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/metrics"
+	"github.com/kardiachain/go-kardia/lib/metrics/prometheus"
 	"github.com/kardiachain/go-kardia/lib/sysutils"
 	kai "github.com/kardiachain/go-kardia/mainchain"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
@@ -370,11 +371,6 @@ func (c *Config) Start() {
 		return
 	}
 
-	if c.Metrics {
-		logger.Warn("Collect metrics enabled")
-		metrics.Enabled = true
-	}
-
 	if c.Debug != nil {
 		if err := c.StartDebug(); err != nil {
 			logger.Error("Failed to start debug", "err", err)
@@ -397,6 +393,11 @@ func (c *Config) StartDebug() error {
 		router.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
 		router.Handle("/debug/pprof/block", pprof.Handler("block"))
 		router.Handle("/debug/vars", http.DefaultServeMux)
+		router.Handle("/metrics", prometheus.Handler(metrics.DefaultRegistry))
+		router.Handle("/metrics/system", prometheus.Handler(metrics.SystemRegistry))
+		router.Handle("/metrics/db", prometheus.Handler(metrics.DBRegistry))
+		router.Handle("/metrics/txpool", prometheus.Handler(metrics.TxPoolRegistry))
+		router.Handle("/metrics/rpc", prometheus.Handler(metrics.RPCRegistry))
 
 		if err := http.ListenAndServe(c.Debug.Port, cors.AllowAll().Handler(router)); err != nil {
 			panic(err)
