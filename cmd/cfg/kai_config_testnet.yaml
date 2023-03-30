@@ -27,7 +27,6 @@ Node:
     InboundPeers: 15
     OutboundPeers: 15
   LogLevel: info         # crit, error, warn, info, debug, trace
-  Metrics: false         # accept node to collect metric or not for benchmarking and testing purpose
   FastSync:
     ServiceName: BCR     # log tag of blockchain reactor logs. Type string
     Enable: true         # true if this node allow and be able to fastsync, otherwise false

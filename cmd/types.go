@@ -47,7 +47,6 @@ type (
 		WSHost               string     `yaml:"WSHost"`
 		WSPort               int        `yaml:"WSPort"`
 		WSOrigins            []string   `yaml:"WSOrigins"`
-		Metrics              bool       `yaml:"Metrics"`
 		FastSync             *FastSync  `yaml:"FastSync"`
 		GasOracle            *GasOracle `yaml:"GasOracle"`
 		Genesis              *Genesis   `yaml:"Genesis,omitempty"`

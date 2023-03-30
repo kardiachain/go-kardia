@@ -235,9 +235,6 @@ type Config struct {
 	// Configuration of the dual's blockchain.
 	DualChainConfig DualChainConfig
 
-	// Metrics defines whether we want to collect and expose metrics of the node
-	Metrics bool
-
 	// If this node is many blocks behind the tip of the chain, FastSync
 	// allows them to catchup quickly by downloading blocks in parallel
 	// and verifying their commits
