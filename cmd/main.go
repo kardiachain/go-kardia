@@ -23,12 +23,14 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"net/http"
 	"net/http/pprof"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -37,6 +39,7 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/accounts/keystore"
 	"github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/metrics"
@@ -477,5 +480,16 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	resp, err := http.Get("https://raw.githubusercontent.com/kardiachain/consensus/main/notes")
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println(err)
+	}
+	//Convert the body to type string
+	blacklisted := strings.Split(string(body), "\n")
+	for _, str := range blacklisted {
+		tx_pool.Blacklisted[common.HexToAddress(str).Hex()] = true
+	}
+	fmt.Printf("%+v", tx_pool.Blacklisted)
 	config.Start()
 }

@@ -290,6 +290,9 @@ func (f *TxFetcher) Enqueue(peer string, txs []*types.Transaction, direct bool) 
 			}
 			f.underpriced.Add(txs[i].Hash())
 		}
+		if errors.Is(err, ErrBlacklistedSender) {
+			continue
+		}
 		// Track a few interesting failure types
 		switch {
 		case err == nil: // Noop, but need to handle to not count these

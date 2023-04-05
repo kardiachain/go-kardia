@@ -59,6 +59,8 @@ var (
 	// making the transaction invalid, rather a DOS protection.
 	ErrOversizedData = errors.New("oversized data")
 
+	ErrBlacklistedSender = errors.New("blacklisted sender")
+
 	// errNoActiveJournal is returned if a transaction is attempted to be inserted
 	// into the journal, but no such file is currently open.
 	errNoActiveJournal = errors.New("no active journal")
