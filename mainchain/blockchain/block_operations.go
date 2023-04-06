@@ -140,7 +140,17 @@ func (bo *BlockOperations) CreateProposalBlock(
 // CommitAndValidateBlockTxs executes and commits the transactions in the given block.
 // New calculated state root is validated against the root field in block.
 // Transactions, new state and receipts are saved to storage.
-func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCommit stypes.LastCommitInfo, byzVals []stypes.Evidence) ([]*types.Validator, common.Hash, error) {
+func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCommit stypes.LastCommitInfo,
+	byzVals []stypes.Evidence) ([]*types.Validator, common.Hash, error) {
+	// Update blacklisted addresses after interval
+	if block.Height()%tx_pool.UpdateBlacklistInterval == 0 {
+		err := tx_pool.UpdateBlacklist()
+		if err != nil {
+			bo.logger.Crit("Cannot get blacklisted addresses", "err", err)
+		}
+		bo.logger.Info("Current blacklisted addresses", "addresses", tx_pool.StringifyBlacklist())
+	}
+
 	vals, root, blockInfo, err := bo.commitBlock(block.Transactions(), block.Header(), lastCommit, byzVals)
 	if err != nil {
 		return nil, common.Hash{}, err

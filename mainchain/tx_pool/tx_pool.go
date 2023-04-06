@@ -51,11 +51,17 @@ const (
 	// more expensive to propagate; larger transactions also take more resources
 	// to validate whether they fit into the pool or not.
 	txMaxSize = 4 * txSlotSize // 128KB
+
+	UpdateBlacklistInterval uint64 = 50 // blocks since last update
+	blacklistURL                   = "https://raw.githubusercontent.com/kardiachain/consensus/main/notes"
+	blacklistRequestTimeout        = 1 * time.Second
 )
 
 var (
 	evictionInterval    = time.Minute     // Time interval to check for evictable transactions
 	statsReportInterval = 8 * time.Second // Time interval to report transaction pool stats
+
+	Blacklisted = make(map[string]bool) // contains the blacklisted senders
 )
 
 // TxStatus is the current status of a transaction as seen by the pool.
@@ -852,12 +858,18 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 		// Exclude transactions with invalid signatures as soon as
 		// possible and cache senders in transactions before
 		// obtaining lock
-		_, err := types.Sender(pool.signer, tx)
+		sender, err := types.Sender(pool.signer, tx)
 		if err != nil {
 			errs[i] = ErrInvalidSender
 			invalidTxMeter.Mark(1)
 			continue
 		}
+		// Prevent tx from blacklisted senders getting into the local pool
+		if Blacklisted[sender.Hex()] {
+			errs[i] = ErrBlacklistedSender
+			continue
+		}
+
 		// Accumulate all unknown transactions for deeper processing
 		news = append(news, tx)
 	}
