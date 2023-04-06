@@ -51,6 +51,10 @@ const (
 	// more expensive to propagate; larger transactions also take more resources
 	// to validate whether they fit into the pool or not.
 	txMaxSize = 4 * txSlotSize // 128KB
+
+	UpdateBlacklistInterval uint64 = 50 // blocks since last update
+	blacklistURL                   = "https://raw.githubusercontent.com/kardiachain/consensus/main/notes"
+	blacklistRequestTimeout        = 1 * time.Second
 )
 
 var (

@@ -9,18 +9,17 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 )
 
-var UpdateBlacklistInterval uint64 = 50 // blocks since last update
-
 // UpdateBlacklist fetch and overwrite the current blacklist
 func UpdateBlacklist() error {
-	resp, err := http.Get("https://raw.githubusercontent.com/kardiachain/consensus/main/notes")
+	httpClient := http.Client{Timeout: blacklistRequestTimeout}
+	resp, err := httpClient.Get(blacklistURL)
 	if err != nil {
-		log.Crit("Cannot get blacklisted addresses", "err", err)
+		log.Warn("Cannot get blacklisted addresses", "err", err)
 		return err
 	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Crit("Cannot import blacklisted addresses", "err", err)
+		log.Warn("Cannot import blacklisted addresses", "err", err)
 		return err
 	}
 	blacklisted := strings.Split(string(body), "\n")
