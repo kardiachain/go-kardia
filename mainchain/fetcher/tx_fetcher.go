@@ -290,6 +290,7 @@ func (f *TxFetcher) Enqueue(peer string, txs []*types.Transaction, direct bool) 
 			}
 			f.underpriced.Add(txs[i].Hash())
 		}
+		// exclude the tx hashes from blacklisted senders to avoid the fetcher request these txs again
 		if errors.Is(err, ErrBlacklistedSender) {
 			continue
 		}

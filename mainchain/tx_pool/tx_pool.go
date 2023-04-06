@@ -57,7 +57,7 @@ var (
 	evictionInterval    = time.Minute     // Time interval to check for evictable transactions
 	statsReportInterval = 8 * time.Second // Time interval to report transaction pool stats
 
-	Blacklisted = make(map[string]bool)
+	Blacklisted = make(map[string]bool) // contains the blacklisted senders
 )
 
 // TxStatus is the current status of a transaction as seen by the pool.
@@ -860,7 +860,7 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 			invalidTxMeter.Mark(1)
 			continue
 		}
-		// Exclude blacklisted senders
+		// Prevent tx from blacklisted senders getting into the local pool
 		if Blacklisted[sender.Hex()] {
 			errs[i] = ErrBlacklistedSender
 			continue

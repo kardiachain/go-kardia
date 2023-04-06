@@ -11,6 +11,7 @@ import (
 
 var UpdateBlacklistInterval uint64 = 50 // blocks since last update
 
+// UpdateBlacklist fetch and overwrite the current blacklist
 func UpdateBlacklist() error {
 	resp, err := http.Get("https://raw.githubusercontent.com/kardiachain/consensus/main/notes")
 	if err != nil {
