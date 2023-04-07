@@ -29,8 +29,9 @@ import (
 // that any network, identified by its genesis block, can have its own
 // set of configuration options.
 type ChainConfig struct {
-	ChainID       *big.Int `json:"chainId,omitempty" yaml:"ChainID"`             // chainId identifies the current chain and is used for replay protection
-	GalaxiasBlock *uint64  `json:"galaxiasBlock,omitempty" yaml:"galaxiasBlock"` // Mainnet Galaxias switch block (nil = no fork, 0 = already Galaxias)
+	ChainID        *big.Int `json:"chainId,omitempty" yaml:"ChainID"`               // chainId identifies the current chain and is used for replay protection
+	GalaxiasBlock  *uint64  `json:"galaxiasBlock,omitempty" yaml:"galaxiasBlock"`   // Mainnet Galaxias switch block (nil = no fork, 0 = already Galaxias)
+	StakingV3Block *uint64  `json:"StakingV3Block,omitempty" yaml:"StakingV3Block"` // Mainnet Galaxias switch block (nil = no fork, 0 = already Galaxias)
 
 	// Various consensus engines
 	Kaicon *KaiconConfig `json:"kaicon,omitempty" yaml:"KaiconConfig"`

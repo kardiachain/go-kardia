@@ -290,6 +290,12 @@ func (bo *BlockOperations) commitBlock(txs types.Transactions, header *types.Hea
 		bo.logger.Info("Applied Galaxias hardfork successfully at", "block", header.Height)
 	}
 
+	// Mutate the block and state according to any hard-fork specs
+	if bo.blockchain.chainConfig.StakingV3Block != nil && *bo.blockchain.chainConfig.StakingV3Block == header.Height {
+		misc.ApplyStakingV3Contracts(state)
+		bo.logger.Info("Applied Staking V3 hardfork successfully at", "block", header.Height)
+	}
+
 	// GasPool
 	bo.logger.Info("header gas limit", "limit", header.GasLimit)
 	gasPool := new(types.GasPool).AddGas(header.GasLimit)
