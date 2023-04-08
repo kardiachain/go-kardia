@@ -292,7 +292,12 @@ func (bo *BlockOperations) commitBlock(txs types.Transactions, header *types.Hea
 
 	// Mutate the block and state according to any hard-fork specs
 	if bo.blockchain.chainConfig.StakingV3Block != nil && *bo.blockchain.chainConfig.StakingV3Block == header.Height {
-		misc.ApplyStakingV3Contracts(state)
+		valsList, err := bo.staking.GetAllValContracts(state, header, bo.blockchain, bo.blockchain.vmConfig)
+		if err != nil {
+			bo.logger.Error("Failed to apply Staking V3 hardfork")
+			return nil, common.Hash{}, nil, err
+		}
+		misc.ApplyStakingV3Contracts(state, valsList)
 		bo.logger.Info("Applied Staking V3 hardfork successfully at", "block", header.Height)
 	}
 

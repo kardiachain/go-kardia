@@ -933,6 +933,9 @@ Genesis:
       MaxChangeRate: 50000000000000000
       SelfDelegate: 12500000000000000000000000
       StartWithGenesis: true
+      Delegators:
+        - Address: 0xfF3dac4f04dDbD24dE5D6039F90596F0a8bb08fd # val3
+          Amount: 1000000000000000000000
     - Name: val2
       Address: 0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5
       CommissionRate: 100000000000000000

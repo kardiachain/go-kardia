@@ -27,6 +27,9 @@ import (
 
 // ApplyGalaxiasContracts modifies the state database according to the Galaxias Mainnet hardfork rules:
 // - Apply new staking, params, treasury contracts' bytecode
-func ApplyStakingV3Contracts(statedb *state.StateDB) {
+func ApplyStakingV3Contracts(statedb *state.StateDB, valsList []common.Address) {
 	statedb.SetCode(configs.StakingContractAddress, common.FromHex(stakingV3.StakingV3StakingSMCBytecode))
+	for i := range valsList {
+		statedb.SetCode(valsList[i], common.FromHex(stakingV3.StakingV3ValidatorSMCBytecode))
+	}
 }
