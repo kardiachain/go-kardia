@@ -23,8 +23,8 @@ Node:
   WSOrigins: # cors, use "*" to accept all
     - "*"
   P2P:
-#    PrivateKey: 77cfc693f7861a6e1ea817c593c04fbc9b63d4d3146c5753c008cfc67cffca79
-    PrivateKey: 781fea6f68067b310706693dd348a48d0c068b288d7919a53ba0f9ce856eff93 # new after v3 hardfork
+    PrivateKey: 77cfc693f7861a6e1ea817c593c04fbc9b63d4d3146c5753c008cfc67cffca79
+#    PrivateKey: 781fea6f68067b310706693dd348a48d0c068b288d7919a53ba0f9ce856eff93 # new after v3 hardfork
     ListenAddress: tcp://0.0.0.0:3001
     InboundPeers: 25
     OutboundPeers: 25
@@ -47,16 +47,16 @@ MainChain:
   NetworkId: 10000
   AcceptTxs: 1       # accept tx sync process or not (1 is yes, 0 is no)
   Seeds:
-#    - c1fe56e3f58d3244f606306611a5d10c8333f1f6@127.0.0.1:3000
-#    - 7cefc13b6e2aedeedfb7cb6c32457240746baee5@127.0.0.1:3001
+    - c1fe56e3f58d3244f606306611a5d10c8333f1f6@127.0.0.1:3000
+    - 7cefc13b6e2aedeedfb7cb6c32457240746baee5@127.0.0.1:3001
     - ff3dac4f04ddbd24de5d6039f90596f0a8bb08fd@127.0.0.1:3002
-    - 990d94FEF322B50C5014d88565851Cd5Cf0BC453@127.0.0.1:3000
-    - 2c7e460668FdA84A87fbE6599BEF2eca30972F06@127.0.0.1:3001
+#    - 990d94FEF322B50C5014d88565851Cd5Cf0BC453@127.0.0.1:3000
+#    - 2c7e460668FdA84A87fbE6599BEF2eca30972F06@127.0.0.1:3001
   Database:
     Dir: chaindata                           # directory stores leveldb
     Cache: 16                                # cache is used in leveldb
     Handles: 32                              # handles is used in leveldb
-    Drop: 0                                  # Specify whether drop database or not (0 is no, 1 is yes)
+    Drop: 1                                  # Specify whether drop database or not (0 is no, 1 is yes)
 GenTxs: # Devnet config to dynamize txs processing
   Type: 1
   NumTxs: 500
