@@ -23,7 +23,8 @@ Node:
   WSOrigins: # cors, use "*" to accept all
     - "*"
   P2P:
-    PrivateKey: 8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06
+#    PrivateKey: 8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06
+    PrivateKey: 26ba1530c08e3191d3579ce4bdb0ce855faec53854eae2f8a23a338b88d2cdf7 # new after v3 hardfork
     ListenAddress: tcp://0.0.0.0:3000
     InboundPeers: 25
     OutboundPeers: 25
@@ -46,14 +47,16 @@ MainChain:
   NetworkId: 10000
   AcceptTxs: 1       # accept tx sync process or not (1 is yes, 0 is no)
   Seeds:
-    - c1fe56e3f58d3244f606306611a5d10c8333f1f6@127.0.0.1:3000
-    - 7cefc13b6e2aedeedfb7cb6c32457240746baee5@127.0.0.1:3001
+#    - c1fe56e3f58d3244f606306611a5d10c8333f1f6@127.0.0.1:3000
+#    - 7cefc13b6e2aedeedfb7cb6c32457240746baee5@127.0.0.1:3001
     - ff3dac4f04ddbd24de5d6039f90596f0a8bb08fd@127.0.0.1:3002
+    - 990d94FEF322B50C5014d88565851Cd5Cf0BC453@127.0.0.1:3000
+    - 2c7e460668FdA84A87fbE6599BEF2eca30972F06@127.0.0.1:3001
   Database:
     Dir: chaindata                           # directory stores leveldb
     Cache: 16                                # cache is used in leveldb
     Handles: 32                              # handles is used in leveldb
-    Drop: 1                                  # Specify whether drop database or not (0 is no, 1 is yes)
+    Drop: 0                                  # Specify whether drop database or not (0 is no, 1 is yes)
 GenTxs: # Devnet config to dynamize txs processing
   Type: 1
   NumTxs: 500

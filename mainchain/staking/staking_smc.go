@@ -159,6 +159,7 @@ func (s *StakingSmcUtil) ApplyAndReturnValidatorSets(statedb *state.StateDB, hea
 		return nil, err
 	}
 
+	// TODO(trinhdn97): Unify the validator set if needed
 	vals := make([]*types.Validator, len(valSet.ValAddrs))
 	for i, valAddr := range valSet.ValAddrs {
 		vals[i] = types.NewValidator(valAddr, valSet.Powers[i].Int64())
