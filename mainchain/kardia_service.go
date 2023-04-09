@@ -20,8 +20,6 @@
 package kai
 
 import (
-	"time"
-
 	bcReactor "github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
@@ -156,7 +154,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	}
 
 	// Initialize the blacklist before starting node
-	err = tx_pool.UpdateBlacklist(10 * time.Second)
+	err = tx_pool.UpdateBlacklist(tx_pool.InitialBlacklistRequestTimeout)
 	if err != nil {
 		return nil, err
 	}
