@@ -20,6 +20,8 @@
 package kai
 
 import (
+	"time"
+
 	bcReactor "github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
@@ -40,7 +42,6 @@ import (
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/types/evidence"
-	"time"
 )
 
 // TODO: evaluates using this sub-service as dual mode or light sub-protocol.
