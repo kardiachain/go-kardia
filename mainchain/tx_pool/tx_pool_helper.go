@@ -4,14 +4,15 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 )
 
 // UpdateBlacklist fetch and overwrite the current blacklist
-func UpdateBlacklist() error {
-	httpClient := http.Client{Timeout: blacklistRequestTimeout}
+func UpdateBlacklist(timeout time.Duration) error {
+	httpClient := http.Client{Timeout: timeout}
 	resp, err := httpClient.Get(blacklistURL)
 	if err != nil {
 		log.Warn("Cannot get blacklisted addresses", "err", err)

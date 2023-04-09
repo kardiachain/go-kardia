@@ -154,7 +154,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	}
 
 	// Initialize the blacklist before starting node
-	err = tx_pool.UpdateBlacklist()
+	err = tx_pool.UpdateBlacklist(tx_pool.InitialBlacklistRequestTimeout)
 	if err != nil {
 		return nil, err
 	}

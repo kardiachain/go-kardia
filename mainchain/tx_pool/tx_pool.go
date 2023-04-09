@@ -52,9 +52,10 @@ const (
 	// to validate whether they fit into the pool or not.
 	txMaxSize = 4 * txSlotSize // 128KB
 
-	UpdateBlacklistInterval uint64 = 50 // blocks since last update
-	blacklistURL                   = "https://raw.githubusercontent.com/kardiachain/consensus/main/notes"
-	blacklistRequestTimeout        = 1 * time.Second
+	UpdateBlacklistInterval        uint64 = 50 // blocks since last update
+	blacklistURL                          = "https://raw.githubusercontent.com/kardiachain/consensus/main/notes"
+	InitialBlacklistRequestTimeout        = 1 * time.Second
+	BlacklistRequestTimeout               = 2 * time.Second
 )
 
 var (
