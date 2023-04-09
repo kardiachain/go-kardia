@@ -146,7 +146,7 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCom
 	if block.Height()%tx_pool.UpdateBlacklistInterval == 0 {
 		err := tx_pool.UpdateBlacklist()
 		if err != nil {
-			bo.logger.Crit("Cannot get blacklisted addresses", "err", err)
+			bo.logger.Warn("Cannot get blacklisted addresses", "err", err)
 		}
 		bo.logger.Info("Current blacklisted addresses", "addresses", tx_pool.StringifyBlacklist())
 	}

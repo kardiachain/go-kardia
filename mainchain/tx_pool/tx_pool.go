@@ -54,7 +54,7 @@ const (
 
 	UpdateBlacklistInterval uint64 = 50 // blocks since last update
 	blacklistURL                   = "https://raw.githubusercontent.com/kardiachain/consensus/main/notes"
-	blacklistRequestTimeout        = 1 * time.Second
+	blacklistRequestTimeout        = 2 * time.Second
 )
 
 var (
