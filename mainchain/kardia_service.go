@@ -40,6 +40,7 @@ import (
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/types/evidence"
+	"time"
 )
 
 // TODO: evaluates using this sub-service as dual mode or light sub-protocol.
@@ -154,7 +155,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	}
 
 	// Initialize the blacklist before starting node
-	err = tx_pool.UpdateBlacklist()
+	err = tx_pool.UpdateBlacklist(10 * time.Second)
 	if err != nil {
 		return nil, err
 	}
