@@ -1638,6 +1638,30 @@ Genesis:
             "payable":true,
             "stateMutability":"payable",
             "type":"function"
+          },
+          {
+            "constant": true,
+            "inputs": [],
+            "name": "version",
+            "outputs": [
+              {
+                "internalType": "string",
+                "name": "Version",
+                "type": "string"
+              }
+            ],
+            "payable": false,
+            "stateMutability": "pure",
+            "type": "function"
+          },
+          {
+            "constant": false,
+            "inputs": [],
+            "name": "initv3Owners",
+            "outputs": [],
+            "payable": false,
+            "stateMutability": "nonpayable",
+            "type": "function"
           }
         ]
     Validator:
