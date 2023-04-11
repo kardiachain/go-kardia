@@ -395,3 +395,14 @@ func (s *StakingSmcUtil) GetAllValContracts(statedb *state.StateDB, header *type
 	}
 	return valsList, nil
 }
+
+// ApplyInitV3Owners applies the v3 owners after hardfork
+func (s *StakingSmcUtil) ApplyInitV3Owners(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) error {
+	payload, err := s.Abi.Pack("initv3Owners")
+	if err != nil {
+		return err
+	}
+
+	_, err = s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
+	return err
+}
