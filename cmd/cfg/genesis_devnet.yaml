@@ -3300,7 +3300,7 @@ Genesis:
       Period: 15    # Type uint64
       Epoch: 30000  # Type uint64
     ChainID: 242
-    StakingV3Block: 3
+    StakingV3Block: 2
   TxPool:
     AccountSlots: 2048      # Type: uint64
     AccountQueue: 4096      # Type: uint64

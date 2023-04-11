@@ -403,6 +403,10 @@ func (s *StakingSmcUtil) ApplyInitV3Owners(statedb *state.StateDB, header *types
 		return err
 	}
 
-	_, err = s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
-	return err
+	ret, err := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
+	if err != nil {
+		reason, errUnpack := abi.UnpackRevert(ret)
+		return fmt.Errorf("ABI unpack error: %v. Revert reason: %v", errUnpack.Error(), reason)
+	}
+	return nil
 }

@@ -298,9 +298,10 @@ func (bo *BlockOperations) commitBlock(txs types.Transactions, header *types.Hea
 			return nil, common.Hash{}, nil, err
 		}
 		misc.ApplyStakingV3Contracts(state, valsList)
+		// Change validators' owner and revoke target's delegation right after the fork
 		err = bo.staking.ApplyInitV3Owners(state, header, bo.blockchain, bo.blockchain.vmConfig)
 		if err != nil {
-			bo.logger.Error("Failed to init Staking V3 validator owners")
+			bo.logger.Error("Failed to init Staking V3 validator owners", "err", err)
 			return nil, common.Hash{}, nil, err
 		}
 		bo.logger.Info("Applied Staking V3 hardfork successfully at", "block", header.Height)
