@@ -325,3 +325,31 @@ type storageBlockInfo struct {
 	Receipts []*ReceiptForStorage
 	Bloom    Bloom
 }
+
+type LegacyBlockInfo struct {
+	GasUsed  uint64
+	Rewards  *big.Int // block reward
+	Receipts Receipts
+
+	size atomic.Value
+}
+
+func (bi *LegacyBlockInfo) DecodeRLP(s *rlp.Stream) error {
+	sbi := legacyStorageBlockInfo{}
+	if err := s.Decode(&sbi); err != nil {
+		return err
+	}
+	bi.GasUsed = sbi.GasUsed
+	bi.Rewards = sbi.Rewards
+	bi.Receipts = make(Receipts, len(sbi.Receipts))
+	for i, receipt := range sbi.Receipts {
+		bi.Receipts[i] = (*Receipt)(receipt)
+	}
+	return nil
+}
+
+type legacyStorageBlockInfo struct {
+	GasUsed  uint64
+	Rewards  *big.Int
+	Receipts []*ReceiptForStorage
+}

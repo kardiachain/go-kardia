@@ -252,27 +252,40 @@ func DeleteCanonicalHash(db kaidb.KeyValueWriter, number uint64) {
 }
 
 // ReadBlockInfo retrieves blockReward, gasUsed and all the transaction receipts belonging to a block.
-func ReadBlockInfo(db kaidb.Reader, hash common.Hash, number uint64, config *configs.ChainConfig) *types.BlockInfo {
+func ReadBlockInfo(db kaidb.Reader, hash common.Hash, number uint64, config *configs.ChainConfig) (*types.BlockInfo, bool) {
+	var needReplaceLegacyBlockInfo bool
 	// Retrieve the flattened receipt slice
 	data, _ := db.Get(blockInfoKey(number, hash))
 	if len(data) == 0 {
-		return nil
+		return nil, false
 	}
 	blockInfo := &types.BlockInfo{}
 	if err := rlp.DecodeBytes(data, &blockInfo); err != nil {
-		log.Error("Invalid receipt array RLP", "hash", hash, "err", err)
-		return nil
+		log.Warn("Invalid receipt array RLP", "hash", hash, "err", err)
+		// try to decode as LegacyBlockInfo (without Bloom field)
+		legacyBlockInfo := &types.LegacyBlockInfo{}
+		if err := rlp.DecodeBytes(data, &legacyBlockInfo); err != nil {
+			log.Warn("Can't decode legacyBlockInfo", "hash", hash, "err", err)
+			return nil, false
+		}
+		blockInfo.Receipts = legacyBlockInfo.Receipts
+		blockInfo.Rewards = legacyBlockInfo.Rewards
+		blockInfo.GasUsed = legacyBlockInfo.GasUsed
+		// re-create the logs bloom and mark this BlockInfo to be replaced
+		blockInfo.Bloom = types.CreateBloom(blockInfo.Receipts)
+		needReplaceLegacyBlockInfo = true
+		log.Info("Replacing legacy BlockInfo", "hash", hash, "height", number)
 	}
 	block := ReadBlock(db, number)
 	if block.Transactions() == nil {
 		log.Error("Missing body but have receipt", "hash", hash, "height", number)
-		return nil
+		return nil, false
 	}
 	if err := blockInfo.Receipts.DeriveFields(config, hash, number, block.Transactions()); err != nil {
 		log.Error("Failed to derive block receipts fields", "hash", hash, "height", number, "err", err)
-		return nil
+		return nil, false
 	}
-	return blockInfo
+	return blockInfo, needReplaceLegacyBlockInfo
 }
 
 // ReadTxLookupEntry retrieves the positional metadata associated with a transaction
@@ -370,7 +383,10 @@ func ReadReceipt(db kaidb.Reader, hash common.Hash) (*types.Receipt, common.Hash
 	if blockHash == (common.Hash{}) {
 		return nil, common.Hash{}, 0, 0
 	}
-	blockInfo := ReadBlockInfo(db, blockHash, blockHeight, nil)
+	blockInfo, _ := ReadBlockInfo(db, blockHash, blockHeight, nil)
+	if blockInfo == nil {
+		return nil, common.Hash{}, 0, 0
+	}
 	if len(blockInfo.Receipts) <= int(receiptIndex) {
 		log.Error("Receipt refereced missing", "number", blockHeight, "hash", blockHash, "index", receiptIndex)
 		return nil, common.Hash{}, 0, 0

@@ -179,7 +179,11 @@ func (s *StoreDB) ReadDualEvent(hash common.Hash) (*types.DualEvent, common.Hash
 
 // ReadBlockInfo retrieves block info belonging to a block.
 func (s *StoreDB) ReadBlockInfo(hash common.Hash, number uint64, config *configs.ChainConfig) *types.BlockInfo {
-	return ReadBlockInfo(s.db, hash, number, config)
+	bi, needReplaceLegacyBlockInfo := ReadBlockInfo(s.db, hash, number, config)
+	if needReplaceLegacyBlockInfo {
+		WriteBlockInfo(s.db, hash, number, bi)
+	}
+	return bi
 }
 
 // ReadTxLookupEntry retrieves the positional metadata associated with a transaction
