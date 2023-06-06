@@ -75,6 +75,9 @@ func (c *Config) getP2PConfig() (*configs.P2PConfig, error) {
 	p2pConfig.ListenAddress = c.P2P.ListenAddress
 	p2pConfig.MaxNumInboundPeers = c.P2P.InboundPeers
 	p2pConfig.MaxNumOutboundPeers = c.P2P.OutboundPeers
+	p2pConfig.PersistentPeers = c.P2P.PersistentPeers
+	p2pConfig.AddrBookStrict = c.P2P.AddrBookStrict
+	p2pConfig.SeedMode = c.P2P.SeedMode
 	p2pConfig.RootDir = c.DataDir
 	p2pConfig.AddrBook = filepath.Join(c.DataDir, "addrbook.json")
 	return p2pConfig, nil
