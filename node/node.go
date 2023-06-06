@@ -174,7 +174,7 @@ func New(conf *Config) (*Node, error) {
 		conf, transport, peerFilters, nodeInfo, nodeKey, logger,
 	)
 
-	err = sw.AddPersistentPeers(splitAndTrimEmpty(conf.P2P.PersistentPeers, ",", " "))
+	err = sw.AddPersistentPeers(conf.P2P.PersistentPeers)
 	if err != nil {
 		return nil, fmt.Errorf("could not add peers from persistent_peers field: %w", err)
 	}
@@ -305,7 +305,7 @@ func (n *Node) OnStart() error {
 	}
 
 	// Always connect to persistent peers
-	err = n.sw.DialPeersAsync(splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " "))
+	err = n.sw.DialPeersAsync(n.config.P2P.PersistentPeers)
 	if err != nil {
 		return fmt.Errorf("could not dial peers from persistent_peers field: %w", err)
 	}

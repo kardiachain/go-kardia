@@ -44,7 +44,7 @@ type P2PConfig struct { //nolint: maligned
 	Seeds []string `mapstructure:"seeds"`
 
 	// Comma separated list of nodes to keep persistent connections to
-	PersistentPeers string `mapstructure:"persistent_peers"`
+	PersistentPeers []string `mapstructure:"persistent_peers"`
 
 	// UPNP port forwarding
 	UPNP bool `mapstructure:"upnp"`
