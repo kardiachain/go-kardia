@@ -109,7 +109,7 @@ func TestWatchNoDir(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Create the directory and copy a key file into it.
-	os.MkdirAll(dir, 0700)
+	os.MkdirAll(dir, 0777)
 	defer os.RemoveAll(dir)
 	file := filepath.Join(dir, "aaa")
 	if err := cp.CopyFile(file, cachetestAccounts[0].URL.Path); err != nil {
@@ -335,7 +335,7 @@ func TestUpdatedKeyfileContents(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Create the directory and copy a key file into it.
-	os.MkdirAll(dir, 0700)
+	os.MkdirAll(dir, 0777)
 	defer os.RemoveAll(dir)
 	file := filepath.Join(dir, "aaa")
 

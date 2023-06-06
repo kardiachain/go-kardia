@@ -81,7 +81,7 @@ var _ WAL = &BaseWAL{}
 // NewWAL returns a new write-ahead logger based on `baseWAL`, which implements
 // WAL. It's flushed and synced to disk every 2s and once when stopped.
 func NewWAL(walFile string, groupOptions ...func(*auto.Group)) (*BaseWAL, error) {
-	err := kos.EnsureDir(filepath.Dir(walFile), 0700)
+	err := kos.EnsureDir(filepath.Dir(walFile), 0777)
 	if err != nil {
 		return nil, fmt.Errorf("failed to ensure WAL directory is in place: %w", err)
 	}

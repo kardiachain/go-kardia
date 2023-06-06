@@ -236,6 +236,7 @@ func (n *Node) OnStart() error {
 	if err := n.transport.Listen(*addr); err != nil {
 		return err
 	}
+	n.Logger.Info("Transport started", n.config.P2P.ListenAddress)
 
 	// Otherwise copy and specialize the P2P configuration
 	services := make(map[reflect.Type]Service)
@@ -324,7 +325,7 @@ func (n *Node) openDataDir() error {
 	}
 
 	instdir := filepath.Join(n.config.DataDir, n.config.name())
-	if err := os.MkdirAll(instdir, 0700); err != nil {
+	if err := os.MkdirAll(instdir, 0777); err != nil {
 		return err
 	}
 	// Lock the instance directory to prevent concurrent use by another instance as well as
