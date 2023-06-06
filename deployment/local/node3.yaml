@@ -25,10 +25,12 @@ Node:
     - "*"
   P2P:
     PrivateKey: 98de1df1e242afb02bd5dc01fbcacddcc9a4d41df95a66f629139560ca6e4dbb
-    ListenAddress: tcp://0.0.0.0:3000
-    InboundPeers: 15
-    OutboundPeers: 15
-  LogLevel: info           # crit, error, warn, info, debug, trace
+    SeedMode: false
+    PersistentPeers:
+      - c1fe56e3f58d3244f606306611a5d10c8333f1f6@172.20.0.2:3000
+      - 7cefc13b6e2aedeedfb7cb6c32457240746baee5@172.20.0.3:3000
+      - ff3dac4f04ddbd24de5d6039f90596f0a8bb08fd@172.20.0.4:3000
+    AddrBookStrict: false
   FastSync:
     ServiceName: BCREACTOR # log tag of blockchain reactor logs. Type string
     Enable: true        # true if this node allow and be able to fastsync, otherwise false
