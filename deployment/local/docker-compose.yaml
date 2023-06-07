@@ -20,12 +20,12 @@ services:
       kardia:
         ipv4_address: 172.20.0.2
     volumes:
-      - ../../cmd/cfg/genesis.yaml:/go/bin/genesis.yaml # use genesis file of mainnet
-      - ./node1.yaml:/go/bin/node1.yaml # node config
+      - ./genesis.yaml:/go/bin/genesis_local.yaml
+      - ./node1.yaml:/go/bin/node1.yaml
       - ./node1:/root/.kardia
     command: [ 
       "--genesis", "genesis.yaml", 
-      "--network", "mainnet", 
+      "--network", "testnet", 
       "--node","node1.yaml"
     ]
     logging:
@@ -43,12 +43,12 @@ services:
       kardia:
         ipv4_address: 172.20.0.3
     volumes:
-      - ../../cmd/cfg/genesis.yaml:/go/bin/genesis.yaml # use genesis file of mainnet
+      - ./genesis.yaml:/go/bin/genesis.yaml
       - ./node2.yaml:/go/bin/node2.yaml
       - ./node2:/root/.kardia
     command: [  
       "--genesis", "genesis.yaml",
-      "--network", "mainnet",
+      "--network", "testnet",
       "--node","node2.yaml" 
     ]
     logging:
@@ -66,12 +66,12 @@ services:
       kardia:
         ipv4_address: 172.20.0.4
     volumes:
-      - ../../cmd/cfg/genesis.yaml:/go/bin/genesis.yaml # use genesis file of mainnet
+      - ./genesis.yaml:/go/bin/genesis.yaml
       - ./node3.yaml:/go/bin/node3.yaml
       - ./node3:/root/.kardia
     command: [
       "--genesis", "genesis.yaml",
-      "--network", "mainnet", 
+      "--network", "testnet", 
       "--node","node3.yaml"
     ]
     logging:
