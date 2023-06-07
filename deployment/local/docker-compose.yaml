@@ -20,7 +20,7 @@ services:
       kardia:
         ipv4_address: 172.20.0.2
     volumes:
-      - ./genesis.yaml:/go/bin/genesis_local.yaml
+      - ./genesis.yaml:/go/bin/genesis.yaml
       - ./node1.yaml:/go/bin/node1.yaml
       - ./node1:/root/.kardia
     command: [ 
