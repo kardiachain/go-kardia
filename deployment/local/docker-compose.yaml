@@ -10,6 +10,7 @@ networks:
 services:
   node1:
     container_name: node1
+    build: ../..
     image: go-kardia:latest
     ports:
       - 3000:3000
@@ -19,9 +20,14 @@ services:
       kardia:
         ipv4_address: 172.20.0.2
     volumes:
-      - ./node1.yaml:/go/bin/node1.yaml
+      - ../../cmd/cfg/genesis.yaml:/go/bin/genesis.yaml # use genesis file of mainnet
+      - ./node1.yaml:/go/bin/node1.yaml # node config
       - ./node1:/root/.kardia
-    command: [ "--network", "testnet", "--node","node1.yaml" ]
+    command: [ 
+      "--genesis", "genesis.yaml", 
+      "--network", "mainnet", 
+      "--node","node1.yaml"
+    ]
     logging:
       driver: "json-file"
       options:
@@ -37,9 +43,14 @@ services:
       kardia:
         ipv4_address: 172.20.0.3
     volumes:
+      - ../../cmd/cfg/genesis.yaml:/go/bin/genesis.yaml # use genesis file of mainnet
       - ./node2.yaml:/go/bin/node2.yaml
       - ./node2:/root/.kardia
-    command: [ "--network", "testnet", "--node","node2.yaml" ]
+    command: [  
+      "--genesis", "genesis.yaml",
+      "--network", "mainnet",
+      "--node","node2.yaml" 
+    ]
     logging:
       driver: "json-file"
       options:
@@ -55,9 +66,14 @@ services:
       kardia:
         ipv4_address: 172.20.0.4
     volumes:
+      - ../../cmd/cfg/genesis.yaml:/go/bin/genesis.yaml # use genesis file of mainnet
       - ./node3.yaml:/go/bin/node3.yaml
       - ./node3:/root/.kardia
-    command: [ "--network", "testnet", "--node","node3.yaml" ]
+    command: [
+      "--genesis", "genesis.yaml",
+      "--network", "mainnet", 
+      "--node","node3.yaml"
+    ]
     logging:
       driver: "json-file"
       options:
