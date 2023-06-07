@@ -30,7 +30,6 @@ Node:
     OutboundPeers: 2
     SeedMode: false
     PersistentPeers:
-      - c1fe56e3f58d3244f606306611a5d10c8333f1f6@node1:3000
     AddrBookStrict: false
   LogLevel: info           # crit, error, warn, info, debug, trace
   FastSync:

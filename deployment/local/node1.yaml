@@ -51,9 +51,6 @@ MainChain:
   ServiceName: KARDIA
   AcceptTxs: 1       # accept tx sync process or not (1 is yes, 0 is no)
   Seeds:
-    # - c1fe56e3f58d3244f606306611a5d10c8333f1f6@node1:3000
-    # - 7cefc13b6e2aedeedfb7cb6c32457240746baee5@node2:3000
-    # - ff3dac4f04ddbd24de5d6039f90596f0a8bb08fd@node3:3000
   Database:
     Dir: chaindata                           # directory stores leveldb
     Cache: 16                                # cache is used in leveldb
