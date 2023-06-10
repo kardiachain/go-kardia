@@ -352,12 +352,20 @@ func (so *stateObject) updateTrie(db Database) Trie {
 	for key, value := range so.dirtyStorage {
 		delete(so.dirtyStorage, key)
 		if (value == common.Hash{}) {
-			so.setError(tr.TryDelete(key[:]))
+			if err := tr.TryDelete(key[:]); err != nil {
+				so.setError(err)
+			} else {
+				so.db.StorageDeleted += 1
+			}
 			continue
 		}
 		// Encoding []byte cannot fail, ok to ignore the error.
 		v, _ := rlp.EncodeToBytes(bytes.TrimLeft(value[:], "\x00"))
-		so.setError(tr.TryUpdate(key[:], v))
+		if err := tr.TryUpdate(key[:], v); err != nil {
+			so.setError(err)
+		} else {
+			so.db.StorageUpdated += 1
+		}
 	}
 	return tr
 }

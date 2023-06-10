@@ -30,6 +30,7 @@ import (
 	"github.com/kardiachain/go-kardia/kai/kaidb"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/metrics"
 	"github.com/kardiachain/go-kardia/lib/rlp"
 	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardia/trie"
@@ -89,6 +90,9 @@ func WriteBlockInfo(db kaidb.Writer, hash common.Hash, height uint64, blockInfo 
 	if err != nil {
 		log.Crit("Failed to encode block receipts", "err", err)
 	}
+	if metrics.EnabledExpensive {
+		BlockInfoWrittenBytes.Mark(int64(len(bytes)))
+	}
 	// Store the flattened receipt slice
 	if err := db.Put(blockInfoKey(height, hash), bytes); err != nil {
 		log.Crit("Failed to store block receipts", "err", err)
@@ -122,6 +126,9 @@ func WriteEvent(db kaidb.Writer, smc *types.KardiaSmartcontract) {
 			log.Error("failed to encode smartContract Data")
 		}
 		abiKey := contractAbiKey(smc.SmcAddress)
+		if metrics.EnabledExpensive {
+			ABIWrittenBytes.Mark(int64(len(encodedData)))
+		}
 		if err := db.Put(abiKey, encodedData); err != nil {
 			log.Error("Failed to store dualAction", "err", err)
 		}
@@ -137,6 +144,9 @@ func WriteEvent(db kaidb.Writer, smc *types.KardiaSmartcontract) {
 		log.Error("failed to encode smartContract Data")
 	}
 	abiKey := contractAbiKey(masterSmc.Address)
+	if metrics.EnabledExpensive {
+		ABIWrittenBytes.Mark(int64(len(encodedData)))
+	}
 	if err := db.Put(abiKey, encodedData); err != nil {
 		log.Error("Failed to store dualAction", "err", err)
 	}
@@ -151,6 +161,9 @@ func WriteEvent(db kaidb.Writer, smc *types.KardiaSmartcontract) {
 			log.Error("Failed to encode event", "err", err, "method", method, "contract", smc.SmcAddress)
 		}
 		key := eventKey(smc.SmcAddress, method)
+		if metrics.EnabledExpensive {
+			EventWrittenBytes.Mark(int64(len(data)))
+		}
 		if err := db.Put(key, data); err != nil {
 			log.Error("Failed to store last header's hash", "err", err)
 		}
@@ -167,6 +180,9 @@ func WriteEvent(db kaidb.Writer, smc *types.KardiaSmartcontract) {
 		encodedEvents, err := rlp.EncodeToBytes(kaiEvent)
 		if err != nil {
 			log.Error("Failed to encode events list", "err", err, "contract", smc.SmcAddress)
+		}
+		if metrics.EnabledExpensive {
+			EventWrittenBytes.Mark(int64(len(encodedEvents)))
 		}
 		if err := db.Put(eventsKey(smc.SmcAddress), encodedEvents); err != nil {
 			log.Error("Failed to store last header's hash", "err", err)
@@ -302,6 +318,9 @@ func WriteTxLookupEntries(db kaidb.Writer, block *types.Block) {
 		data, err := rlp.EncodeToBytes(entry)
 		if err != nil {
 			log.Crit("Failed to encode transaction lookup entry", "err", err)
+		}
+		if metrics.EnabledExpensive {
+			TxLookupWrittenBytes.Mark(int64(len(data)))
 		}
 		if err := db.Put(txLookupKey(tx.Hash()), data); err != nil {
 			log.Crit("Failed to store transaction lookup entry", "err", err)
@@ -497,6 +516,9 @@ func ReadBloomBits(db kaidb.Reader, bit uint, section uint64, head common.Hash) 
 // WriteBloomBits stores the compressed bloom bits vector belonging to the given
 // section and bit index.
 func WriteBloomBits(db kaidb.Writer, bit uint, section uint64, head common.Hash, bits []byte) {
+	if metrics.EnabledExpensive {
+		BloombitsWrittenBytes.Mark(int64(len(bits)))
+	}
 	if err := db.Put(bloomBitsKey(bit, section, head), bits); err != nil {
 		log.Crit("Failed to store bloom bits", "err", err)
 	}
@@ -619,6 +641,9 @@ func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet
 		panic("nil blockmeta")
 	}
 	metaBytes := mustEncode(pbm)
+	if metrics.EnabledExpensive {
+		BlockMetaWrittenBytes.Mark(int64(len(metaBytes)))
+	}
 	if err := batch.Put(blockMetaKey(height), metaBytes); err != nil {
 		panic(fmt.Errorf("failed to store block meta err: %s", err))
 	}
@@ -632,6 +657,9 @@ func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet
 	// Save block commit (duplicate and separate from the Block)
 	pbc := block.LastCommit().ToProto()
 	blockCommitBytes := mustEncode(pbc)
+	if metrics.EnabledExpensive {
+		BlockCommitWrittenBytes.Mark(int64(len(blockCommitBytes)))
+	}
 	if err := batch.Put(commitKey(height-1), blockCommitBytes); err != nil {
 		panic(fmt.Errorf("failed to store block commit err: %s", err))
 	}
@@ -640,6 +668,9 @@ func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet
 	// NOTE: we can delete this at a later height
 	pbsc := seenCommit.ToProto()
 	seenCommitBytes := mustEncode(pbsc)
+	if metrics.EnabledExpensive {
+		BlockSeenCommitWrittenBytes.Mark(int64(len(seenCommitBytes)))
+	}
 	if err := batch.Put(seenCommitKey(height), seenCommitBytes); err != nil {
 		panic(fmt.Errorf("failed to store seen commit err: %s", err))
 	}
@@ -663,6 +694,9 @@ func writeBlockPart(db kaidb.Writer, height uint64, index int, part *types.Part)
 		panic(fmt.Errorf("unable to make part into proto: %w", err))
 	}
 	partBytes := mustEncode(pbp)
+	if metrics.EnabledExpensive {
+		BlockPartWrittenBytes.Mark(int64(len(partBytes)))
+	}
 	if err = db.Put(blockPartKey(height, index), partBytes); err != nil {
 		panic(fmt.Errorf("failed to store block part key: %w", err))
 	}

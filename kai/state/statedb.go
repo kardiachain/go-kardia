@@ -29,6 +29,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/metrics"
 	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -96,6 +97,21 @@ type StateDB struct {
 	nextRevisionId int
 
 	lock sync.Mutex
+
+	// Metrics
+
+	// Keep track of list updated accounts
+	UpdatedAccounts map[common.Address]struct{}
+	// Keep track of list updated accounts
+	DeletedAccounts map[common.Address]struct{}
+	// Total account updates
+	AccountUpdated int
+	// Total account deletions
+	AccountDeleted int
+	// Total storage updates
+	StorageUpdated int
+	// Total storage deletions
+	StorageDeleted int
 }
 
 // Create a new state from a given trie.
@@ -113,6 +129,8 @@ func New(logger log.Logger, root common.Hash, db Database) (*StateDB, error) {
 		logs:              make(map[common.Hash][]*types.Log),
 		preimages:         make(map[common.Hash][]byte),
 		journal:           newJournal(),
+		UpdatedAccounts:   make(map[common.Address]struct{}),
+		DeletedAccounts:   make(map[common.Address]struct{}),
 	}, nil
 }
 
@@ -283,6 +301,7 @@ func (sdb *StateDB) Reset(root common.Hash) error {
 // It is called in between transactions to get the root hash that
 // goes into transaction receipts.
 func (sdb *StateDB) IntermediateRoot(deleteEmptyObjects bool) common.Hash {
+	// Finalise all the dirty storage states and write them into the tries
 	sdb.Finalise(deleteEmptyObjects)
 	return sdb.trie.Hash()
 }
@@ -304,9 +323,13 @@ func (sdb *StateDB) Finalise(deleteEmptyObjects bool) {
 
 		if stateObject.suicided || (deleteEmptyObjects && stateObject.empty()) {
 			sdb.deleteStateObject(stateObject)
+			sdb.DeletedAccounts[addr] = struct{}{}
+			sdb.AccountDeleted += 1
 		} else {
 			stateObject.updateRoot(sdb.db)
 			sdb.updateStateObject(stateObject)
+			sdb.UpdatedAccounts[addr] = struct{}{}
+			sdb.AccountUpdated += 1
 		}
 		sdb.stateObjectsDirty[addr] = struct{}{}
 	}
@@ -490,6 +513,18 @@ func (sdb *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error
 		}
 		return nil
 	})
+
+	if metrics.EnabledExpensive {
+		updatedAccountsGauge.Update(int64(len(sdb.UpdatedAccounts)))
+		deletedAccountsGauge.Update(int64(len(sdb.DeletedAccounts)))
+		accountUpdatedMeter.Mark(int64(sdb.AccountUpdated))
+		storageUpdatedMeter.Mark(int64(sdb.StorageUpdated))
+		accountDeletedMeter.Mark(int64(sdb.AccountDeleted))
+		storageDeletedMeter.Mark(int64(sdb.StorageDeleted))
+		sdb.AccountUpdated, sdb.AccountDeleted = 0, 0
+		sdb.StorageUpdated, sdb.StorageDeleted = 0, 0
+	}
+
 	return root, err
 }
 
