@@ -29,7 +29,7 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardia/kai/state"
-	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	kvm "github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -83,7 +83,7 @@ func GetBlockchainStaking() (*blockchain.BlockChain, error, *state.StateDB) {
 	}
 
 	blockDB := memorydb.New()
-	kaiDb := kvstore.NewStoreDB(blockDB)
+	kaiDb := rawdb.NewStoreDB(blockDB)
 	genesis := g.DefaulTestnetFullGenesisBlock(genesisAccounts, genesisContracts)
 	chainConfig, _, genesisErr := setupGenesis(genesis, kaiDb)
 	if genesisErr != nil {

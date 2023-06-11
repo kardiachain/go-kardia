@@ -22,7 +22,7 @@ import (
 	"math/big"
 
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/mainchain/oracles"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
@@ -51,7 +51,7 @@ type Config struct {
 	TxPool tx_pool.TxPoolConfig
 
 	// DbInfo stores configuration information to setup database
-	DBInfo storage.DbInfo
+	DBInfo rawdb.DbInfo
 
 	// acceptTxs accept tx sync processes
 	AcceptTxs uint32

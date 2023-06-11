@@ -25,11 +25,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
-
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/events"
-	"github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/lib/bloombits"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
@@ -144,7 +142,7 @@ func (b *testBackend) ServiceFilter(ctx context.Context, session *bloombits.Matc
 				for i, section := range task.Sections {
 					if rand.Int()%4 != 0 { // Handle occasional missing deliveries
 						head := b.db.ReadCanonicalHash((section+1)*configs.BloomBitsBlocks - 1)
-						task.Bitsets[i], _ = kvstore.ReadBloomBits(b.db.DB(), task.Bit, section, head)
+						task.Bitsets[i], _ = rawdb.ReadBloomBits(b.db.DB(), task.Bit, section, head)
 					}
 				}
 				request <- task
@@ -162,7 +160,7 @@ func (b *testBackend) ServiceFilter(ctx context.Context, session *bloombits.Matc
 //	t.Parallel()
 //
 //	var (
-//		db          = storage.NewMemoryDatabase()
+//		db          = rawdb.NewMemoryDatabase()
 //		backend     = &testBackend{db: db}
 //		api         = NewPublicFilterAPI(backend)
 //		genesis     = new(genesis.Genesis).MustCommit(db)
@@ -213,7 +211,7 @@ func (b *testBackend) ServiceFilter(ctx context.Context, session *bloombits.Matc
 // If not it must return an error.
 func TestLogFilterCreation(t *testing.T) {
 	var (
-		db      = storage.NewMemoryDatabase()
+		db      = rawdb.NewMemoryDatabase()
 		backend = &testBackend{db: db}
 		api     = NewPublicFilterAPI(backend, true)
 
@@ -257,7 +255,7 @@ func TestInvalidLogFilterCreation(t *testing.T) {
 	t.Parallel()
 
 	var (
-		db      = storage.NewMemoryDatabase()
+		db      = rawdb.NewMemoryDatabase()
 		backend = &testBackend{db: db}
 		api     = NewPublicFilterAPI(backend, true)
 	)
@@ -278,7 +276,7 @@ func TestInvalidLogFilterCreation(t *testing.T) {
 
 func TestInvalidGetLogsRequest(t *testing.T) {
 	var (
-		db        = storage.NewMemoryDatabase()
+		db        = rawdb.NewMemoryDatabase()
 		backend   = &testBackend{db: db}
 		api       = NewPublicFilterAPI(backend, true)
 		blockHash = common.HexToHash("0x1111111111111111111111111111111111111111111111111111111111111111")
@@ -303,7 +301,7 @@ func TestLogFilter(t *testing.T) {
 	t.Parallel()
 
 	var (
-		db      = storage.NewMemoryDatabase()
+		db      = rawdb.NewMemoryDatabase()
 		backend = &testBackend{db: db}
 		api     = NewPublicFilterAPI(backend, true)
 

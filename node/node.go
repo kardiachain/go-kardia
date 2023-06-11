@@ -34,8 +34,8 @@ import (
 	"github.com/kardiachain/go-kardia/blockchain"
 	cs "github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/kai/accounts"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
-	"github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/metrics"
@@ -583,9 +583,9 @@ func (n *Node) AccountManager() *accounts.Manager {
 // ephemeral, a memory database is returned.
 func (n *Node) OpenDatabase(name string, cache, handles int, namespace string) (types.StoreDB, error) {
 	if n.config.DataDir == "" {
-		return storage.NewMemoryDatabase(), nil
+		return rawdb.NewMemoryDatabase(), nil
 	}
-	return storage.NewLevelDBDatabase(n.config.ResolvePath(name), cache, handles, namespace)
+	return rawdb.NewLevelDBDatabase(n.config.ResolvePath(name), cache, handles, namespace)
 }
 
 // ResolvePath returns the absolute path of a resource in the instance directory.

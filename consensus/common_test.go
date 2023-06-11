@@ -28,7 +28,7 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
-	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	kpubsub "github.com/kardiachain/go-kardia/lib/pubsub"
@@ -301,7 +301,7 @@ func GetBlockchain() (*blockchain.BlockChain, *configs.ChainConfig, error) {
 	}
 
 	blockDB := memorydb.New()
-	kaiDb := kvstore.NewStoreDB(blockDB)
+	kaiDb := rawdb.NewStoreDB(blockDB)
 	genesis := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, genesisContracts)
 	chainConfig, _, genesisErr := setupGenesis(genesis, kaiDb)
 	if genesisErr != nil {
@@ -325,7 +325,7 @@ func newState(vs types.PrivValidator, state cstate.LatestBlockState) (*Consensus
 
 	bc, chainConfig, err := GetBlockchain()
 	blockDB := memorydb.New()
-	kaiDb := kvstore.NewStoreDB(blockDB)
+	kaiDb := rawdb.NewStoreDB(blockDB)
 	if err != nil {
 		return nil, err
 	}

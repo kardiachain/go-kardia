@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
-	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardia/types"
 
 	"github.com/kardiachain/go-kardia/configs"
@@ -32,7 +32,7 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 	logger := log.New("wal_generator")
 	validatorSet, privSet := types.RandValidatorSet(1, 1000000)
 	db := memorydb.New()
-	storeDB := kvstore.NewStoreDB(db)
+	storeDB := rawdb.NewStoreDB(db)
 	stateStore := cstate.NewStore(db)
 	initValue, _ := big.NewInt(0).SetString("15000000000000000000000000", 10)
 	var alloc = genesis.GenesisAlloc{
