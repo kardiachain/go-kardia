@@ -17,12 +17,13 @@
  */
 
 // Package rawdb contains a collection of low level database accessors.
-package kvstore
+package rawdb
 
 import (
 	"encoding/binary"
 
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/metrics"
 )
 
 // The fields below define the low level database schema prefixing.
@@ -57,6 +58,11 @@ var (
 
 	// Chain index prefixes (use `i` + single byte to avoid mixing data types).
 	BloomBitsIndexPrefix = []byte("iB") // BloomBitsIndexPrefix is the data table of a chain indexer to track its progress
+
+	PreimagePrefix = []byte("secure-key-")       // PreimagePrefix + hash -> preimage
+
+	preimageCounter    = metrics.NewRegisteredCounter("db/preimage/total", nil)
+	preimageHitCounter = metrics.NewRegisteredCounter("db/preimage/hits", nil)
 )
 
 // A positional metadata to help looking up the data content of
@@ -174,4 +180,9 @@ func seenCommitKey(height uint64) []byte {
 
 func calcAppHashKey(height uint64) []byte {
 	return append(appHashPrefix, encodeBlockHeight(height)...)
+}
+
+// preimageKey = PreimagePrefix + hash
+func preimageKey(hash common.Hash) []byte {
+	return append(PreimagePrefix, hash.Bytes()...)
 }

@@ -16,12 +16,11 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package storage
+package rawdb
 
 import (
 	"github.com/kardiachain/go-kardia/kai/kaidb/leveldb"
 	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
-	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -56,11 +55,11 @@ func (info *LevelDbInfo) Start() (types.StoreDB, error) {
 		return nil, err
 	}
 
-	return kvstore.NewStoreDB(db), nil
+	return NewStoreDB(db), nil
 }
 
 func NewMemoryDatabase() types.StoreDB {
-	return kvstore.NewStoreDB(memorydb.New())
+	return NewStoreDB(memorydb.New())
 }
 
 // NewLevelDBDatabase creates a persistent key-value database without a freezer
@@ -70,5 +69,5 @@ func NewLevelDBDatabase(file string, cache int, handles int, namespace string) (
 	if err != nil {
 		return nil, err
 	}
-	return kvstore.NewStoreDB(db), nil
+	return NewStoreDB(db), nil
 }

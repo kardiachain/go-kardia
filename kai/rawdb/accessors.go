@@ -16,7 +16,7 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package kvstore
+package rawdb
 
 import (
 	"encoding/binary"
@@ -33,7 +33,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/metrics"
 	"github.com/kardiachain/go-kardia/lib/rlp"
 	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
-	"github.com/kardiachain/go-kardia/trie"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -586,12 +585,13 @@ func ReadBlock(db kaidb.Reader, height uint64) *types.Block {
 		panic(fmt.Sprintf("Error reading block: %v", err))
 	}
 
-	block, err := types.BlockFromProto(pbb, trie.NewStackTrie(nil))
-	if err != nil {
-		panic(fmt.Errorf("error from proto block: %w", err))
-	}
+	// block, err := types.BlockFromProto(pbb, trie.NewStackTrie(nil))
+	// if err != nil {
+	// 	panic(fmt.Errorf("error from proto block: %w", err))
+	// }
 
-	return block
+	// return block
+	return nil
 }
 
 // ReadHeader retrieves the block header corresponding to the hash.
