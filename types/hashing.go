@@ -34,7 +34,7 @@ var encodeBufferPool = sync.Pool{
 // This is internal, do not use.
 type TrieHasher interface {
 	Reset()
-	Update([]byte, []byte)
+	Update([]byte, []byte) error
 	Hash() common.Hash
 }
 

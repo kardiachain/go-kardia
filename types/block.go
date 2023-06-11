@@ -38,11 +38,6 @@ import (
 	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 )
 
-var (
-	// EmptyRootHash ...
-	EmptyRootHash = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
-)
-
 //go:generate go run github.com/fjl/gencodec -type Header -field-override headerMarshaling -out gen_header_json.go
 //go:generate go run ../lib/rlp/rlpgen -type Header -out gen_header_rlp.go
 
