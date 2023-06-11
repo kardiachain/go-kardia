@@ -587,6 +587,41 @@ func (b *Block) ToProto() (*kproto.Block, error) {
 }
 
 // FromProto sets a protobuf Block to the given pointer.
+//
+// UNSAFE: validation for this block is skipped.
+func BlockFromProtoUnsafe(bp *kproto.Block) (*Block, error) {
+	if bp == nil {
+		return nil, errors.New("nil block")
+	}
+
+	b := new(Block)
+	h, err := HeaderFromProto(&bp.Header)
+	if err != nil {
+		return nil, err
+	}
+	b.header = &h
+	data, err := DataFromProto(&bp.Data)
+	if err != nil {
+		return nil, err
+	}
+	b.transactions = data
+	b.evidence = &EvidenceData{}
+	if err := b.evidence.FromProto(&bp.Evidence); err != nil {
+		return nil, err
+	}
+
+	if bp.LastCommit != nil {
+		lc, err := CommitFromProto(bp.LastCommit)
+		if err != nil {
+			return nil, err
+		}
+		b.lastCommit = lc
+	}
+
+	return b, nil
+}
+
+// FromProto sets a protobuf Block to the given pointer.
 // It returns an error if the block is invalid.
 func BlockFromProto(bp *kproto.Block, hasher TrieHasher) (*Block, error) {
 	if bp == nil {

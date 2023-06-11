@@ -585,13 +585,12 @@ func ReadBlock(db kaidb.Reader, height uint64) *types.Block {
 		panic(fmt.Sprintf("Error reading block: %v", err))
 	}
 
-	// block, err := types.BlockFromProto(pbb, trie.NewStackTrie(nil))
-	// if err != nil {
-	// 	panic(fmt.Errorf("error from proto block: %w", err))
-	// }
+	block, err := types.BlockFromProtoUnsafe(pbb)
+	if err != nil {
+		panic(fmt.Errorf("error from proto block: %w", err))
+	}
 
-	// return block
-	return nil
+	return block
 }
 
 // ReadHeader retrieves the block header corresponding to the hash.
