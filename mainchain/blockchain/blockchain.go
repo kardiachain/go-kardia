@@ -207,7 +207,7 @@ func (bc *BlockChain) State() (*state.StateDB, error) {
 // StateAt returns a new mutable state based on a particular point in time.
 func (bc *BlockChain) StateAt(height uint64) (*state.StateDB, error) {
 	root := bc.DB().ReadAppHash(height)
-	return state.New(bc.logger, root, bc.stateCache)
+	return state.New(root, bc.stateCache, nil)
 }
 
 // CheckCommittedStateRoot returns true if the given state root is already committed and existed on trie database.
@@ -237,7 +237,7 @@ func (bc *BlockChain) loadLastState() error {
 	}
 	root := bc.DB().ReadAppHash(currentBlock.Height())
 	// Make sure the state associated with the block is available
-	if _, err := state.New(bc.logger, root, bc.stateCache); err != nil {
+	if _, err := state.New(root, bc.stateCache, nil); err != nil {
 		// Dangling block without a state associated, init from scratch
 		bc.logger.Warn("Head state missing, repairing chain", "height", currentBlock.Height(), "hash", currentBlock.Hash())
 		if err := bc.repair(&currentBlock); err != nil {
@@ -293,7 +293,7 @@ func (bc *BlockChain) repair(head **types.Block) error {
 	for {
 		root := bc.DB().ReadAppHash((*head).Height())
 		// Abort if we've rewound to a head block that does have associated state
-		if _, err := state.New(bc.logger, root, bc.stateCache); err == nil {
+		if _, err := state.New(root, bc.stateCache, nil); err == nil {
 			bc.logger.Info("Rewound blockchain to past state", "height", (*head).Height(), "hash", (*head).Hash())
 			return nil
 		}
@@ -357,7 +357,7 @@ func (bc *BlockChain) SetHead(head uint64) error {
 	}
 	if currentBlock := bc.CurrentBlock(); currentBlock != nil {
 		root := bc.DB().ReadAppHash(currentBlock.Height())
-		if _, err := state.New(bc.logger, root, bc.stateCache); err != nil {
+		if _, err := state.New(root, bc.stateCache, nil); err != nil {
 			// Rewound state missing, rolled back to before pivot, reset to genesis
 			bc.currentBlock.Store(bc.genesisBlock)
 		}

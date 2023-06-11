@@ -31,35 +31,59 @@ var (
 	// headBlockKey tracks the latest known full block's hash.
 	headBlockKey = []byte("LastBlock")
 
+	// snapshotDisabledKey flags that the snapshot should not be maintained due to initial sync.
+	snapshotDisabledKey = []byte("SnapshotDisabled")
+
+	// SnapshotRootKey tracks the hash of the last snapshot.
+	SnapshotRootKey = []byte("SnapshotRoot")
+
+	// snapshotJournalKey tracks the in-memory diff layers across restarts.
+	snapshotJournalKey = []byte("SnapshotJournal")
+
+	// snapshotGeneratorKey tracks the snapshot generation marker across restarts.
+	snapshotGeneratorKey = []byte("SnapshotGenerator")
+
+	// snapshotRecoveryKey tracks the snapshot recovery marker across restarts.
+	snapshotRecoveryKey = []byte("SnapshotRecovery")
+
+	// snapshotSyncStatusKey tracks the snapshot sync status across restarts.
+	snapshotSyncStatusKey = []byte("SnapshotSyncStatus")
+
+
 	// Data item prefixes (use single byte to avoid mixing data types, avoid `i`, used for indexes).
 	headerPrefix       = []byte("h") // headerPrefix + num (uint64 big endian) + hash -> header
 	headerHashSuffix   = []byte("n") // headerPrefix + num (uint64 big endian) + headerHashSuffix -> hash
 	headerHeightPrefix = []byte("H") // headerHeightPrefix + hash -> num (uint64 big endian)
 
-	blockBodyPrefix = []byte("b")   // blockBodyPrefix + num (uint64 big endian) + hash -> block body
-	blockInfoPrefix = []byte("bin") // blockInfoPrefix + num (uint64 big endian) + hash -> block info
-
+	blockBodyPrefix = []byte("b") // blockBodyPrefix + num (uint64 big endian) + hash -> block body
+	blockInfoPrefix = []byte("i") // blockInfoPrefix + num (uint64 big endian) + hash -> block info
 	blockPartPrefix = []byte("p")
-	blockMetaPrefix = []byte("bm")
-
+	blockMetaPrefix = []byte("m")
 	commitPrefix     = []byte("c")  // commitPrefix + num (uint64 big endian) -> commit
 	seenCommitPrefix = []byte("sm") // seenCommitPrefix + num -> seen commit
 	appHashPrefix    = []byte("ah") // appHashPrefix + num -> app hash
-
-	configPrefix          = []byte("kardia-config-") // config prefix for the db
-	txLookupPrefix        = []byte("l")              // txLookupPrefix + hash -> transaction/receipt lookup metadata
-	dualEventLookupPrefix = []byte("de")             // dualEventLookupPrefix + hash -> dual's event lookup metadata
-	bloomBitsPrefix       = []byte("B")              // bloomBitsPrefix + bit (uint16 big endian) + section (uint64 big endian) + hash -> bloom bits
-
+	
 	eventPrefix       = []byte("event")  // event prefix + smartcontract address + method
 	eventsPrefix      = []byte("events") // event prefix + smart contract address
 	dualActionPrefix  = []byte("dualAction")
-	contractAbiPrefix = []byte("abi")
+	dualEventLookupPrefix = []byte("de") // dualEventLookupPrefix + hash -> dual's event lookup metadata
 
-	// Chain index prefixes (use `i` + single byte to avoid mixing data types).
+	txLookupPrefix        = []byte("l")  // txLookupPrefix + hash -> transaction/receipt lookup metadata
+	bloomBitsPrefix       = []byte("B")  // bloomBitsPrefix + bit (uint16 big endian) + section (uint64 big endian) + hash -> bloom bits
+	SnapshotAccountPrefix = []byte("a")  // SnapshotAccountPrefix + account hash -> account trie value
+	SnapshotStoragePrefix = []byte("o")  // SnapshotStoragePrefix + account hash + storage hash -> storage trie value
+	contractAbiPrefix = []byte("C")
+	
+	// Path-based storage scheme of merkle patricia trie.
+	trieNodeAccountPrefix = []byte("A") // trieNodeAccountPrefix + hexPath -> trie node
+	trieNodeStoragePrefix = []byte("O") // trieNodeStoragePrefix + accountHash + hexPath -> trie node
+	
+
+	PreimagePrefix = []byte("secure-key-")    // PreimagePrefix + hash -> preimage
+	configPrefix   = []byte("kardia-config-") // config prefix for the db
+
+	// BloomBitsIndexPrefix is the data table of a chain indexer to track its progress
 	BloomBitsIndexPrefix = []byte("iB") // BloomBitsIndexPrefix is the data table of a chain indexer to track its progress
-
-	PreimagePrefix = []byte("secure-key-")       // PreimagePrefix + hash -> preimage
 
 	preimageCounter    = metrics.NewRegisteredCounter("db/preimage/total", nil)
 	preimageHitCounter = metrics.NewRegisteredCounter("db/preimage/hits", nil)
@@ -185,4 +209,29 @@ func calcAppHashKey(height uint64) []byte {
 // preimageKey = PreimagePrefix + hash
 func preimageKey(hash common.Hash) []byte {
 	return append(PreimagePrefix, hash.Bytes()...)
+}
+
+// accountTrieNodeKey = trieNodeAccountPrefix + nodePath.
+func accountTrieNodeKey(path []byte) []byte {
+	return append(trieNodeAccountPrefix, path...)
+}
+
+// storageTrieNodeKey = trieNodeStoragePrefix + accountHash + nodePath.
+func storageTrieNodeKey(accountHash common.Hash, path []byte) []byte {
+	return append(append(trieNodeStoragePrefix, accountHash.Bytes()...), path...)
+}
+
+// accountSnapshotKey = SnapshotAccountPrefix + hash
+func accountSnapshotKey(hash common.Hash) []byte {
+	return append(SnapshotAccountPrefix, hash.Bytes()...)
+}
+
+// storageSnapshotKey = SnapshotStoragePrefix + account hash + storage hash
+func storageSnapshotKey(accountHash, storageHash common.Hash) []byte {
+	return append(append(SnapshotStoragePrefix, accountHash.Bytes()...), storageHash.Bytes()...)
+}
+
+// storageSnapshotsKey = SnapshotStoragePrefix + account hash + storage hash
+func storageSnapshotsKey(accountHash common.Hash) []byte {
+	return append(SnapshotStoragePrefix, accountHash.Bytes()...)
 }

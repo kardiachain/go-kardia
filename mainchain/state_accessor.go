@@ -69,7 +69,7 @@ func (k *KardiaService) stateAtBlock(block *types.Block, reexec uint64, base *st
 		// we would rewind past a persisted block (specific corner case is chain
 		// tracing from the genesis).
 		if !checkLive {
-			statedb, err = state.New(log.New(), current.AppHash(), database)
+			statedb, err = state.New(current.AppHash(), database, nil)
 			if err == nil {
 				return statedb, nil
 			}
@@ -85,7 +85,7 @@ func (k *KardiaService) stateAtBlock(block *types.Block, reexec uint64, base *st
 			}
 			current = parent
 
-			statedb, err = state.New(log.New(), current.AppHash(), database)
+			statedb, err = state.New(current.AppHash(), database, nil)
 			if err == nil {
 				break
 			}
@@ -125,7 +125,7 @@ func (k *KardiaService) stateAtBlock(block *types.Block, reexec uint64, base *st
 		if err != nil {
 			return nil, err
 		}
-		statedb, err = state.New(log.New(), root, database)
+		statedb, err = state.New(root, database, nil)
 		if err != nil {
 			return nil, fmt.Errorf("state reset after block %d failed: %v", current.Height(), err)
 		}

@@ -214,7 +214,7 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database, staking *staking
 	if db == nil {
 		db = memorydb.New()
 	}
-	statedb, _ := state.New(logger, common.Hash{}, state.NewDatabase(db))
+	statedb, _ := state.New(common.Hash{}, state.NewDatabase(db), nil)
 
 	// Generate genesis deployer address
 	g.Alloc[configs.GenesisDeployerAddr] = GenesisAccount{

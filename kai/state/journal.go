@@ -30,19 +30,19 @@ type journalEntry interface {
 	// revert undoes the changes introduced by this journal entry.
 	revert(*StateDB)
 
-	// dirtied returns the Kardia address modified by this journal entry.
+	// dirtied returns the Ethereum address modified by this journal entry.
 	dirtied() *common.Address
 }
 
 // journal contains the list of state modifications applied since the last state
-// commit. These are tracked to be able to be reverted in case of an execution
-// exception or revertal request.
+// commit. These are tracked to be able to be reverted in the case of an execution
+// exception or request for reversal.
 type journal struct {
 	entries []journalEntry         // Current changes tracked by the journal
 	dirties map[common.Address]int // Dirty accounts and the number of changes
 }
 
-// newJournal create a new initialized journal.
+// newJournal creates a new initialized journal.
 func newJournal() *journal {
 	return &journal{
 		dirties: make(map[common.Address]int),
@@ -92,13 +92,16 @@ type (
 		account *common.Address
 	}
 	resetObjectChange struct {
-		prev *stateObject
+		account      *common.Address
+		prev         *stateObject
+		prevdestruct bool
+		prevAccount  []byte
+		prevStorage  map[common.Hash][]byte
 	}
-
-	// Changes to individual account.
-	nonceChange struct {
-		account *common.Address
-		prev    uint64
+	suicideChange struct {
+		account     *common.Address
+		prev        bool // whether account had already suicided
+		prevbalance *big.Int
 	}
 
 	// Changes to individual accounts.
@@ -106,49 +109,46 @@ type (
 		account *common.Address
 		prev    *big.Int
 	}
-
-	touchChange struct {
+	nonceChange struct {
 		account *common.Address
+		prev    uint64
 	}
-
 	storageChange struct {
 		account       *common.Address
 		key, prevalue common.Hash
+	}
+	codeChange struct {
+		account            *common.Address
+		prevcode, prevhash []byte
 	}
 
 	// Changes to other state values.
 	refundChange struct {
 		prev uint64
 	}
-
 	addLogChange struct {
 		txhash common.Hash
 	}
-
-	codeChange struct {
-		account            *common.Address
-		prevcode, prevhash []byte
-	}
-
-	suicideChange struct {
-		account     *common.Address
-		prev        bool // whether account had already suicided
-		prevbalance *big.Int
-	}
-
 	addPreimageChange struct {
 		hash common.Hash
 	}
+	touchChange struct {
+		account *common.Address
+	}
+	// Changes to the access list
+	accessListAddAccountChange struct {
+		address *common.Address
+	}
+	accessListAddSlotChange struct {
+		address *common.Address
+		slot    *common.Hash
+	}
+
+	transientStorageChange struct {
+		account       *common.Address
+		key, prevalue common.Hash
+	}
 )
-
-var ripemd = common.HexToAddress("0000000000000000000000000000000000000003")
-
-func (ch touchChange) revert(s *StateDB) {
-}
-
-func (ch touchChange) dirtied() *common.Address {
-	return ch.account
-}
 
 func (ch createObjectChange) revert(s *StateDB) {
 	delete(s.stateObjects, *ch.account)
@@ -161,17 +161,39 @@ func (ch createObjectChange) dirtied() *common.Address {
 
 func (ch resetObjectChange) revert(s *StateDB) {
 	s.setStateObject(ch.prev)
+	if !ch.prevdestruct {
+		delete(s.stateObjectsDestruct, ch.prev.address)
+	}
+	if ch.prevAccount != nil {
+		s.snapAccounts[ch.prev.addrHash] = ch.prevAccount
+	}
+	if ch.prevStorage != nil {
+		s.snapStorage[ch.prev.addrHash] = ch.prevStorage
+	}
 }
 
 func (ch resetObjectChange) dirtied() *common.Address {
-	return nil
+	return ch.account
 }
 
-func (ch nonceChange) revert(s *StateDB) {
-	s.getStateObject(*ch.account).setNonce(ch.prev)
+func (ch suicideChange) revert(s *StateDB) {
+	obj := s.getStateObject(*ch.account)
+	if obj != nil {
+		obj.suicided = ch.prev
+		obj.setBalance(ch.prevbalance)
+	}
 }
 
-func (ch nonceChange) dirtied() *common.Address {
+func (ch suicideChange) dirtied() *common.Address {
+	return ch.account
+}
+
+var ripemd = common.HexToAddress("0000000000000000000000000000000000000003")
+
+func (ch touchChange) revert(s *StateDB) {
+}
+
+func (ch touchChange) dirtied() *common.Address {
 	return ch.account
 }
 
@@ -180,6 +202,14 @@ func (ch balanceChange) revert(s *StateDB) {
 }
 
 func (ch balanceChange) dirtied() *common.Address {
+	return ch.account
+}
+
+func (ch nonceChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setNonce(ch.prev)
+}
+
+func (ch nonceChange) dirtied() *common.Address {
 	return ch.account
 }
 
@@ -199,6 +229,22 @@ func (ch storageChange) dirtied() *common.Address {
 	return ch.account
 }
 
+func (ch transientStorageChange) revert(s *StateDB) {
+	s.setTransientState(*ch.account, ch.key, ch.prevalue)
+}
+
+func (ch transientStorageChange) dirtied() *common.Address {
+	return nil
+}
+
+func (ch refundChange) revert(s *StateDB) {
+	s.refund = ch.prev
+}
+
+func (ch refundChange) dirtied() *common.Address {
+	return nil
+}
+
 func (ch addLogChange) revert(s *StateDB) {
 	logs := s.logs[ch.txhash]
 	if len(logs) == 1 {
@@ -213,30 +259,35 @@ func (ch addLogChange) dirtied() *common.Address {
 	return nil
 }
 
-func (ch refundChange) revert(s *StateDB) {
-	s.refund = ch.prev
-}
-
-func (ch refundChange) dirtied() *common.Address {
-	return nil
-}
-
-func (ch suicideChange) revert(s *StateDB) {
-	obj := s.getStateObject(*ch.account)
-	if obj != nil {
-		obj.suicided = ch.prev
-		obj.setBalance(ch.prevbalance)
-	}
-}
-
-func (ch suicideChange) dirtied() *common.Address {
-	return ch.account
-}
-
 func (ch addPreimageChange) revert(s *StateDB) {
 	delete(s.preimages, ch.hash)
 }
 
 func (ch addPreimageChange) dirtied() *common.Address {
+	return nil
+}
+
+func (ch accessListAddAccountChange) revert(s *StateDB) {
+	/*
+		One important invariant here, is that whenever a (addr, slot) is added, if the
+		addr is not already present, the add causes two journal entries:
+		- one for the address,
+		- one for the (address,slot)
+		Therefore, when unrolling the change, we can always blindly delete the
+		(addr) at this point, since no storage adds can remain when come upon
+		a single (addr) change.
+	*/
+	s.accessList.DeleteAddress(*ch.address)
+}
+
+func (ch accessListAddAccountChange) dirtied() *common.Address {
+	return nil
+}
+
+func (ch accessListAddSlotChange) revert(s *StateDB) {
+	s.accessList.DeleteSlot(*ch.address, *ch.slot)
+}
+
+func (ch accessListAddSlotChange) dirtied() *common.Address {
 	return nil
 }

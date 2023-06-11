@@ -23,6 +23,7 @@ import (
 	"fmt"
 
 	"github.com/kardiachain/go-kardia/trie"
+	"github.com/kardiachain/go-kardia/types"
 
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/rlp"
@@ -51,7 +52,7 @@ func (sdb *StateDB) RawDump() Dump {
 	it := trie.NewIterator(sdb.trie.NodeIterator(nil))
 	for it.Next() {
 		addr := sdb.trie.GetKey(it.Key)
-		var data Account
+		var data types.StateAccount
 		if err := rlp.DecodeBytes(it.Value, &data); err != nil {
 			panic(err)
 		}
@@ -65,7 +66,11 @@ func (sdb *StateDB) RawDump() Dump {
 			Code:     common.Bytes2Hex(obj.Code(sdb.db)),
 			Storage:  make(map[string]string),
 		}
-		storageIt := trie.NewIterator(obj.getTrie(sdb.db).NodeIterator(nil))
+		tr, err := obj.getTrie(sdb.db)
+		if err != nil {
+			panic(err)
+		}
+		storageIt := trie.NewIterator(tr.NodeIterator(nil))
 		for storageIt.Next() {
 			account.Storage[common.Bytes2Hex(sdb.trie.GetKey(storageIt.Key))] = common.Bytes2Hex(storageIt.Value)
 		}

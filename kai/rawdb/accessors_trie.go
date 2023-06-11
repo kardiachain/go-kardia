@@ -1,22 +1,7 @@
-// Copyright 2022 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>
-
 package rawdb
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/kardiachain/go-kardia/kai/kaidb"
@@ -62,10 +47,79 @@ func (h *nodeHasher) hashData(data []byte) (n common.Hash) {
 	return n
 }
 
-// WriteLegacyTrieNode writes the provided legacy trie node to database.
-func WriteLegacyTrieNode(db kaidb.KeyValueWriter, hash common.Hash, node []byte) {
-	if err := db.Put(hash.Bytes(), node); err != nil {
-		log.Crit("Failed to store legacy trie node", "err", err)
+// ReadAccountTrieNode retrieves the account trie node and the associated node
+// hash with the specified node path.
+func ReadAccountTrieNode(db kaidb.KeyValueReader, path []byte) ([]byte, common.Hash) {
+	data, err := db.Get(accountTrieNodeKey(path))
+	if err != nil {
+		return nil, common.Hash{}
+	}
+	hasher := newNodeHasher()
+	defer returnHasherToPool(hasher)
+	return data, hasher.hashData(data)
+}
+
+// HasAccountTrieNode checks the account trie node presence with the specified
+// node path and the associated node hash.
+func HasAccountTrieNode(db kaidb.KeyValueReader, path []byte, hash common.Hash) bool {
+	data, err := db.Get(accountTrieNodeKey(path))
+	if err != nil {
+		return false
+	}
+	hasher := newNodeHasher()
+	defer returnHasherToPool(hasher)
+	return hasher.hashData(data) == hash
+}
+
+// WriteAccountTrieNode writes the provided account trie node into database.
+func WriteAccountTrieNode(db kaidb.KeyValueWriter, path []byte, node []byte) {
+	if err := db.Put(accountTrieNodeKey(path), node); err != nil {
+		log.Crit("Failed to store account trie node", "err", err)
+	}
+}
+
+// DeleteAccountTrieNode deletes the specified account trie node from the database.
+func DeleteAccountTrieNode(db kaidb.KeyValueWriter, path []byte) {
+	if err := db.Delete(accountTrieNodeKey(path)); err != nil {
+		log.Crit("Failed to delete account trie node", "err", err)
+	}
+}
+
+// ReadStorageTrieNode retrieves the storage trie node and the associated node
+// hash with the specified node path.
+func ReadStorageTrieNode(db kaidb.KeyValueReader, accountHash common.Hash, path []byte) ([]byte, common.Hash) {
+	data, err := db.Get(storageTrieNodeKey(accountHash, path))
+	if err != nil {
+		return nil, common.Hash{}
+	}
+	hasher := newNodeHasher()
+	defer returnHasherToPool(hasher)
+	return data, hasher.hashData(data)
+}
+
+// HasStorageTrieNode checks the storage trie node presence with the provided
+// node path and the associated node hash.
+func HasStorageTrieNode(db kaidb.KeyValueReader, accountHash common.Hash, path []byte, hash common.Hash) bool {
+	data, err := db.Get(storageTrieNodeKey(accountHash, path))
+	if err != nil {
+		return false
+	}
+	hasher := newNodeHasher()
+	defer returnHasherToPool(hasher)
+	return hasher.hashData(data) == hash
+}
+
+// WriteStorageTrieNode writes the provided storage trie node into database.
+func WriteStorageTrieNode(db kaidb.KeyValueWriter, accountHash common.Hash, path []byte, node []byte) {
+	if err := db.Put(storageTrieNodeKey(accountHash, path), node); err != nil {
+		log.Crit("Failed to store storage trie node", "err", err)
+	}
+}
+
+// DeleteStorageTrieNode deletes the specified storage trie node from the database.
+func DeleteStorageTrieNode(db kaidb.KeyValueWriter, accountHash common.Hash, path []byte) {
+	if err := db.Delete(storageTrieNodeKey(accountHash, path)); err != nil {
+		log.Crit("Failed to delete storage trie node", "err", err)
 	}
 }
 
@@ -83,4 +137,111 @@ func ReadLegacyTrieNode(db kaidb.KeyValueReader, hash common.Hash) []byte {
 func HasLegacyTrieNode(db kaidb.KeyValueReader, hash common.Hash) bool {
 	ok, _ := db.Has(hash.Bytes())
 	return ok
+}
+
+// WriteLegacyTrieNode writes the provided legacy trie node to database.
+func WriteLegacyTrieNode(db kaidb.KeyValueWriter, hash common.Hash, node []byte) {
+	if err := db.Put(hash.Bytes(), node); err != nil {
+		log.Crit("Failed to store legacy trie node", "err", err)
+	}
+}
+
+// DeleteLegacyTrieNode deletes the specified legacy trie node from database.
+func DeleteLegacyTrieNode(db kaidb.KeyValueWriter, hash common.Hash) {
+	if err := db.Delete(hash.Bytes()); err != nil {
+		log.Crit("Failed to delete legacy trie node", "err", err)
+	}
+}
+
+// HasTrieNode checks the trie node presence with the provided node info and
+// the associated node hash.
+func HasTrieNode(db kaidb.KeyValueReader, owner common.Hash, path []byte, hash common.Hash, scheme string) bool {
+	switch scheme {
+	case HashScheme:
+		return HasLegacyTrieNode(db, hash)
+	case PathScheme:
+		if owner == (common.Hash{}) {
+			return HasAccountTrieNode(db, path, hash)
+		}
+		return HasStorageTrieNode(db, owner, path, hash)
+	default:
+		panic(fmt.Sprintf("Unknown scheme %v", scheme))
+	}
+}
+
+// ReadTrieNode retrieves the trie node from database with the provided node info
+// and associated node hash.
+// hashScheme-based lookup requires the following:
+//   - hash
+//
+// pathScheme-based lookup requires the following:
+//   - owner
+//   - path
+func ReadTrieNode(db kaidb.KeyValueReader, owner common.Hash, path []byte, hash common.Hash, scheme string) []byte {
+	switch scheme {
+	case HashScheme:
+		return ReadLegacyTrieNode(db, hash)
+	case PathScheme:
+		var (
+			blob  []byte
+			nHash common.Hash
+		)
+		if owner == (common.Hash{}) {
+			blob, nHash = ReadAccountTrieNode(db, path)
+		} else {
+			blob, nHash = ReadStorageTrieNode(db, owner, path)
+		}
+		if nHash != hash {
+			return nil
+		}
+		return blob
+	default:
+		panic(fmt.Sprintf("Unknown scheme %v", scheme))
+	}
+}
+
+// WriteTrieNode writes the trie node into database with the provided node info
+// and associated node hash.
+// hashScheme-based lookup requires the following:
+//   - hash
+//
+// pathScheme-based lookup requires the following:
+//   - owner
+//   - path
+func WriteTrieNode(db kaidb.KeyValueWriter, owner common.Hash, path []byte, hash common.Hash, node []byte, scheme string) {
+	switch scheme {
+	case HashScheme:
+		WriteLegacyTrieNode(db, hash, node)
+	case PathScheme:
+		if owner == (common.Hash{}) {
+			WriteAccountTrieNode(db, path, node)
+		} else {
+			WriteStorageTrieNode(db, owner, path, node)
+		}
+	default:
+		panic(fmt.Sprintf("Unknown scheme %v", scheme))
+	}
+}
+
+// DeleteTrieNode deletes the trie node from database with the provided node info
+// and associated node hash.
+// hashScheme-based lookup requires the following:
+//   - hash
+//
+// pathScheme-based lookup requires the following:
+//   - owner
+//   - path
+func DeleteTrieNode(db kaidb.KeyValueWriter, owner common.Hash, path []byte, hash common.Hash, scheme string) {
+	switch scheme {
+	case HashScheme:
+		DeleteLegacyTrieNode(db, hash)
+	case PathScheme:
+		if owner == (common.Hash{}) {
+			DeleteAccountTrieNode(db, path)
+		} else {
+			DeleteStorageTrieNode(db, owner, path)
+		}
+	default:
+		panic(fmt.Sprintf("Unknown scheme %v", scheme))
+	}
 }

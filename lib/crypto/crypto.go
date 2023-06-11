@@ -51,11 +51,24 @@ type KeccakState interface {
 	Read([]byte) (int, error)
 }
 
-//SignatureLength indicates the byte length required to carry a signature with recovery id.
+// SignatureLength indicates the byte length required to carry a signature with recovery id.
 const SignatureLength = 64 + 1 // 64 bytes ECDSA signature + 1 byte recovery id
 
 // RecoveryIDOffset points to the byte offset within the signature that contains the recovery id.
 const RecoveryIDOffset = 64
+
+// NewKeccakState creates a new KeccakState
+func NewKeccakState() KeccakState {
+	return sha3.NewKeccak256().(KeccakState)
+}
+
+// HashData hashes the provided data using the KeccakState and returns a 32 byte hash
+func HashData(kh KeccakState, data []byte) (h common.Hash) {
+	kh.Reset()
+	kh.Write(data)
+	kh.Read(h[:])
+	return h
+}
 
 // Keccak256 calculates and returns the Keccak256 hash of the input data.
 func Keccak256(data ...[]byte) []byte {

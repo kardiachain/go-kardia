@@ -175,7 +175,10 @@ func (s *PublicWeb3API) GetProof(ctx context.Context, address common.Address, st
 		return nil, err
 	}
 
-	storageTrie := state.StorageTrie(address)
+	storageTrie, err := state.StorageTrie(address)
+	if err != nil {
+		return nil, err
+	}
 	storageHash := types.EmptyRootHash
 	codeHash := state.GetCodeHash(address)
 	storageProof := make([]StorageResult, len(storageKeys))
