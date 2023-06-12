@@ -22,13 +22,12 @@ import (
 	"github.com/kardiachain/go-kardia/kai/kaidb"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
 )
 
 func MakePreState(db kaidb.Database, accounts genesis.GenesisAlloc) *state.StateDB {
 	sdb := state.NewDatabase(db)
-	statedb, _ := state.New(log.New(), common.Hash{}, sdb)
+	statedb, _ := state.New(common.Hash{}, sdb, nil)
 	for addr, a := range accounts {
 		statedb.SetCode(addr, a.Code)
 		statedb.SetNonce(addr, a.Nonce)
@@ -40,6 +39,6 @@ func MakePreState(db kaidb.Database, accounts genesis.GenesisAlloc) *state.State
 	// Commit and re-open to start with a clean state.
 	root, _ := statedb.Commit(false)
 
-	statedb, _ = state.New(log.New(), root, sdb)
+	statedb, _ = state.New(root, sdb, nil)
 	return statedb
 }
