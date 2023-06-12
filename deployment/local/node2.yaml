@@ -47,6 +47,7 @@ Node:
   TimeOutForStaticCall: 5000 # default timeout for static calls in milliseconds. Type int
 MainChain:
   ServiceName: KARDIA
+  ChainId: 242
   AcceptTxs: 1       # accept tx sync process or not (1 is yes, 0 is no)
   Seeds:
     - c1fe56e3f58d3244f606306611a5d10c8333f1f6@node1:3000
