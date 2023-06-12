@@ -32,7 +32,6 @@ cmd/*.fuse_hidden*
 **/*.rlp
 
 # Ignore produced deployment files
-deployment/local/node*/*
-deployment/testnet/KAI-testnet/
-deployment/testnet/keystore/
-deployment/testnet/addrbook.json
+deployment/local/*
+deployment/mainnet/*
+deployment/testnet/*
