@@ -169,7 +169,7 @@ func newTestReactor(p testReactorParams) *BlockchainReactor {
 			return nil
 		}
 		stateStore := cstate.NewStore(kaiDb.DB())
-		bc, err := blockchain.NewBlockChain(logger, kaiDb, chainConfig)
+		bc, err := blockchain.NewBlockChain(logger, nil, kaiDb, chainConfig)
 		if err != nil {
 			fmt.Println(err)
 			return nil
@@ -539,7 +539,7 @@ func newReactorStore(
 		return nil, cstate.LatestBlockState{}, nil
 	}
 	stateStore := cstate.NewStore(kaiDb.DB())
-	bc, err := blockchain.NewBlockChain(logger, kaiDb, chainConfig)
+	bc, err := blockchain.NewBlockChain(logger, nil, kaiDb, chainConfig)
 	if err != nil {
 		fmt.Println(err)
 		return nil, cstate.LatestBlockState{}, nil

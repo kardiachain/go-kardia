@@ -81,7 +81,7 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 		return err
 	}
 
-	bc, err := blockchain.NewBlockChain(log.New("blockchain"), storeDB, chainConfig)
+	bc, err := blockchain.NewBlockChain(log.New("blockchain"), nil, storeDB, chainConfig)
 	if err != nil {
 		return err
 	}

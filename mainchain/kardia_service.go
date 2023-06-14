@@ -141,8 +141,20 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		bloomIndexer: NewBloomIndexer(kaiDb.DB(), configs.BloomBitsBlocksClient, configs.HelperTrieConfirmations),
 	}
 
+	cacheConfig := &blockchain.CacheConfig{
+		TrieCleanLimit:      config.TrieCleanCache,
+		TrieCleanJournal:    ctx.ResolvePath(config.TrieCleanCacheJournal),
+		TrieCleanRejournal:  config.TrieCleanCacheRejournal,
+		TrieCleanNoPrefetch: config.NoPrefetch,
+		TrieDirtyLimit:      config.TrieDirtyCache,
+		TrieDirtyDisabled:   config.NoPruning,
+		TrieTimeLimit:       config.TrieTimeout,
+		SnapshotLimit:       config.SnapshotCache,
+		Preimages:           config.Preimages,
+	}
+
 	// Create a new blockchain to attach to this Kardia object
-	kai.blockchain, err = blockchain.NewBlockChain(logger, kaiDb, kai.chainConfig)
+	kai.blockchain, err = blockchain.NewBlockChain(logger, cacheConfig, kaiDb, kai.chainConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -205,19 +217,24 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 // NewKardiaService Implements ServiceConstructor, return a Kardia node service from node service context.
 // TODO: move this outside of kai package to customize kai.Config
 func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
+	config := DefaultConfig
+
 	chainConfig := ctx.Config.MainChainConfig
-	kai, err := newKardiaService(ctx, &Config{
-		NetworkId:   chainConfig.NetworkId,
-		ServiceName: chainConfig.ServiceName,
-		ChainId:     chainConfig.ChainId,
-		DBInfo:      chainConfig.DBInfo,
-		Genesis:     chainConfig.Genesis,
-		TxPool:      chainConfig.TxPool,
-		AcceptTxs:   chainConfig.AcceptTxs,
-		Consensus:   chainConfig.Consensus,
-		FastSync:    chainConfig.FastSync,
-		GasOracle:   chainConfig.GasOracle,
-	})
+	config.NetworkId = chainConfig.NetworkId
+	config.ServiceName = chainConfig.ServiceName
+	config.ChainId = chainConfig.ChainId
+	config.DBInfo = chainConfig.DBInfo
+	config.Genesis = chainConfig.Genesis
+	config.TxPool = chainConfig.TxPool
+	config.AcceptTxs = chainConfig.AcceptTxs
+	config.Consensus = chainConfig.Consensus
+	config.FastSync = chainConfig.FastSync
+	config.GasOracle = chainConfig.GasOracle
+
+	config.NoPruning = ctx.Config.GCmode == "archive"
+	config.Preimages = config.NoPruning
+
+	kai, err := newKardiaService(ctx, &config)
 
 	if err != nil {
 		return nil, err

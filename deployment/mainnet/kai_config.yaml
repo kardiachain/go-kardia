@@ -32,6 +32,7 @@ Node:
     ListenAddress: tcp://0.0.0.0:3000 # IP and Port for P2P connection
     InboundPeers: 40
     OutboundPeers: 15
+  GCMode: full # archive, full
   LogLevel: info          # crit, error, warn, info, debug, trace
   FastSync:
     ServiceName: BCR      # log tag of blockchain reactor logs. Type string
@@ -67,3 +68,5 @@ MainChain:
     Cache: 16                                # cache is used in leveldb
     Handles: 32                              # handles is used in leveldb
     Drop: 0                                  # specify whether drop database or not (0 is no, 1 is yes)
+Debug: # Devnet config for debugging purposes
+  Port: ":6000"

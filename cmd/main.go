@@ -194,11 +194,17 @@ func (c *Config) getNodeConfig() (*node.Config, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if c.Node.GCMode != "archive" && c.Node.GCMode != "full" {
+		return nil, fmt.Errorf(`either set GCMode as "archive" or "full"`)
+	}
+	
 	nodeConfig := node.Config{
 		Name:             n.Name,
 		Version:          configs.Version,
 		DataDir:          n.DataDir,
 		P2P:              p2pConfig,
+		GCmode:           c.Node.GCMode,
 		HTTPHost:         n.HTTPHost,
 		HTTPPort:         n.HTTPPort,
 		HTTPCors:         n.HTTPCors,
