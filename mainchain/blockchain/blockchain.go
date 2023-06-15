@@ -298,7 +298,15 @@ func (bc *BlockChain) loadLastState() error {
 		bc.logger.Warn("Head block missing, resetting chain", "hash", hash)
 		return bc.Reset()
 	}
-	
+	root := bc.DB().ReadAppHash(currentBlock.Height())
+	// Make sure the state associated with the block is available
+	if _, err := state.New(root, bc.stateCache, nil); err != nil {
+		// Dangling block without a state associated, init from scratch
+		bc.logger.Warn("Head state missing, repairing chain", "height", currentBlock.Height(), "hash", currentBlock.Hash())
+		if err := bc.repair(&currentBlock); err != nil {
+			return err
+		}
+	}
 	// Everything seems to be fine, set as the head block
 	bc.currentBlock.Store(currentBlock)
 
