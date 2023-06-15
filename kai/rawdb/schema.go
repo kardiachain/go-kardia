@@ -20,6 +20,7 @@
 package rawdb
 
 import (
+	"bytes"
 	"encoding/binary"
 
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -49,35 +50,33 @@ var (
 	// snapshotSyncStatusKey tracks the snapshot sync status across restarts.
 	snapshotSyncStatusKey = []byte("SnapshotSyncStatus")
 
-
 	// Data item prefixes (use single byte to avoid mixing data types, avoid `i`, used for indexes).
 	headerPrefix       = []byte("h") // headerPrefix + num (uint64 big endian) + hash -> header
 	headerHashSuffix   = []byte("n") // headerPrefix + num (uint64 big endian) + headerHashSuffix -> hash
 	headerHeightPrefix = []byte("H") // headerHeightPrefix + hash -> num (uint64 big endian)
 
-	blockBodyPrefix = []byte("b") // blockBodyPrefix + num (uint64 big endian) + hash -> block body
-	blockInfoPrefix = []byte("i") // blockInfoPrefix + num (uint64 big endian) + hash -> block info
-	blockPartPrefix = []byte("p")
-	blockMetaPrefix = []byte("m")
+	blockBodyPrefix  = []byte("b") // blockBodyPrefix + num (uint64 big endian) + hash -> block body
+	blockInfoPrefix  = []byte("i") // blockInfoPrefix + num (uint64 big endian) + hash -> block info
+	blockPartPrefix  = []byte("p")
+	blockMetaPrefix  = []byte("m")
 	commitPrefix     = []byte("c")  // commitPrefix + num (uint64 big endian) -> commit
 	seenCommitPrefix = []byte("sm") // seenCommitPrefix + num -> seen commit
 	appHashPrefix    = []byte("ah") // appHashPrefix + num -> app hash
-	
-	eventPrefix       = []byte("event")  // event prefix + smartcontract address + method
-	eventsPrefix      = []byte("events") // event prefix + smart contract address
-	dualActionPrefix  = []byte("dualAction")
+
+	eventPrefix           = []byte("event")  // event prefix + smartcontract address + method
+	eventsPrefix          = []byte("events") // event prefix + smart contract address
+	dualActionPrefix      = []byte("dualAction")
 	dualEventLookupPrefix = []byte("de") // dualEventLookupPrefix + hash -> dual's event lookup metadata
 
-	txLookupPrefix        = []byte("l")  // txLookupPrefix + hash -> transaction/receipt lookup metadata
-	bloomBitsPrefix       = []byte("B")  // bloomBitsPrefix + bit (uint16 big endian) + section (uint64 big endian) + hash -> bloom bits
-	SnapshotAccountPrefix = []byte("a")  // SnapshotAccountPrefix + account hash -> account trie value
-	SnapshotStoragePrefix = []byte("o")  // SnapshotStoragePrefix + account hash + storage hash -> storage trie value
-	contractAbiPrefix = []byte("C")
-	
+	txLookupPrefix        = []byte("l") // txLookupPrefix + hash -> transaction/receipt lookup metadata
+	bloomBitsPrefix       = []byte("B") // bloomBitsPrefix + bit (uint16 big endian) + section (uint64 big endian) + hash -> bloom bits
+	SnapshotAccountPrefix = []byte("a") // SnapshotAccountPrefix + account hash -> account trie value
+	SnapshotStoragePrefix = []byte("o") // SnapshotStoragePrefix + account hash + storage hash -> storage trie value
+	contractAbiPrefix     = []byte("C")
+
 	// Path-based storage scheme of merkle patricia trie.
 	trieNodeAccountPrefix = []byte("A") // trieNodeAccountPrefix + hexPath -> trie node
 	trieNodeStoragePrefix = []byte("O") // trieNodeStoragePrefix + accountHash + hexPath -> trie node
-	
 
 	PreimagePrefix = []byte("secure-key-")    // PreimagePrefix + hash -> preimage
 	configPrefix   = []byte("kardia-config-") // config prefix for the db
@@ -234,4 +233,13 @@ func storageSnapshotKey(accountHash, storageHash common.Hash) []byte {
 // storageSnapshotsKey = SnapshotStoragePrefix + account hash + storage hash
 func storageSnapshotsKey(accountHash common.Hash) []byte {
 	return append(SnapshotStoragePrefix, accountHash.Bytes()...)
+}
+
+// IsCodeKey reports whether the given byte slice is the key of contract code,
+// if so return the raw code hash as well.
+func IsCodeKey(key []byte) (bool, []byte) {
+	if bytes.HasPrefix(key, contractAbiPrefix) && len(key) == common.HashLength+len(contractAbiPrefix) {
+		return true, key[len(contractAbiPrefix):]
+	}
+	return false, nil
 }
