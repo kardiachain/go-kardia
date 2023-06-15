@@ -244,19 +244,21 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database, staking *staking
 			},
 		},
 	}
-	if g.GasLimit == 0 {
+	if head.GasLimit == 0 {
 		head.GasLimit = configs.GenesisGasLimit
 	}
-
-	block := types.NewBlock(head, nil, &types.Commit{}, nil, trie.NewStackTrie(nil))
-	if err := setupGenesisStaking(staking, statedb, block.Header(), kvm.Config{}, g.Validators); err != nil {
+	if err := setupGenesisStaking(staking, statedb, head, kvm.Config{}, g.Validators); err != nil {
 		panic(err)
 	}
+
 	root := statedb.IntermediateRoot(false)
 	_, _ = statedb.Commit(false)
 	_ = statedb.Database().TrieDB().Commit(root, true)
+	
+	head.AppHash = root
+	block := types.NewBlock(head, nil, &types.Commit{}, nil, trie.NewStackTrie(nil))
 
-	return block, root
+	return block, block.AppHash()
 }
 
 // Commit writes the block and state of a genesis specification to the database.
