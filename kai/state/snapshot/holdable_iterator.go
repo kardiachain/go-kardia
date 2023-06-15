@@ -17,22 +17,22 @@
 package snapshot
 
 import (
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/kardiachain/go-kardia/kai/kaidb"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 // holdableIterator is a wrapper of underlying database iterator. It extends
 // the basic iterator interface by adding Hold which can hold the element
 // locally where the iterator is currently located and serve it up next time.
 type holdableIterator struct {
-	it     ethdb.Iterator
+	it     kaidb.Iterator
 	key    []byte
 	val    []byte
 	atHeld bool
 }
 
 // newHoldableIterator initializes the holdableIterator with the given iterator.
-func newHoldableIterator(it ethdb.Iterator) *holdableIterator {
+func newHoldableIterator(it kaidb.Iterator) *holdableIterator {
 	return &holdableIterator{it: it}
 }
 
