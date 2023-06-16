@@ -29,6 +29,9 @@ import (
 
 // The fields below define the low level database schema prefixing.
 var (
+	// databaseVersionKey tracks the current database version.
+	databaseVersionKey = []byte("DatabaseVersion")
+
 	// headBlockKey tracks the latest known full block's hash.
 	headBlockKey = []byte("LastBlock")
 
