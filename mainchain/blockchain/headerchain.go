@@ -23,6 +23,8 @@ import (
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kai/kaidb"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -32,11 +34,11 @@ const (
 	heightCacheLimit = 2048
 )
 
-//TODO(huny@): Add detailed description
+// TODO(huny@): Add detailed description
 type HeaderChain struct {
 	config *configs.ChainConfig
 
-	kaiDb types.StoreDB
+	db kaidb.Database
 
 	genesisHeader *types.Header
 
@@ -54,16 +56,17 @@ func (hc *HeaderChain) CurrentHeader() *types.Header {
 }
 
 // NewHeaderChain creates a new HeaderChain structure.
-//  getValidator should return the parent's validator
-//  procInterrupt points to the parent's interrupt semaphore
-//  wg points to the parent's shutdown wait group
-func NewHeaderChain(kaiDb types.StoreDB, config *configs.ChainConfig) (*HeaderChain, error) {
+//
+//	getValidator should return the parent's validator
+//	procInterrupt points to the parent's interrupt semaphore
+//	wg points to the parent's shutdown wait group
+func NewHeaderChain(db kaidb.Database, config *configs.ChainConfig) (*HeaderChain, error) {
 	headerCache, _ := lru.New(headerCacheLimit)
 	heightCache, _ := lru.New(heightCacheLimit)
 
 	hc := &HeaderChain{
 		config:      config,
-		kaiDb:       kaiDb,
+		db:          db,
 		headerCache: headerCache,
 		heightCache: heightCache,
 	}
@@ -74,7 +77,7 @@ func NewHeaderChain(kaiDb types.StoreDB, config *configs.ChainConfig) (*HeaderCh
 	}
 
 	hc.currentHeader.Store(hc.genesisHeader)
-	if head := kaiDb.ReadHeadBlockHash(); head != (common.Hash{}) {
+	if head := rawdb.ReadHeadBlockHash(db); head != (common.Hash{}) {
 		if chead := hc.GetHeaderByHash(head); chead != nil {
 			hc.currentHeader.Store(chead)
 		}
@@ -87,7 +90,7 @@ func NewHeaderChain(kaiDb types.StoreDB, config *configs.ChainConfig) (*HeaderCh
 // GetHeaderByHeight retrieves a block header from the database by height,
 // caching it (associated with its hash) if found.
 func (hc *HeaderChain) GetHeaderByHeight(height uint64) *types.Header {
-	hash := hc.kaiDb.ReadCanonicalHash(height)
+	hash := rawdb.ReadCanonicalHash(hc.db, height)
 	if hash == (common.Hash{}) {
 		return nil
 	}
@@ -101,7 +104,7 @@ func (hc *HeaderChain) GetHeader(hash common.Hash, height uint64) *types.Header 
 	if header, ok := hc.headerCache.Get(hash); ok {
 		return header.(*types.Header)
 	}
-	header := hc.kaiDb.ReadHeader(height)
+	header := rawdb.ReadHeader(hc.db, height)
 	if header == nil {
 		return nil
 	}
@@ -127,7 +130,7 @@ func (hc *HeaderChain) GetBlockHeight(hash common.Hash) *uint64 {
 		height := cached.(uint64)
 		return &height
 	}
-	height := hc.kaiDb.ReadHeaderHeight(hash)
+	height := rawdb.ReadHeaderHeight(hc.db, hash)
 	if height != nil {
 		hc.heightCache.Add(hash, *height)
 	}
@@ -147,7 +150,7 @@ func (hc *HeaderChain) SetGenesis(head *types.Header) {
 
 // DeleteCallback is a callback function that is called by SetHead before
 // each header is deleted.
-type DeleteCallback func(types.StoreDB, uint64)
+type DeleteCallback func(kaidb.Database, uint64)
 
 // SetHead rewinds the local chain to a new head. Everything above the new head
 // will be deleted and the new one set.
@@ -160,15 +163,15 @@ func (hc *HeaderChain) SetHead(head uint64, delFn DeleteCallback) {
 	for hdr := hc.CurrentHeader(); hdr != nil && hdr.Height > head; hdr = hc.CurrentHeader() {
 		height := hdr.Height
 		if delFn != nil {
-			delFn(hc.kaiDb, height)
+			delFn(hc.db, height)
 		}
-		hc.kaiDb.DeleteBlockMeta(height)
-		hc.kaiDb.DeleteBlockPart(height)
+		rawdb.DeleteBlockMeta(hc.db, height)
+		rawdb.DeleteBlockPart(hc.db, height)
 		hc.currentHeader.Store(hc.GetHeader(hdr.LastBlockID.Hash, hdr.Height-1))
 	}
 	// Roll back the canonical chain numbering
 	for i := height; i > head; i-- {
-		hc.kaiDb.DeleteCanonicalHash(i)
+		rawdb.DeleteCanonicalHash(hc.db, i)
 	}
 
 	// Clear out any stale content from the caches
