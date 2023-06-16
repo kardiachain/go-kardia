@@ -30,6 +30,7 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/kaidb"
 	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -145,21 +146,21 @@ func (e *GenesisMismatchError) Error() string {
 //	db has genesis    |  from DB           |  genesis (if compatible)
 //
 // The returned chain configuration is never nil.
-func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, staking *staking.StakingSmcUtil) (*configs.ChainConfig, common.Hash, error) {
+func SetupGenesisBlock(db kaidb.Database, genesis *Genesis) (*configs.ChainConfig, common.Hash, error) {
 	if genesis != nil && genesis.Config == nil {
 		return configs.TestnetChainConfig, common.Hash{}, errGenesisNoConfig
 	}
 
 	// Just commit the new block if there is no stored genesis block.
-	stored := db.ReadCanonicalHash(0)
+	stored := rawdb.ReadCanonicalHash(db, 0)
 	if (stored == common.Hash{}) {
 		if genesis == nil {
-			logger.Info("Writing default main-net genesis block")
+			log.Info("Writing default main-net genesis block")
 			genesis = DefaultGenesisBlock()
 		} else {
-			logger.Info("Writing custom genesis block")
+			log.Info("Writing custom genesis block")
 		}
-		block, err := genesis.Commit(logger, db, staking)
+		block, err := genesis.Commit(db)
 		if err != nil {
 			return nil, common.NewZeroHash(), err
 		}
@@ -168,8 +169,8 @@ func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, st
 
 	// Check whether the genesis block is already written.
 	if genesis != nil {
-		logger.Info("Create new genesis block")
-		block, _ := genesis.ToBlock(logger, db.DB(), staking)
+		log.Info("Create new genesis block")
+		block, _ := genesis.ToBlock(db)
 		hash := block.Hash()
 		if hash != stored {
 			return genesis.Config, hash, &GenesisMismatchError{stored, hash}
@@ -178,10 +179,10 @@ func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, st
 
 	// Get the existing chain configuration.
 	newcfg := genesis.configOrDefault(stored)
-	storedcfg := db.ReadChainConfig(stored)
+	storedcfg := rawdb.ReadChainConfig(db, stored)
 	if storedcfg == nil {
-		logger.Warn("Found genesis block without chain config")
-		db.WriteChainConfig(stored, newcfg)
+		log.Warn("Found genesis block without chain config")
+		rawdb.WriteChainConfig(db, stored, newcfg)
 		return newcfg, stored, nil
 	}
 	// Special case: don't change the existing config of a non-mainnet chain if no new
@@ -191,7 +192,7 @@ func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, st
 		return storedcfg, stored, nil
 	}
 
-	db.WriteChainConfig(stored, newcfg)
+	rawdb.WriteChainConfig(db, stored, newcfg)
 	return newcfg, stored, nil
 }
 
@@ -210,7 +211,7 @@ func (g *Genesis) configOrDefault(ghash common.Hash) *configs.ChainConfig {
 
 // ToBlock creates the genesis block and writes state of a genesis specification
 // to the given database (or discards it if nil).
-func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database, staking *staking.StakingSmcUtil) (*types.Block, common.Hash) {
+func (g *Genesis) ToBlock(db kaidb.Database) (*types.Block, common.Hash) {
 	if db == nil {
 		db = memorydb.New()
 	}
@@ -247,14 +248,14 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database, staking *staking
 	if head.GasLimit == 0 {
 		head.GasLimit = configs.GenesisGasLimit
 	}
-	if err := setupGenesisStaking(staking, statedb, head, kvm.Config{}, g.Validators); err != nil {
+	if err := setupGenesisStaking(statedb, kvm.Config{}, g.Timestamp, g.GasLimit, g.Validators); err != nil {
 		panic(err)
 	}
 
 	root := statedb.IntermediateRoot(false)
 	_, _ = statedb.Commit(false)
 	_ = statedb.Database().TrieDB().Commit(root, true)
-	
+
 	head.AppHash = root
 	block := types.NewBlock(head, nil, &types.Commit{}, nil, trie.NewStackTrie(nil))
 
@@ -263,24 +264,23 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database, staking *staking
 
 // Commit writes the block and state of a genesis specification to the database.
 // The block is committed as the canonical head block.
-func (g *Genesis) Commit(logger log.Logger, db types.StoreDB, staking *staking.StakingSmcUtil) (*types.Block, error) {
-	block, root := g.ToBlock(logger, db.DB(), staking)
+func (g *Genesis) Commit(db kaidb.Database) (*types.Block, error) {
+	block, root := g.ToBlock(db)
 	if block.Height() > 0 {
 		return nil, fmt.Errorf("can't commit genesis block with height > 0")
 	}
-	partsSet := block.MakePartSet(types.BlockPartSizeBytes)
-
-	db.WriteBlock(block, partsSet, &types.Commit{})
-
-	db.WriteBlockInfo(block.Hash(), block.Height(), nil)
-	db.WriteCanonicalHash(block.Hash(), block.Height())
-	db.WriteHeadBlockHash(block.Hash())
-	db.WriteAppHash(block.Height(), root)
 	config := g.Config
 	if config == nil {
 		config = configs.TestnetChainConfig
 	}
-	db.WriteChainConfig(block.Hash(), config)
+
+	partsSet := block.MakePartSet(types.BlockPartSizeBytes)
+	rawdb.WriteBlock(db, block, partsSet, &types.Commit{})
+	rawdb.WriteBlockInfo(db, block.Hash(), block.Height(), nil)
+	rawdb.WriteCanonicalHash(db, block.Hash(), block.Height())
+	rawdb.WriteHeadBlockHash(db, block.Hash())
+	rawdb.WriteAppHash(db, block.Height(), root)
+	rawdb.WriteChainConfig(db, block.Hash(), config)
 
 	return block, nil
 }
@@ -376,7 +376,29 @@ func ToCell(amount int64) *big.Int {
 	return cell
 }
 
-func setupGenesisStaking(stakingUtil *staking.StakingSmcUtil, statedb *state.StateDB, header *types.Header, cfg kvm.Config, validators []*GenesisValidator) error {
+func setupGenesisStaking(statedb *state.StateDB, cfg kvm.Config, timestamp time.Time, gaslimit uint64, validators []*GenesisValidator) error {
+	// ephemeral header
+	header := &types.Header{
+		Time:     timestamp,
+		Height:   0,
+		GasLimit: gaslimit,
+		AppHash:  common.Hash{},
+		LastBlockID: types.BlockID{
+			Hash: common.Hash{},
+			PartsHeader: types.PartSetHeader{
+				Hash:  common.Hash{},
+				Total: uint32(0),
+			},
+		},
+	}
+	if header.GasLimit == 0 {
+		header.GasLimit = configs.GenesisGasLimit
+	}
+
+	stakingUtil, stakingUtilErr := staking.NewSmcStakingUtil()
+	if stakingUtilErr != nil {
+		return stakingUtilErr
+	}
 	if err := stakingUtil.CreateStakingContract(statedb, header, cfg); err != nil {
 		return err
 	}
