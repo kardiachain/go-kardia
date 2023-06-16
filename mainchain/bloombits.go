@@ -75,8 +75,8 @@ func (k *KardiaService) startBloomHandlers(sectionSize uint64) {
 					task.Bitsets = make([][]byte, len(task.Sections))
 					db := k.blockchain.DB()
 					for i, section := range task.Sections {
-						head := db.ReadCanonicalHash((section+1)*sectionSize - 1)
-						if compVector, err := rawdb.ReadBloomBits(db.DB(), task.Bit, section, head); err == nil {
+						head := rawdb.ReadCanonicalHash(db, (section+1)*sectionSize - 1)
+						if compVector, err := rawdb.ReadBloomBits(db, task.Bit, section, head); err == nil {
 							if blob, err := common.DecompressBytes(compVector, int(sectionSize/8)); err == nil {
 								task.Bitsets[i] = blob
 							} else {
