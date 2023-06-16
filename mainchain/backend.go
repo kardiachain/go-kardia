@@ -7,11 +7,11 @@ import (
 	"github.com/kardiachain/go-kardia/internal/kaiapi"
 	"github.com/kardiachain/go-kardia/rpc"
 
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/kai/accounts"
 	"github.com/kardiachain/go-kardia/kai/kaidb"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
 	"github.com/kardiachain/go-kardia/kai/state/pruner"
 	"github.com/kardiachain/go-kardia/lib/bloombits"

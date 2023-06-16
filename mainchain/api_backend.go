@@ -22,7 +22,6 @@ import (
 	"context"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/events"
 	"github.com/kardiachain/go-kardia/kai/kaidb"
@@ -36,6 +35,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
+	"github.com/kardiachain/go-kardia/mainchain/oracles"
 	"github.com/kardiachain/go-kardia/mainchain/staking"
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/types"
@@ -44,7 +44,7 @@ import (
 // KaiAPIBackend implements kaiapi.Backend and tracers.Backend for full nodes
 type KaiAPIBackend struct {
 	kai *Kardiachain
-	gpo *gasprice.Oracle
+	gpo *oracles.Oracle
 }
 
 func (k *KaiAPIBackend) HeaderByHeight(ctx context.Context, height rpc.BlockHeight) *types.Header {
@@ -350,5 +350,3 @@ func (k *KaiAPIBackend) GetValidatorSet(ctx context.Context, blockHeight rpc.Blo
 func (k *KaiAPIBackend) ReadCommit(ctx context.Context, height rpc.BlockHeight) *types.Commit {
 	return rawdb.ReadCommit(k.kai.chainDb, height.Uint64())
 }
-
-
