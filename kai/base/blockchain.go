@@ -21,6 +21,7 @@ package base
 import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/events"
+	"github.com/kardiachain/go-kardia/kai/kaidb"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -43,7 +44,7 @@ type BaseBlockChain interface {
 	GetHeader(common.Hash, uint64) *types.Header
 	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 	StateAt(root uint64) (*state.StateDB, error)
-	DB() types.StoreDB
+	DB() kaidb.Database
 	P2P() *configs.P2PConfig
 	ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) (*kvm.ExecutionResult, error)
 }

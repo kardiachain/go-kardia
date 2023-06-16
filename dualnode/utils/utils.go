@@ -30,6 +30,7 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	dualMsg "github.com/kardiachain/go-kardia/dualnode/message"
 	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
@@ -77,7 +78,7 @@ func ExecuteKardiaSmartContract(txPool *tx_pool.TxPool, bc base.BaseBlockChain, 
 	if contractAddress[:2] != "0x" {
 		contractAddress = "0x" + contractAddress
 	}
-	kAbi := db.ReadSmartContractAbi(contractAddress)
+	kAbi := rawdb.ReadSmartContractAbi(db, contractAddress)
 	if kAbi == nil {
 		return nil, fmt.Errorf("cannot find abi from smc address: %v", contractAddress)
 	}
@@ -155,10 +156,10 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 		if contractAddress[:2] != "0x" {
 			contractAddress = "0x" + contractAddress
 		}
-		watcher := proxy.DualBlockChain().DB().ReadEvent(contractAddress, msg.MethodName)
+		watcher := rawdb.ReadEvent(proxy.DualBlockChain().DB(), contractAddress, msg.MethodName)
 		if watcher != nil {
 			// get kardia master smc from dualAction
-			smc, _ := proxy.DualBlockChain().DB().ReadEvents(contractAddress)
+			smc, _ := rawdb.ReadEvents(proxy.DualBlockChain().DB(), contractAddress)
 			if smc == "" {
 				return fmt.Errorf("cannot find dualAction from watcherAction %v", watcher.Method)
 			}

@@ -29,6 +29,7 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/accounts/abi"
 	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -55,7 +56,7 @@ func generateInput(p *Parser, extras ...interface{}) (string, *abi.ABI, *common.
 	db := p.Bc.DB()
 
 	// get abi from smart contract address, if abi is not found, returns error
-	kAbi := db.ReadSmartContractAbi(contractAddress.Hex())
+	kAbi := rawdb.ReadSmartContractAbi(db, contractAddress.Hex())
 	if kAbi == nil {
 		return "", nil, nil, nil, nil, abiNotFound
 	}

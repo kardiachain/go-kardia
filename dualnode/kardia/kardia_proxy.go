@@ -28,6 +28,7 @@ import (
 	"github.com/kardiachain/go-kardia/kai/accounts/abi"
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kai/events"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/ksml"
 	message "github.com/kardiachain/go-kardia/ksml/proto"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -216,7 +217,7 @@ func (p *KardiaProxy) TxMatchesWatcher(tx *types.Transaction) (*types.Watcher, *
 	if tx.To() == nil {
 		return nil, nil
 	}
-	a := db.ReadSmartContractAbi(tx.To().Hex())
+	a := rawdb.ReadSmartContractAbi(db, tx.To().Hex())
 	if a != nil {
 		// get method and input data from tx
 		input := tx.Data()
@@ -226,7 +227,7 @@ func (p *KardiaProxy) TxMatchesWatcher(tx *types.Transaction) (*types.Watcher, *
 			return nil, nil
 		}
 		// get event from smc address and method
-		return db.ReadEvent(tx.To().Hex(), method.Name), a
+		return rawdb.ReadEvent(db, tx.To().Hex(), method.Name), a
 	}
 	return nil, nil
 }
@@ -245,7 +246,7 @@ func (p *KardiaProxy) executeAction(block *types.Block, tx *types.Transaction, a
 		return err
 	}
 	// get master smart contract
-	masterSmc, _ := p.kardiaBc.DB().ReadEvents(tx.To().Hex())
+	masterSmc, _ := rawdb.ReadEvents(p.kardiaBc.DB(), tx.To().Hex())
 	eventMessage := &message.EventMessage{
 		MasterSmartContract: masterSmc,
 		TransactionId:       tx.Hash().Hex(),
