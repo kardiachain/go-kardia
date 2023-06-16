@@ -28,6 +28,7 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/events"
+	"github.com/kardiachain/go-kardia/kai/kaidb"
 	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kai/state/snapshot"
@@ -35,6 +36,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/trie"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -76,28 +78,28 @@ var defaultCacheConfig = &CacheConfig{
 }
 
 type BlockChain struct {
-	logger log.Logger
-
 	chainConfig *configs.ChainConfig // Chain & network configuration
 	cacheConfig *CacheConfig         // Cache configuration for pruning
 
-	db    types.StoreDB  // Blockchain database
-	snaps *snapshot.Tree // Snapshot tree for fast trie leaf access
-	hc    *HeaderChain
+	db            kaidb.Database // Low level persistent database to store final content in
+	snaps         *snapshot.Tree // Snapshot tree for fast trie leaf access
+	lastWrite     uint64         // Last block when the state was flushed
+	flushInterval atomic.Int64   // Time interval (processing time) after which to flush a state
+	triedb        *trie.Database // The database handler for maintaining trie nodes.
+	stateCache    state.Database // State database to reuse between imports (contains state cache)
 
+	hc            *HeaderChain
 	chainHeadFeed event.Feed
 	logsFeed      event.Feed
 	scope         event.SubscriptionScope
-
-	genesisBlock *types.Block
+	genesisBlock  *types.Block
 
 	mu sync.RWMutex // global mutex for locking chain operations
 
 	currentBlock atomic.Value // Current head of the block chain
 
-	stateCache   state.Database // State database to reuse between imports (contains state cache)
-	blockCache   *lru.Cache     // Cache for the most recent entire blocks
-	futureBlocks *lru.Cache     // future blocks are blocks added for later processing
+	blockCache   *lru.Cache // Cache for the most recent entire blocks
+	futureBlocks *lru.Cache // future blocks are blocks added for later processing
 
 	quit chan struct{} // blockchain quit channel
 
@@ -135,7 +137,7 @@ func (bc *BlockChain) Processor() *StateProcessor {
 	return bc.processor
 }
 
-func (bc *BlockChain) DB() types.StoreDB {
+func (bc *BlockChain) DB() kaidb.Database {
 	return bc.db
 }
 
@@ -144,27 +146,37 @@ func (bc *BlockChain) Config() *configs.ChainConfig { return bc.chainConfig }
 
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database. It initialises the default Kardia Validator and Processor.
-func NewBlockChain(logger log.Logger, cacheConfig *CacheConfig, db types.StoreDB, chainConfig *configs.ChainConfig) (*BlockChain, error) {
+func NewBlockChain(db kaidb.Database, cacheConfig *CacheConfig, gs *genesis.Genesis) (*BlockChain, error) {
 	if cacheConfig == nil {
 		cacheConfig = defaultCacheConfig
 	}
+	// Open trie database with provided config
+	triedb := trie.NewDatabaseWithConfig(db, &trie.Config{
+		Cache:     cacheConfig.TrieCleanLimit,
+		Journal:   cacheConfig.TrieCleanJournal,
+		Preimages: cacheConfig.Preimages,
+	})
+
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(db, gs)
+	if genesisErr != nil {
+		return nil, genesisErr
+	}
+
 	blockCache, _ := lru.New(blockCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)
 
 	bc := &BlockChain{
-		logger:      logger,
-		chainConfig: chainConfig,
-		db:          db,
-		cacheConfig: cacheConfig,
-		stateCache: state.NewDatabaseWithConfig(db.DB(), &trie.Config{
-			Cache:     cacheConfig.TrieCleanLimit,
-			Journal:   cacheConfig.TrieCleanJournal,
-			Preimages: cacheConfig.Preimages,
-		}),
+		chainConfig:  chainConfig,
+		cacheConfig:  cacheConfig,
+		db:           db,
+		triedb:       triedb,
+		quit:         make(chan struct{}),
 		blockCache:   blockCache,
 		futureBlocks: futureBlocks,
-		quit:         make(chan struct{}),
 	}
+	bc.flushInterval.Store(int64(cacheConfig.TrieTimeLimit))
+	bc.stateCache = state.NewDatabaseWithNodeDB(bc.db, bc.triedb)
+	bc.processor = NewStateProcessor(bc)
 
 	var err error
 	bc.hc, err = NewHeaderChain(db, chainConfig)
@@ -176,6 +188,9 @@ func NewBlockChain(logger log.Logger, cacheConfig *CacheConfig, db types.StoreDB
 		return nil, ErrNoGenesis
 	}
 
+	bc.currentBlock.Store(nil)
+
+	// Load blockchain states from disk
 	if err := bc.loadLastState(); err != nil {
 		return nil, err
 	}
@@ -189,7 +204,7 @@ func NewBlockChain(logger log.Logger, cacheConfig *CacheConfig, db types.StoreDB
 		var recover bool
 
 		head := bc.CurrentBlock()
-		if layer := rawdb.ReadSnapshotRecoveryNumber(bc.db.DB()); layer != nil && *layer >= head.Height() {
+		if layer := rawdb.ReadSnapshotRecoveryNumber(bc.db); layer != nil && *layer >= head.Height() {
 			log.Warn("Enabling snapshot recovery", "chainhead", head.Height(), "diskbase", *layer)
 			recover = true
 		}
@@ -199,13 +214,8 @@ func NewBlockChain(logger log.Logger, cacheConfig *CacheConfig, db types.StoreDB
 			NoBuild:    bc.cacheConfig.SnapshotNoBuild,
 			AsyncBuild: !bc.cacheConfig.SnapshotWait,
 		}
-		bc.snaps, _ = snapshot.New(snapconfig, bc.db.DB(), bc.stateCache.TrieDB(), head.AppHash())
+		bc.snaps, _ = snapshot.New(snapconfig, bc.db, bc.stateCache.TrieDB(), head.AppHash())
 	}
-
-	// Take ownership of this particular state
-	//@huny go bc.update()
-
-	bc.processor = NewStateProcessor(logger, bc)
 
 	return bc, nil
 }
@@ -213,7 +223,7 @@ func NewBlockChain(logger log.Logger, cacheConfig *CacheConfig, db types.StoreDB
 // GetBlockByHeight retrieves a block from the database by number, caching it
 // (associated with its hash) if found.
 func (bc *BlockChain) GetBlockByHeight(height uint64) *types.Block {
-	hash := bc.db.ReadCanonicalHash(height)
+	hash := rawdb.ReadCanonicalHash(bc.db, height)
 	if hash == (common.Hash{}) {
 		return nil
 	}
@@ -222,22 +232,22 @@ func (bc *BlockChain) GetBlockByHeight(height uint64) *types.Block {
 
 // LoadBlockPart ...
 func (bc *BlockChain) LoadBlockPart(height uint64, index int) *types.Part {
-	return bc.db.ReadBlockPart(height, index)
+	return rawdb.ReadBlockPart(bc.db, height, index)
 }
 
 // LoadBlockMeta ...
 func (bc *BlockChain) LoadBlockMeta(height uint64) *types.BlockMeta {
-	return bc.db.ReadBlockMeta(height)
+	return rawdb.ReadBlockMeta(bc.db, height)
 }
 
 // LoadBlockCommit ...
 func (bc *BlockChain) LoadBlockCommit(height uint64) *types.Commit {
-	return bc.db.ReadCommit(height)
+	return rawdb.ReadCommit(bc.db, height)
 }
 
 // LoadSeenCommit ...
 func (bc *BlockChain) LoadSeenCommit(height uint64) *types.Commit {
-	return bc.db.ReadSeenCommit(height)
+	return rawdb.ReadSeenCommit(bc.db, height)
 }
 
 // GetBlock retrieves a block from the database by hash and number,
@@ -247,7 +257,7 @@ func (bc *BlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
 	if block, ok := bc.blockCache.Get(hash); ok {
 		return block.(*types.Block)
 	}
-	block := bc.db.ReadBlock(number)
+	block := rawdb.ReadBlock(bc.db, number)
 	if block == nil {
 		return nil
 	}
@@ -269,7 +279,7 @@ func (bc *BlockChain) State() (*state.StateDB, error) {
 
 // StateAt returns a new mutable state based on a particular point in time.
 func (bc *BlockChain) StateAt(height uint64) (*state.StateDB, error) {
-	root := bc.DB().ReadAppHash(height)
+	root := rawdb.ReadAppHash(bc.db, height)
 	return state.New(root, bc.stateCache, bc.snaps)
 }
 
@@ -281,41 +291,47 @@ func (bc *BlockChain) CheckCommittedStateRoot(root common.Hash) bool {
 	return err == nil
 }
 
+// HasState checks if state trie is fully present in the database or not.
+func (bc *BlockChain) HasState(hash common.Hash) bool {
+	_, err := bc.stateCache.OpenTrie(hash)
+	return err == nil
+}
+
 // loadLastState loads the last known chain state from the database. This method
 // assumes that the chain manager mutex is held.
 func (bc *BlockChain) loadLastState() error {
 	// Restore the last known head block
-	hash := bc.db.ReadHeadBlockHash()
+	hash := rawdb.ReadHeadBlockHash(bc.db)
 	if hash == (common.Hash{}) {
 		// Corrupt or empty database, init from scratch
-		bc.logger.Warn("Empty database, resetting chain")
+		log.Warn("Empty database, resetting chain")
 		return bc.Reset()
 	}
 	// Make sure the entire head block is available
-	currentBlock := bc.GetBlockByHash(hash)
-	if currentBlock == nil {
+	headBlock := bc.GetBlockByHash(hash)
+	if headBlock == nil {
 		// Corrupt or empty database, init from scratch
-		bc.logger.Warn("Head block missing, resetting chain", "hash", hash)
+		log.Warn("Head block missing, resetting chain", "hash", hash)
 		return bc.Reset()
 	}
-	root := bc.DB().ReadAppHash(currentBlock.Height())
+	root := rawdb.ReadAppHash(bc.db, headBlock.Height())
 	// Make sure the state associated with the block is available
 	if _, err := state.New(root, bc.stateCache, nil); err != nil {
 		// Dangling block without a state associated, init from scratch
-		bc.logger.Warn("Head state missing, repairing chain", "height", currentBlock.Height(), "hash", currentBlock.Hash())
-		if err := bc.repair(&currentBlock); err != nil {
+		log.Warn("Head state missing, repairing chain", "height", headBlock.Height(), "hash", headBlock.Hash())
+		if err := bc.repair(&headBlock); err != nil {
 			return err
 		}
 	}
 	// Everything seems to be fine, set as the head block
-	bc.currentBlock.Store(currentBlock)
+	bc.currentBlock.Store(headBlock)
 
 	// Restore the last known head header
-	currentHeader := currentBlock.Header()
-	bc.hc.SetCurrentHeader(currentHeader)
+	headHeader := headBlock.Header()
+	bc.hc.SetCurrentHeader(headHeader)
 
-	bc.logger.Info("Loaded most recent local header", "height", currentHeader.Height, "hash", currentHeader.Hash())
-	bc.logger.Info("Loaded most recent local full block", "height", currentBlock.Height(), "hash", currentBlock.Hash())
+	log.Info("Loaded most recent local header", "height", headHeader.Height, "hash", headHeader.Hash())
+	log.Info("Loaded most recent local full block", "height", headBlock.Height(), "hash", headBlock.Hash())
 
 	return nil
 }
@@ -335,7 +351,7 @@ func (bc *BlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 
-	bc.db.WriteBlock(genesis, genesis.MakePartSet(types.BlockPartSizeBytes), &types.Commit{})
+	rawdb.WriteBlock(bc.db, genesis, genesis.MakePartSet(types.BlockPartSizeBytes), &types.Commit{})
 
 	bc.genesisBlock = genesis
 	bc.insert(bc.genesisBlock)
@@ -354,10 +370,10 @@ func (bc *BlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 // fast block are left intact.
 func (bc *BlockChain) repair(head **types.Block) error {
 	for {
-		root := bc.DB().ReadAppHash((*head).Height())
+		root := rawdb.ReadAppHash(bc.db, (*head).Height())
 		// Abort if we've rewound to a head block that does have associated state
 		if _, err := state.New(root, bc.stateCache, nil); err == nil {
-			bc.logger.Info("Rewound blockchain to past state", "height", (*head).Height(), "hash", (*head).Hash())
+			log.Info("Rewound blockchain to past state", "height", (*head).Height(), "hash", (*head).Hash())
 			return nil
 		}
 		// Otherwise rewind one block and recheck state availability there
@@ -397,15 +413,15 @@ func (bc *BlockChain) GetHeaderByHeight(height uint64) *types.Header {
 // though, the head may be further rewound if block bodies are missing (non-archive
 // nodes after a fast sync).
 func (bc *BlockChain) SetHead(head uint64) error {
-	bc.logger.Warn("Rewinding blockchain", "target", head)
+	log.Warn("Rewinding blockchain", "target", head)
 
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 
 	// Rewind the header chain, deleting all block bodies until then
-	delFn := func(db types.StoreDB, height uint64) {
-		db.DeleteBlockMeta(height)
-		db.DeleteBlockPart(height)
+	delFn := func(db kaidb.Database, height uint64) {
+		rawdb.DeleteBlockMeta(bc.db, height)
+		rawdb.DeleteBlockPart(bc.db, height)
 	}
 	bc.hc.SetHead(head, delFn)
 	currentHeader := bc.hc.CurrentHeader()
@@ -419,7 +435,7 @@ func (bc *BlockChain) SetHead(head uint64) error {
 		bc.currentBlock.Store(bc.GetBlock(currentHeader.Hash(), currentHeader.Height))
 	}
 	if currentBlock := bc.CurrentBlock(); currentBlock != nil {
-		root := bc.DB().ReadAppHash(currentBlock.Height())
+		root := rawdb.ReadAppHash(bc.db, currentBlock.Height())
 		if _, err := state.New(root, bc.stateCache, nil); err != nil {
 			// Rewound state missing, rolled back to before pivot, reset to genesis
 			bc.currentBlock.Store(bc.genesisBlock)
@@ -449,7 +465,7 @@ func (bc *BlockChain) WriteBlockInfo(block *types.Block, blockInfo *types.BlockI
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 
-	bc.db.WriteBlockInfo(block.Hash(), block.Header().Height, blockInfo)
+	rawdb.WriteBlockInfo(bc.db, block.Hash(), block.Header().Height, blockInfo)
 }
 
 // CommitTrie commits trie node such as statedb forcefully to disk.
@@ -466,10 +482,10 @@ func (bc *BlockChain) CommitTrie(root common.Hash) error {
 // Note, this function assumes that the `mu` mutex is held!
 func (bc *BlockChain) insert(block *types.Block) {
 	// If the block is on a side chain or an unknown one, force other heads onto it too
-	updateHeads := bc.db.ReadCanonicalHash(block.Height()) != block.Hash()
+	updateHeads := rawdb.ReadCanonicalHash(bc.db, block.Height()) != block.Hash()
 
 	// Add the block to the canonical chain number scheme and mark as the head
-	bc.db.WriteCanonicalHash(block.Hash(), block.Height())
+	rawdb.WriteCanonicalHash(bc.db, block.Hash(), block.Height())
 
 	bc.currentBlock.Store(block)
 
@@ -481,11 +497,11 @@ func (bc *BlockChain) insert(block *types.Block) {
 
 // Reads commit from db.
 func (bc *BlockChain) ReadCommit(height uint64) *types.Commit {
-	return bc.db.ReadCommit(height)
+	return rawdb.ReadCommit(bc.db, height)
 }
 
 func (bc *BlockChain) SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) {
-	bc.db.WriteBlock(block, blockParts, seenCommit)
+	rawdb.WriteBlock(bc.db, block, blockParts, seenCommit)
 }
 
 func (bc *BlockChain) ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) (*kvm.ExecutionResult, error) {
