@@ -29,9 +29,11 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 )
 
-// DefaultConfig contains default settings for use on the Kardia main net.
-var DefaultConfig = Config{
-	NetworkId:               1,
+// Defaults contains default settings for use on the Kardia main net.
+var Defaults = Config{
+	NetworkId:               24,
+	TxLookupLimit:           2350000,
+	DatabaseCache:           512,
 	TrieCleanCache:          154,
 	TrieCleanCacheJournal:   "triecache",
 	TrieCleanCacheRejournal: 60 * time.Minute,
@@ -54,6 +56,10 @@ type Config struct {
 
 	NoPruning  bool // Whether to disable pruning and flush everything to disk
 	NoPrefetch bool // Whether to disable prefetching and only load state on deman
+
+	TxLookupLimit uint64 `toml:",omitempty"` // The maximum number of blocks from head whose tx indices are reserved.
+
+	DatabaseCache      int
 
 	TrieCleanCache          int
 	TrieCleanCacheJournal   string        `toml:",omitempty"` // Disk journal directory for trie cache to survive node restarts

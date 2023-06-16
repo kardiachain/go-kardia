@@ -26,6 +26,7 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/internal/kaiapi"
 	"github.com/kardiachain/go-kardia/kai/accounts"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -53,17 +54,17 @@ func (s *PublicNetAPI) Version() string {
 // PublicWeb3API provides web3-compatible APIs to access the KardiaChain blockchain.
 // It offers only methods that operate on public data that is freely available to anyone.
 type PublicWeb3API struct {
-	kaiService *KardiaService
+	kaiService *Kardiachain
 }
 
 // NewPublicWeb3API creates a new KardiaChain blockchain web3 APIs.
-func NewPublicWeb3API(k *KardiaService) *PublicWeb3API {
+func NewPublicWeb3API(k *Kardiachain) *PublicWeb3API {
 	return &PublicWeb3API{k}
 }
 
 // GasPrice returns a suggestion for a gas price.
 func (s *PublicWeb3API) GasPrice(ctx context.Context) (*common.Big, error) {
-	price, err := s.kaiService.SuggestPrice(ctx)
+	price, err := s.kaiService.APIBackend.SuggestPrice(ctx)
 	return (*common.Big)(price), err
 }
 
@@ -74,7 +75,7 @@ func (s *PublicWeb3API) ChainId() *common.Big {
 
 // BlockNumber returns the block height of the chain head.
 func (s *PublicWeb3API) BlockNumber() common.Uint64 {
-	header := s.kaiService.HeaderByHeight(context.Background(), rpc.LatestBlockHeight) // latest header should always be available
+	header := s.kaiService.APIBackend.HeaderByHeight(context.Background(), rpc.LatestBlockHeight) // latest header should always be available
 	return common.Uint64(header.Height)
 }
 
@@ -82,7 +83,7 @@ func (s *PublicWeb3API) BlockNumber() common.Uint64 {
 // * When blockNr is math.MaxUint64 - 1 the chain head is returned.
 // * When blockNr is math.MaxUint64 - 2 the pending chain head is returned.
 func (s *PublicWeb3API) GetHeaderByNumber(ctx context.Context, height rpc.BlockHeight) (map[string]interface{}, error) {
-	header := s.kaiService.HeaderByHeight(ctx, height)
+	header := s.kaiService.APIBackend.HeaderByHeight(ctx, height)
 	if header != nil {
 		response := s.rpcMarshalHeader(ctx, header)
 		if height == rpc.PendingBlockHeight {
@@ -98,7 +99,7 @@ func (s *PublicWeb3API) GetHeaderByNumber(ctx context.Context, height rpc.BlockH
 
 // GetHeaderByHash returns the requested header by hash.
 func (s *PublicWeb3API) GetHeaderByHash(ctx context.Context, hash common.Hash) map[string]interface{} {
-	header := s.kaiService.HeaderByHash(ctx, hash)
+	header := s.kaiService.APIBackend.HeaderByHash(ctx, hash)
 	if header != nil {
 		return s.rpcMarshalHeader(ctx, header)
 	}
@@ -106,12 +107,12 @@ func (s *PublicWeb3API) GetHeaderByHash(ctx context.Context, hash common.Hash) m
 }
 
 // GetBlockByNumber returns the requested canonical block.
-// * When blockNr is -1 the chain head is returned.
-// * When blockNr is -2 the pending chain head is returned.
-// * When fullTx is true all transactions in the block are returned, otherwise
-//   only the transaction hash is returned.
+//   - When blockNr is -1 the chain head is returned.
+//   - When blockNr is -2 the pending chain head is returned.
+//   - When fullTx is true all transactions in the block are returned, otherwise
+//     only the transaction hash is returned.
 func (s *PublicWeb3API) GetBlockByNumber(ctx context.Context, height rpc.BlockHeight, fullTx bool) (map[string]interface{}, error) {
-	block := s.kaiService.BlockByHeight(ctx, height)
+	block := s.kaiService.APIBackend.BlockByHeight(ctx, height)
 	if block != nil {
 		response, err := s.rpcMarshalBlock(ctx, block, true, fullTx)
 		if err == nil && height == rpc.PendingBlockHeight {
@@ -128,7 +129,7 @@ func (s *PublicWeb3API) GetBlockByNumber(ctx context.Context, height rpc.BlockHe
 // GetBlockByHash returns the requested block. When fullTx is true all transactions in the block are returned in full
 // detail, otherwise only the transaction hash is returned.
 func (s *PublicWeb3API) GetBlockByHash(ctx context.Context, hash common.Hash, fullTx bool) (map[string]interface{}, error) {
-	block := s.kaiService.BlockByHash(ctx, hash)
+	block := s.kaiService.APIBackend.BlockByHash(ctx, hash)
 	if block != nil {
 		return s.rpcMarshalBlock(ctx, block, true, fullTx)
 	}
@@ -139,7 +140,7 @@ func (s *PublicWeb3API) GetBlockByHash(ctx context.Context, hash common.Hash, fu
 // given block height. The rpc.LatestBlockHeight and rpc.PendingBlockHeight meta
 // block heights are also allowed.
 func (s *PublicWeb3API) GetBalance(ctx context.Context, address common.Address, blockHeightOrHash rpc.BlockHeightOrHash) (*common.Big, error) {
-	state, _, err := s.kaiService.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
+	state, _, err := s.kaiService.APIBackend.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
 	if state == nil || err != nil {
 		return nil, err
 	}
@@ -148,7 +149,7 @@ func (s *PublicWeb3API) GetBalance(ctx context.Context, address common.Address, 
 
 // GetCode returns the code stored at the given address in the state for the given block height.
 func (s *PublicWeb3API) GetCode(ctx context.Context, address common.Address, blockHeightOrHash rpc.BlockHeightOrHash) (common.Bytes, error) {
-	state, _, err := s.kaiService.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
+	state, _, err := s.kaiService.APIBackend.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
 	if state == nil || err != nil {
 		return nil, err
 	}
@@ -160,7 +161,7 @@ func (s *PublicWeb3API) GetCode(ctx context.Context, address common.Address, blo
 // block number. The rpc.LatestBlockHeight and rpc.PendingBlockHeight meta block
 // heights are also allowed.
 func (s *PublicWeb3API) GetStorageAt(ctx context.Context, address common.Address, key string, blockHeightOrHash rpc.BlockHeightOrHash) (common.Bytes, error) {
-	state, _, err := s.kaiService.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
+	state, _, err := s.kaiService.APIBackend.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
 	if state == nil || err != nil {
 		return nil, err
 	}
@@ -170,7 +171,7 @@ func (s *PublicWeb3API) GetStorageAt(ctx context.Context, address common.Address
 
 // GetProof returns the Merkle-proof for a given account and optionally some storage keys.
 func (s *PublicWeb3API) GetProof(ctx context.Context, address common.Address, storageKeys []string, blockHeightOrHash rpc.BlockHeightOrHash) (*AccountResult, error) {
-	state, _, err := s.kaiService.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
+	state, _, err := s.kaiService.APIBackend.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
 	if state == nil || err != nil {
 		return nil, err
 	}
@@ -242,7 +243,7 @@ type CallArgs struct {
 // Note, this function doesn't make and changes in the state/blockchain and is
 // useful to execute and retrieve values.
 func (s *PublicWeb3API) Call(ctx context.Context, args kaiapi.TransactionArgs, blockHeightOrHash rpc.BlockHeightOrHash) (common.Bytes, error) {
-	result, err := kaiapi.DoCall(ctx, s.kaiService, args, blockHeightOrHash, kvm.Config{}, time.Duration(configs.TimeOutForStaticCall)*time.Millisecond)
+	result, err := kaiapi.DoCall(ctx, s.kaiService.APIBackend, args, blockHeightOrHash, kvm.Config{}, time.Duration(configs.TimeOutForStaticCall)*time.Millisecond)
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +261,7 @@ func (s *PublicWeb3API) EstimateGas(ctx context.Context, args kaiapi.Transaction
 	if blockHeightOrHash != nil {
 		bHeightOrHash = *blockHeightOrHash
 	}
-	return kaiapi.DoEstimateGas(ctx, s.kaiService, args, bHeightOrHash, configs.GasLimitCap)
+	return kaiapi.DoEstimateGas(ctx, s.kaiService.APIBackend, args, bHeightOrHash, configs.GasLimitCap)
 }
 
 // RPCTransaction represents a transaction that will serialize to the RPC representation of a transaction
@@ -285,11 +286,11 @@ type RPCTransaction struct {
 
 // PublicTransactionPoolAPI exposes methods for the RPC interface
 type PublicTransactionPoolAPI struct {
-	kaiService *KardiaService
+	kaiService *Kardiachain
 }
 
 // NewPublicTransactionPoolAPI creates a new RPC service with methods specific for the transaction pool.
-func NewPublicTransactionPoolAPI(k *KardiaService) *PublicTransactionPoolAPI {
+func NewPublicTransactionPoolAPI(k *Kardiachain) *PublicTransactionPoolAPI {
 	// The signer used by the API should always be the 'latest' known one because we expect
 	// signers to be backwards-compatible with old transactions.
 	return &PublicTransactionPoolAPI{k}
@@ -298,7 +299,7 @@ func NewPublicTransactionPoolAPI(k *KardiaService) *PublicTransactionPoolAPI {
 // GetTransactionByHash returns the transaction for the given hash
 func (s *PublicTransactionPoolAPI) GetTransactionByHash(ctx context.Context, hash common.Hash) (*RPCTransaction, error) {
 	// Try to return an already finalized transaction
-	tx, blockHash, blockHeight, index := s.kaiService.GetTransaction(ctx, hash)
+	tx, blockHash, blockHeight, index := s.kaiService.APIBackend.GetTransaction(ctx, hash)
 	if tx != nil {
 		return newRPCTransaction(tx, blockHash, blockHeight, index), nil
 	}
@@ -314,7 +315,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionByHash(ctx context.Context, has
 // GetRawTransactionByHash returns the bytes of the transaction for the given hash.
 func (s *PublicTransactionPoolAPI) GetRawTransactionByHash(ctx context.Context, hash common.Hash) (common.Bytes, error) {
 	// Retrieve a finalized transaction, or a pooled otherwise
-	tx, _, _, _ := s.kaiService.GetTransaction(ctx, hash)
+	tx, _, _, _ := s.kaiService.APIBackend.GetTransaction(ctx, hash)
 	if tx == nil {
 		if tx = s.kaiService.TxPool().Get(hash); tx == nil {
 			// Transaction not found anywhere, abort
@@ -327,12 +328,12 @@ func (s *PublicTransactionPoolAPI) GetRawTransactionByHash(ctx context.Context, 
 
 // GetTransactionReceipt returns the transaction receipt for the given transaction hash.
 func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, hash common.Hash) (map[string]interface{}, error) {
-	tx, blockHash, blockHeight, index := s.kaiService.GetTransaction(ctx, hash)
+	tx, blockHash, blockHeight, index := s.kaiService.APIBackend.GetTransaction(ctx, hash)
 	if tx == nil || blockHeight == 0 {
 		return nil, nil
 	}
 	// get receipts from db
-	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, blockHash)
+	blockInfo := s.kaiService.APIBackend.BlockInfoByBlockHash(ctx, blockHash)
 	if blockInfo == nil {
 		return nil, ErrBlockInfoNotFound
 	}
@@ -353,9 +354,9 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 
 	// dirty hack searching receipt in the few previous block
 	for i := uint64(1); i <= 2; i++ {
-		block := s.kaiService.BlockByHeight(ctx, rpc.BlockHeight(blockHeight-i))
+		block := s.kaiService.APIBackend.BlockByHeight(ctx, rpc.BlockHeight(blockHeight-i))
 		// get receipts from db
-		blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, block.Hash())
+		blockInfo := s.kaiService.APIBackend.BlockInfoByBlockHash(ctx, block.Hash())
 		if blockInfo == nil {
 			return nil, ErrBlockInfoNotFound
 		}
@@ -364,7 +365,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 				continue
 			} else {
 				// update the correct lookup entry and try again
-				s.kaiService.kaiDb.WriteTxLookupEntries(block)
+				rawdb.WriteTxLookupEntries(s.kaiService.chainDb, block)
 				return s.GetTransactionReceipt(ctx, hash)
 			}
 		}
@@ -426,7 +427,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionCount(ctx context.Context, addr
 		return (*common.Uint64)(&nonce), nil
 	}
 	// Resolve block number and use its state to ask for the nonce
-	state, _, err := s.kaiService.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
+	state, _, err := s.kaiService.APIBackend.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
 	if state == nil || err != nil {
 		return nil, err
 	}

@@ -38,7 +38,7 @@ func UnmarshalLogsBloom(b *types.Bloom) (string, error) {
 func (s *PublicWeb3API) rpcMarshalHeader(ctx context.Context, header *types.Header) map[string]interface{} {
 	fields := RPCMarshalHeader(header)
 	fields["gasUsed"] = "0x0"
-	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, header.Hash())
+	blockInfo := s.kaiService.APIBackend.BlockInfoByBlockHash(ctx, header.Hash())
 	if blockInfo != nil {
 		bloom, err := UnmarshalLogsBloom(&blockInfo.Bloom)
 		if err == nil {
@@ -88,7 +88,7 @@ func (s *PublicWeb3API) rpcMarshalBlock(ctx context.Context, b *types.Block, inc
 	}
 	fields["gasUsed"] = "0x0"
 	fields["size"] = common.Uint64(b.Size())
-	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, b.Hash())
+	blockInfo := s.kaiService.APIBackend.BlockInfoByBlockHash(ctx, b.Hash())
 	if blockInfo != nil {
 		bloom, err := UnmarshalLogsBloom(&blockInfo.Bloom)
 		if err == nil {
