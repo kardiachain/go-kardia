@@ -80,6 +80,7 @@ var (
 
 	PreimagePrefix = []byte("secure-key-")    // PreimagePrefix + hash -> preimage
 	configPrefix   = []byte("kardia-config-") // config prefix for the db
+	genesisPrefix  = []byte("kardia-genesis-") // genesis state prefix for the db
 
 	// BloomBitsIndexPrefix is the data table of a chain indexer to track its progress
 	BloomBitsIndexPrefix = []byte("iB") // BloomBitsIndexPrefix is the data table of a chain indexer to track its progress
@@ -242,4 +243,9 @@ func IsCodeKey(key []byte) (bool, []byte) {
 		return true, key[len(contractAbiPrefix):]
 	}
 	return false, nil
+}
+
+// genesisStateSpecKey = genesisPrefix + hash
+func genesisStateSpecKey(hash common.Hash) []byte {
+	return append(genesisPrefix, hash.Bytes()...)
 }
