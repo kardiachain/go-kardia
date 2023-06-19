@@ -239,6 +239,11 @@ func storageSnapshotsKey(accountHash common.Hash) []byte {
 	return append(SnapshotStoragePrefix, accountHash.Bytes()...)
 }
 
+// codeKey = CodePrefix + hash
+func codeKey(hash common.Hash) []byte {
+	return append(contractAbiPrefix, hash.Bytes()...)
+}
+
 // IsCodeKey reports whether the given byte slice is the key of contract code,
 // if so return the raw code hash as well.
 func IsCodeKey(key []byte) (bool, []byte) {

@@ -55,7 +55,7 @@ func ReadCode(db kaidb.KeyValueReader, hash common.Hash) []byte {
 // The main difference between this function and ReadCode is this function
 // will only check the existence with latest scheme(with prefix).
 func ReadCodeWithPrefix(db kaidb.KeyValueReader, hash common.Hash) []byte {
-	data, _ := db.Get(contractAbiKey(hash.String()))
+	data, _ := db.Get(codeKey(hash))
 	return data
 }
 
@@ -75,20 +75,20 @@ func HasCode(db kaidb.KeyValueReader, hash common.Hash) bool {
 // provided code hash is present in the db. This function will only check
 // presence using the prefix-scheme.
 func HasCodeWithPrefix(db kaidb.KeyValueReader, hash common.Hash) bool {
-	ok, _ := db.Has(contractAbiKey(hash.String()))
+	ok, _ := db.Has(codeKey(hash))
 	return ok
 }
 
 // WriteCode writes the provided contract code database.
 func WriteCode(db kaidb.KeyValueWriter, hash common.Hash, code []byte) {
-	if err := db.Put(contractAbiKey(hash.String()), code); err != nil {
+	if err := db.Put(codeKey(hash), code); err != nil {
 		log.Crit("Failed to store contract code", "err", err)
 	}
 }
 
 // DeleteCode deletes the specified contract code from the database.
 func DeleteCode(db kaidb.KeyValueWriter, hash common.Hash) {
-	if err := db.Delete(contractAbiKey(hash.String())); err != nil {
+	if err := db.Delete(codeKey(hash)); err != nil {
 		log.Crit("Failed to delete contract code", "err", err)
 	}
 }
