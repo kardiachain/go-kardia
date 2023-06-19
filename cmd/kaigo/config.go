@@ -128,6 +128,11 @@ func loadBaseConfig(ctx *cli.Context) kaigoConfig {
 		}
 	}
 
+	// Copy duplicate configs
+	cfg.Node.Genesis = cfg.Kai.Genesis
+	cfg.Node.FastSync = cfg.Kai.FastSync
+	cfg.Node.GasOracle = cfg.Kai.GasOracle
+
 	// Apply flags.
 	utils.SetNodeConfig(ctx, &cfg.Node)
 	return cfg
