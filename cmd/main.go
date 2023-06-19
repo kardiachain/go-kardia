@@ -42,7 +42,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/metrics"
 	"github.com/kardiachain/go-kardia/lib/metrics/prometheus"
 	"github.com/kardiachain/go-kardia/lib/sysutils"
-	kai "github.com/kardiachain/go-kardia/mainchain"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/mainchain/oracles"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
@@ -198,13 +197,12 @@ func (c *Config) getNodeConfig() (*node.Config, error) {
 	if c.Node.GCMode != "archive" && c.Node.GCMode != "full" {
 		return nil, fmt.Errorf(`either set GCMode as "archive" or "full"`)
 	}
-	
+
 	nodeConfig := node.Config{
 		Name:             n.Name,
 		Version:          configs.Version,
 		DataDir:          n.DataDir,
 		P2P:              p2pConfig,
-		GCmode:           c.Node.GCMode,
 		HTTPHost:         n.HTTPHost,
 		HTTPPort:         n.HTTPPort,
 		HTTPCors:         n.HTTPCors,
@@ -362,10 +360,10 @@ func (c *Config) Start() {
 		return
 	}
 
-	if err := n.Register(kai.NewKardiaService); err != nil {
-		logger.Error("error while adding kardia service", "err", err)
-		return
-	}
+	// if err := n.Register(kai.NewKardiaService); err != nil {
+	// 	logger.Error("error while adding kardia service", "err", err)
+	// 	return
+	// }
 
 	if err = setAccountManagerBackends(n); err != nil {
 		logger.Error("Cannot set accounts manager backend to node", "err", err)

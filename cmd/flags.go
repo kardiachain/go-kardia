@@ -44,15 +44,15 @@ const (
 
 var (
 	defaultFlags = map[string]flags{
-		Mainnet: flags{
+		Mainnet: {
 			genesis: "./cfg/genesis.yaml",
 			kardia:  "./cfg/kai_config.yaml",
 		},
-		Testnet: flags{
+		Testnet: {
 			genesis: "./cfg/genesis_testnet.yaml",
 			kardia:  "./cfg/kai_config_testnet.yaml",
 		},
-		Devnet: flags{
+		Devnet: {
 			genesis: "./cfg/genesis_devnet.yaml",
 			kardia:  "./cfg/kai_config_devnet.yaml",
 		},

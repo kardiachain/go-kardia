@@ -188,8 +188,6 @@ func NewBlockChain(db kaidb.Database, cacheConfig *CacheConfig, gs *genesis.Gene
 		return nil, ErrNoGenesis
 	}
 
-	bc.currentBlock.Store(nil)
-
 	// Load blockchain states from disk
 	if err := bc.loadLastState(); err != nil {
 		return nil, err

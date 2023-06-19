@@ -55,8 +55,9 @@ type Kardiachain struct {
 
 	APIBackend *KaiAPIBackend
 
-	gpo    *oracles.Oracle
 	accMan *accounts.Manager
+
+	sw *p2p.Switch // p2p connections
 
 	// Channel for shutting down the service
 	shutdownChan chan bool
@@ -66,8 +67,6 @@ type Kardiachain struct {
 // initialisation of the common Ethereum object)
 func New(stack *node.Node, config *Config) (*Kardiachain, error) {
 	logger := log.New()
-	logger.AddTag(config.ServiceName)
-	logger.Info("Kardiachain", "dbType", config.DBInfo.Name())
 
 	if config.NoPruning && config.TrieDirtyCache > 0 {
 		if config.SnapshotCache > 0 {
@@ -100,7 +99,9 @@ func New(stack *node.Node, config *Config) (*Kardiachain, error) {
 
 	kai := &Kardiachain{
 		config:       config,
+		chainConfig:  config.Genesis.Config,
 		nodeConfig:   stack.Config(),
+		sw:           stack.P2PSwitch(),
 		chainDb:      chainDb,
 		eventBus:     eventBus,
 		bloomIndexer: NewBloomIndexer(chainDb, configs.BloomBitsBlocksClient, configs.HelperTrieConfirmations),
@@ -136,11 +137,6 @@ func New(stack *node.Node, config *Config) (*Kardiachain, error) {
 
 	kai.APIBackend = &KaiAPIBackend{kai, nil}
 
-	// init gas price oracle
-	// TODO: adapts oracle
-	// kai.APIBackend.gpo = oracles.NewGasPriceOracle(kai, config.GasOracle)
-
-	// TODO: remove storeDB wrapper
 	stateDB := cstate.NewStore(chainDb)
 	evPool, err := evidence.NewPool(stateDB, chainDb, kai.blockchain)
 	if err != nil {
@@ -155,17 +151,16 @@ func New(stack *node.Node, config *Config) (*Kardiachain, error) {
 	log.Info("Updated blacklisted addresses", "addresses", tx_pool.StringifyBlacklist())
 	kai.txPool = tx_pool.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
 	kai.txpoolR = tx_pool.NewReactor(config.TxPool, kai.txPool)
-	kai.txpoolR.SetLogger(log.New())
+	kai.txpoolR.SetLogger(logger)
 
-	// TODO: remove staking util later
 	stakingUtil, err := staking.NewSmcStakingUtil()
 	if err != nil {
 		return nil, err
 	}
-	bOper := blockchain.NewBlockOperations(log.New(), kai.blockchain, kai.txPool, evPool, stakingUtil)
+	bOper := blockchain.NewBlockOperations(logger, kai.blockchain, kai.txPool, evPool, stakingUtil)
 
 	kai.evR = evidence.NewReactor(evPool)
-	kai.evR.SetLogger(log.New())
+	kai.evR.SetLogger(logger)
 	blockExec := cstate.NewBlockExecutor(stateDB, logger, evPool, bOper)
 
 	state, err := stateDB.LoadStateFromDBOrGenesisDoc(config.Genesis)
@@ -195,7 +190,12 @@ func New(stack *node.Node, config *Config) (*Kardiachain, error) {
 	kai.csManager.SetPrivValidator(privValidator)
 	kai.csManager.SetEventBus(kai.eventBus)
 
+	// init gas price oracle
+	kai.APIBackend.gpo = oracles.NewGasPriceOracle(kai.APIBackend, config.GasOracle)
 	kai.accMan = stack.AccountManager()
+
+	stack.RegisterAPIs(kai.APIs())
+	stack.RegisterLifecycle(kai)
 
 	return kai, nil
 }
@@ -207,12 +207,11 @@ func (k *Kardiachain) BlockChain() *blockchain.BlockChain { return k.blockchain 
 func (k *Kardiachain) DB() kaidb.Database                 { return k.chainDb }
 func (k *Kardiachain) Config() *configs.ChainConfig       { return k.blockchain.Config() }
 
-// TODO: remove params srvr
-func (k *Kardiachain) Start(srvr *p2p.Switch) error {
-	srvr.AddReactor("BLOCKCHAIN", k.bcR)
-	srvr.AddReactor("CONSENSUS", k.csManager)
-	srvr.AddReactor("TXPOOL", k.txpoolR)
-	srvr.AddReactor("EVIDENCE", k.evR)
+func (k *Kardiachain) Start() error {
+	k.sw.AddReactor("BLOCKCHAIN", k.bcR)
+	k.sw.AddReactor("CONSENSUS", k.csManager)
+	k.sw.AddReactor("TXPOOL", k.txpoolR)
+	k.sw.AddReactor("EVIDENCE", k.evR)
 	return nil
 }
 

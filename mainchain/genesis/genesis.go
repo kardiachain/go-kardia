@@ -74,7 +74,6 @@ type Genesis struct {
 	GasLimit      uint64               `json:"gasLimit"   gencodec:"required"`
 	Alloc         GenesisAlloc         `json:"alloc"      gencodec:"required"`
 
-	KardiaSmartContracts []*types.KardiaSmartcontract `json:"kardiaSmartContracts"`
 	Validators           []*GenesisValidator          `json:"validators"`
 	ConsensusParams      *kaiproto.ConsensusParams    `json:"consensus_params,omitempty"`
 	Consensus            *configs.ConsensusConfig     `json:"consensusConfig"`
@@ -270,9 +269,6 @@ func (g *Genesis) Commit(db kaidb.Database) (*types.Block, error) {
 		return nil, fmt.Errorf("can't commit genesis block with height > 0")
 	}
 	config := g.Config
-	if config == nil {
-		config = configs.TestnetChainConfig
-	}
 
 	partsSet := block.MakePartSet(types.BlockPartSizeBytes)
 	rawdb.WriteBlock(db, block, partsSet, &types.Commit{})
