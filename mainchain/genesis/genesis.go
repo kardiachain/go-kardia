@@ -19,8 +19,6 @@
 package genesis
 
 import (
-	"bytes"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -35,7 +33,6 @@ import (
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
-	kmath "github.com/kardiachain/go-kardia/lib/math"
 	"github.com/kardiachain/go-kardia/mainchain/staking"
 	kaiproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardia/trie"
@@ -74,9 +71,9 @@ type Genesis struct {
 	GasLimit      uint64               `json:"gasLimit"   gencodec:"required"`
 	Alloc         GenesisAlloc         `json:"alloc"      gencodec:"required"`
 
-	Validators           []*GenesisValidator          `json:"validators"`
-	ConsensusParams      *kaiproto.ConsensusParams    `json:"consensus_params,omitempty"`
-	Consensus            *configs.ConsensusConfig     `json:"consensusConfig"`
+	Validators      []*GenesisValidator       `json:"validators"`
+	ConsensusParams *kaiproto.ConsensusParams `json:"consensus_params,omitempty"`
+	Consensus       *configs.ConsensusConfig  `json:"consensusConfig"`
 }
 
 // GenesisAlloc specifies the initial state that is part of the genesis block.
@@ -88,42 +85,6 @@ type GenesisAccount struct {
 	Storage map[common.Hash]common.Hash `json:"storage,omitempty"`
 	Balance *big.Int                    `json:"balance" gencodec:"required"`
 	Nonce   uint64                      `json:"nonce,omitempty"`
-}
-
-// field type overrides for gencodec
-type genesisSpecMarshaling struct {
-	Timestamp     time.Time
-	GasLimit      uint64
-	InitialHeight uint64
-	Alloc         map[common.UnprefixedAddress]GenesisAccount
-}
-
-type genesisAccountMarshaling struct {
-	Code    common.Bytes
-	Balance *kmath.HexOrDecimal256
-	Nonce   uint64
-	Storage map[storageJSON]storageJSON
-}
-
-// storageJSON represents a 256 bit byte array, but allows less than 256 bits when
-// unmarshaling from hex.
-type storageJSON common.Hash
-
-func (h *storageJSON) UnmarshalText(text []byte) error {
-	text = bytes.TrimPrefix(text, []byte("0x"))
-	if len(text) > 64 {
-		return fmt.Errorf("too many hex characters in storage key/value %q", text)
-	}
-	offset := len(h) - len(text)/2 // pad on the left
-	if _, err := hex.Decode(h[offset:], text); err != nil {
-		fmt.Println(err)
-		return fmt.Errorf("invalid hex storage key/value %q", text)
-	}
-	return nil
-}
-
-func (h storageJSON) MarshalText() ([]byte, error) {
-	return common.Bytes(h[:]).MarshalText()
 }
 
 // GenesisMismatchError is raised when trying to overwrite an existing
@@ -286,7 +247,7 @@ func DefaultGenesisBlock() *Genesis {
 	return &Genesis{
 		Config:   configs.MainnetChainConfig,
 		GasLimit: configs.BlockGasLimit,
-		//@huny Alloc:    decodePrealloc(mainnetAllocData),
+		// Alloc:    decodePrealloc(mainnetAllocData),
 	}
 }
 
@@ -327,29 +288,6 @@ func GenesisAllocFromData(data map[string]*big.Int) (GenesisAlloc, error) {
 		ga[common.HexToAddress(address)] = GenesisAccount{Balance: balance}
 	}
 
-	return ga, nil
-}
-
-// same as DefaultTestnetGenesisBlock, but with smart contract data
-func DefaultTestnetGenesisBlockWithContract(allocData map[string]string) *Genesis {
-	ga, err := GenesisAllocFromContractData(allocData)
-	if err != nil {
-		return nil
-	}
-
-	return &Genesis{
-		Config:   configs.TestnetChainConfig,
-		GasLimit: configs.BlockGasLimit,
-		Alloc:    ga,
-	}
-}
-
-func GenesisAllocFromContractData(data map[string]string) (GenesisAlloc, error) {
-	ga := make(GenesisAlloc, len(data))
-
-	for address, code := range data {
-		ga[common.HexToAddress(address)] = GenesisAccount{Code: common.Hex2Bytes(code), Balance: ToCell(100)}
-	}
 	return ga, nil
 }
 
