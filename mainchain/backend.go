@@ -36,6 +36,7 @@ type Kardiachain struct {
 
 	// Handlers
 	txPool     *tx_pool.TxPool
+	blockExec  *cstate.BlockExecutor // TODO: remove this after finish merging block executor, block operations, blockchain
 	blockchain *blockchain.BlockChain
 	csManager  *consensus.ConsensusManager
 	txpoolR    *tx_pool.Reactor
@@ -162,6 +163,7 @@ func New(stack *node.Node, config *Config) (*Kardiachain, error) {
 	kai.evR = evidence.NewReactor(evPool)
 	kai.evR.SetLogger(logger)
 	blockExec := cstate.NewBlockExecutor(stateDB, logger, evPool, bOper)
+	kai.blockExec = blockExec
 
 	state, err := stateDB.LoadStateFromDBOrGenesisDoc(config.Genesis)
 	if err != nil {
@@ -218,7 +220,13 @@ func (k *Kardiachain) Start() error {
 // Stop implements Service, terminating all internal goroutines used by the
 // Kardia protocol.
 func (k *Kardiachain) Stop() error {
+	log.Info("Stopping Kardiachain backend")
 	close(k.shutdownChan)
+	k.sw.Stop()
+	k.csManager.Stop()
+	k.bcR.Stop()
+	k.blockExec.Stop()
+	k.blockchain.Stop()
 	return nil
 }
 

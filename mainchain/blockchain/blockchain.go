@@ -44,6 +44,7 @@ import (
 const (
 	blockCacheLimit = 256
 	maxFutureBlocks = 256
+	TriesInMemory   = 128
 )
 
 var (
@@ -101,7 +102,9 @@ type BlockChain struct {
 	blockCache   *lru.Cache // Cache for the most recent entire blocks
 	futureBlocks *lru.Cache // future blocks are blocks added for later processing
 
-	quit chan struct{} // blockchain quit channel
+	quit          chan struct{} // blockchain quit channel
+	stopping      atomic.Bool   // false if chain is running, true when stopped
+	procInterrupt atomic.Bool   // interrupt signaler for block processing
 
 	processor *StateProcessor // block processor
 	vmConfig  kvm.Config      // vm configurations
@@ -216,6 +219,77 @@ func NewBlockChain(db kaidb.Database, cacheConfig *CacheConfig, gs *genesis.Gene
 	}
 
 	return bc, nil
+}
+
+// StopInsert interrupts all insertion methods, causing them to return
+// errInsertionInterrupted as soon as possible. Insertion is permanently disabled after
+// calling this method.
+func (bc *BlockChain) StopInsert() {
+	bc.procInterrupt.Store(true)
+}
+
+// insertStopped returns true after StopInsert has been called.
+func (bc *BlockChain) insertStopped() bool {
+	return bc.procInterrupt.Load()
+}
+
+func (bc *BlockChain) Stop() {
+	bc.mu.Lock()
+	defer bc.mu.Unlock()
+
+	if !bc.stopping.CompareAndSwap(false, true) {
+		return
+	}
+
+	log.Info("Stopping blockchain")
+
+	// Ensure that the entirety of the state snapshot is journalled to disk.
+	var snapBase common.Hash
+	if bc.snaps != nil {
+		var err error
+		if snapBase, err = bc.snaps.Journal(bc.CurrentBlock().AppHash()); err != nil {
+			log.Error("Failed to journal state snapshot", "err", err)
+		}
+	}
+
+	// Ensure the state of a recent block is also stored to disk before exiting.
+	// We're writing three different states to catch different restart scenarios:
+	//  - HEAD:     So we don't need to reprocess any blocks in the general case
+	//  - HEAD-1:   So we don't do large reorgs if our HEAD becomes an uncle
+	//  - HEAD-127: So we have a hard limit on the number of blocks reexecuted
+	if !bc.cacheConfig.TrieDirtyDisabled {
+		triedb := bc.triedb
+
+		for _, offset := range []uint64{0, 1, TriesInMemory - 1} {
+			if number := bc.CurrentBlock().Height(); number > offset {
+				recent := bc.GetBlockByHeight(number - offset)
+
+				log.Info("Writing cached state to disk", "block", recent.Height(), "hash", recent.Hash(), "root", recent.AppHash())
+				if err := triedb.Commit(recent.AppHash(), true); err != nil {
+					log.Error("Failed to commit recent state trie", "err", err)
+				}
+			}
+		}
+		if snapBase != (common.Hash{}) {
+			log.Info("Writing snapshot state to disk", "root", snapBase)
+			if err := triedb.Commit(snapBase, true); err != nil {
+				log.Error("Failed to commit recent state trie", "err", err)
+			}
+		}
+		if size, _ := triedb.Size(); size != 0 {
+			log.Error("Dangling trie nodes after full cleanup")
+		}
+	}
+	// Flush the collected preimages to disk
+	if err := bc.stateCache.TrieDB().Close(); err != nil {
+		log.Error("Failed to close trie db", "err", err)
+	}
+	// Ensure all live cached entries be saved into disk, so that we can skip
+	// cache warmup when node restarts.
+	if bc.cacheConfig.TrieCleanJournal != "" {
+		bc.triedb.SaveCache(bc.cacheConfig.TrieCleanJournal)
+	}
+	log.Info("Blockchain stopped")
 }
 
 // GetBlockByHeight retrieves a block from the database by number, caching it
@@ -453,6 +527,10 @@ func (bc *BlockChain) SetHead(head uint64) error {
 func (bc *BlockChain) InsertHeadBlock(block *types.Block) {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
+
+	if bc.insertStopped() {
+		log.Info("Blockchain stopped, skip insert block", block.Height())
+	}
 
 	bc.insert(block)
 	bc.chainHeadFeed.Send(events.ChainHeadEvent{Block: block})

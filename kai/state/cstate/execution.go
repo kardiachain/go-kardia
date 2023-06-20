@@ -19,8 +19,11 @@
 package cstate
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
+	"sync"
+	"sync/atomic"
 
 	fail "github.com/ebuchman/fail-test"
 	"github.com/kardiachain/go-kardia/configs"
@@ -51,11 +54,15 @@ type BlockStore interface {
 // BlockExecutor provides the context and accessories for properly executing a block.
 type BlockExecutor struct {
 	evpool   EvidencePool
-	bc       BlockStore
+	bc       BlockStore // block operations abstraction
 	store    Store
 	eventBus *types.EventBus
 
 	logger log.Logger
+
+	wg            sync.WaitGroup //
+	quit          chan struct{}  // blockchain quit channel
+	procInterrupt atomic.Bool    // interrupt signaler for block processing
 
 	// cache the verification results over a single height
 	cache map[common.Hash]struct{}
@@ -68,6 +75,8 @@ func NewBlockExecutor(stateStore Store, logger log.Logger, evpool EvidencePool, 
 		evpool: evpool,
 		bc:     bc,
 		store:  stateStore,
+		quit:   make(chan struct{}),
+
 		logger: logger,
 		cache:  make(map[common.Hash]struct{}),
 	}
@@ -100,6 +109,13 @@ func (blockExec *BlockExecutor) ValidateBlock(state LatestBlockState, block *typ
 // from outside this package to process and commit an entire block.
 // It takes a blockID to avoid recomputing the parts hash.
 func (blockExec *BlockExecutor) ApplyBlock(state LatestBlockState, blockID types.BlockID, block *types.Block) (LatestBlockState, uint64, error) {
+	if blockExec.isProcInterrupted() {
+		return state, block.Height(), errors.New("cannot apply block on interrupted block executor (due to shutdown)")
+	}
+
+	blockExec.wg.Add(1)
+	defer blockExec.wg.Done()
+
 	if err := blockExec.ValidateBlock(state, block); err != nil {
 		return state, block.Height(), ErrInvalidBlock(err)
 	}
@@ -137,6 +153,29 @@ func (blockExec *BlockExecutor) ApplyBlock(state LatestBlockState, blockID types
 	// NOTE: if we crash between Commit and Save, events wont be fired during replay
 	fireEvents(blockExec.logger, blockExec.eventBus, block, valUpdates)
 	return state, block.Height(), nil
+}
+
+func (blockExec *BlockExecutor) interruptProc() {
+	blockExec.procInterrupt.Store(true)
+}
+
+func (blockExec *BlockExecutor) isProcInterrupted() bool {
+	return blockExec.procInterrupt.Load()
+}
+
+// WaitPendingOperations waits for pending operations (eg. ApplyBlock, should stop when all writing operations are done)
+func (blockExec *BlockExecutor) waitPendingOperations() {
+	blockExec.wg.Wait()
+}
+
+func (blockExec *BlockExecutor) Stop() {
+	// inform interuption of accepting operations
+	blockExec.interruptProc()
+
+	// wait for pending operations
+	blockExec.waitPendingOperations()
+
+	log.Info("Block executor stopped")
 }
 
 // updateState returns a new State updated according to the header and responses.
