@@ -1,18 +1,18 @@
-// Copyright 2015 The go-ethereum Authors
-// This file is part of the go-ethereum library.
+// Copyright 2015 The go-kardia Authors
+// This file is part of the go-kardia library.
 //
-// The go-ethereum library is free software: you can redistribute it and/or modify
+// The go-kardia library is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// The go-ethereum library is distributed in the hope that it will be useful,
+// The go-kardia library is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU Lesser General Public License for more details.
 //
 // You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+// along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
 
 package abi
 
@@ -161,8 +161,9 @@ func TestInvalidABI(t *testing.T) {
 
 // TestConstructor tests a constructor function.
 // The test is based on the following contract:
-// 	contract TestConstructor {
-// 		constructor(uint256 a, uint256 b) public{}
+//
+//	contract TestConstructor {
+//		constructor(uint256 a, uint256 b) public{}
 //	}
 func TestConstructor(t *testing.T) {
 	json := `[{	"inputs": [{"internalType": "uint256","name": "a","type": "uint256"	},{	"internalType": "uint256","name": "b","type": "uint256"}],"stateMutability": "nonpayable","type": "constructor"}]`
@@ -706,16 +707,19 @@ func TestBareEvents(t *testing.T) {
 }
 
 // TestUnpackEvent is based on this contract:
-//    contract T {
-//      event received(address sender, uint amount, bytes memo);
-//      event receivedAddr(address sender);
-//      function receive(bytes memo) external payable {
-//        received(msg.sender, msg.value, memo);
-//        receivedAddr(msg.sender);
-//      }
-//    }
+//
+//	contract T {
+//	  event received(address sender, uint amount, bytes memo);
+//	  event receivedAddr(address sender);
+//	  function receive(bytes memo) external payable {
+//	    received(msg.sender, msg.value, memo);
+//	    receivedAddr(msg.sender);
+//	  }
+//	}
+//
 // When receive("X") is called with sender 0x00... and value 1, it produces this tx receipt:
-//   receipt{status=1 cgas=23949 bloom=00000000004000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000040200000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 logs=[log: b6818c8064f645cd82d99b59a1a267d6d61117ef [75fd880d39c1daf53b6547ab6cb59451fc6452d27caa90e5b6649dd8293b9eed] 000000000000000000000000376c47978271565f56deb45495afa69e59c16ab200000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000158 9ae378b6d4409eada347a5dc0c180f186cb62dc68fcc0f043425eb917335aa28 0 95d429d309bb9d753954195fe2d69bd140b4ae731b9b5b605c34323de162cf00 0]}
+//
+//	receipt{status=1 cgas=23949 bloom=00000000004000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000040200000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 logs=[log: b6818c8064f645cd82d99b59a1a267d6d61117ef [75fd880d39c1daf53b6547ab6cb59451fc6452d27caa90e5b6649dd8293b9eed] 000000000000000000000000376c47978271565f56deb45495afa69e59c16ab200000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000158 9ae378b6d4409eada347a5dc0c180f186cb62dc68fcc0f043425eb917335aa28 0 95d429d309bb9d753954195fe2d69bd140b4ae731b9b5b605c34323de162cf00 0]}
 func TestUnpackEvent(t *testing.T) {
 	const abiJSON = `[{"constant":false,"inputs":[{"name":"memo","type":"bytes"}],"name":"receive","outputs":[],"payable":true,"stateMutability":"payable","type":"function"},{"anonymous":false,"inputs":[{"indexed":false,"name":"sender","type":"address"},{"indexed":false,"name":"amount","type":"uint256"},{"indexed":false,"name":"memo","type":"bytes"}],"name":"received","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"name":"sender","type":"address"}],"name":"receivedAddr","type":"event"}]`
 	abi, err := JSON(strings.NewReader(abiJSON))
@@ -1062,8 +1066,9 @@ func TestDoubleDuplicateMethodNames(t *testing.T) {
 // TestDoubleDuplicateEventNames checks that if send0 already exists, there won't be a name
 // conflict and that the second send event will be renamed send1.
 // The test runs the abi of the following contract.
-// 	contract DuplicateEvent {
-// 		event send(uint256 a);
+//
+//	contract DuplicateEvent {
+//		event send(uint256 a);
 //		event send0();
 //		event send();
 //	}
@@ -1090,7 +1095,8 @@ func TestDoubleDuplicateEventNames(t *testing.T) {
 // TestUnnamedEventParam checks that an event with unnamed parameters is
 // correctly handled
 // The test runs the abi of the following contract.
-// 	contract TestEvent {
+//
+//	contract TestEvent {
 //		event send(uint256, uint256);
 //	}
 func TestUnnamedEventParam(t *testing.T) {
