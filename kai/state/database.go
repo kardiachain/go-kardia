@@ -31,14 +31,7 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 )
 
-// Trie cache generation limit after which to evict trie nodes from memory.
-var MaxTrieCacheGen = uint16(120)
-
 const (
-	// Number of past tries to keep. This value is chosen such that
-	// reasonable chain reorg depths will hit an existing trie.
-	maxPastTries = 12
-
 	// Number of codehash->size associations to keep.
 	codeSizeCacheSize = 100000
 
@@ -135,17 +128,6 @@ type Trie interface {
 	Prove(key []byte, fromLevel uint, proofDb kaidb.KeyValueWriter) error
 }
 
-// type Trie interface {
-// 	TryGet(key []byte) ([]byte, error)
-// 	TryUpdate(key, value []byte) error
-// 	TryDelete(key []byte) error
-// 	Commit(onleaf trie.LeafCallback) (common.Hash, error)
-// 	Hash() common.Hash
-// 	NodeIterator(startKey []byte) trie.NodeIterator
-// 	GetKey([]byte) []byte // TODO(fjl): remove this when SecureTrie is removed
-// 	Prove(key []byte, fromLevel uint, proofDb kaidb.KeyValueWriter) error
-// }
-
 // NewDatabase creates a backing store for state. The returned database is safe for
 // concurrent use and retains cached trie nodes in memory. The pool is an optional
 // intermediate trie-node memory pool between the low level storage layer and the
@@ -163,6 +145,16 @@ func NewDatabaseWithConfig(db kaidb.Database, config *trie.Config) Database {
 		codeSizeCache: lru.NewCache[common.Hash, int](codeSizeCacheSize),
 		codeCache:     lru.NewSizeConstrainedCache[common.Hash, []byte](codeCacheSize),
 		triedb:        trie.NewDatabaseWithConfig(db, config),
+	}
+}
+
+// NewDatabaseWithNodeDB creates a state database with an already initialized node database.
+func NewDatabaseWithNodeDB(db kaidb.Database, triedb *trie.Database) Database {
+	return &cachingDB{
+		disk:          db,
+		codeSizeCache: lru.NewCache[common.Hash, int](codeSizeCacheSize),
+		codeCache:     lru.NewSizeConstrainedCache[common.Hash, []byte](codeCacheSize),
+		triedb:        triedb,
 	}
 }
 

@@ -102,10 +102,10 @@ type P2PConfig struct { //nolint: maligned
 
 	// Testing params.
 	// Force dial to fail
-	TestDialFail bool `mapstructure:"test_dial_fail"`
+	TestDialFail bool `toml:"-" mapstructure:"test_dial_fail"`
 	// FUzz connection
-	TestFuzz       bool            `mapstructure:"test_fuzz"`
-	TestFuzzConfig *FuzzConnConfig `mapstructure:"test_fuzz_config"`
+	TestFuzz       bool            `toml:"-" mapstructure:"test_fuzz"`
+	TestFuzzConfig *FuzzConnConfig `toml:"-" mapstructure:"test_fuzz_config"`
 }
 
 // DefaultP2PConfig returns a default configuration for the peer-to-peer layer

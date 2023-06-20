@@ -38,7 +38,6 @@ import (
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/lib/metrics"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/lib/p2p/pex"
 	bs "github.com/kardiachain/go-kardia/lib/service"
@@ -55,36 +54,33 @@ var (
 // Node is a container on which services can be registered.
 type Node struct {
 	bs.BaseService
-	sw     *p2p.Switch // p2p connections
-	accMan *accounts.Manager
 
-	eventmux *event.TypeMux // Event multiplexer used between the services of a stack
-	config   *Config
-	log      log.Logger
-
+	eventmux   *event.TypeMux // Event multiplexer used between the services of a stack
+	config     *Config
+	accMan     *accounts.Manager
+	log        log.Logger
 	keyDir     string // key store directory
 	keyDirTemp bool   // If true, key directory will be removed by Stop
 
 	ephemeralKeystore string            // if non-empty, the key directory that will be removed by Stop
 	instanceDirLock   fileutil.Releaser // prevents concurrent use of instance directory
 
-	serviceFuncs []ServiceConstructor     // Service constructors (in dependency order)
-	services     map[reflect.Type]Service // Currently running services
-
-	rpcAPIs       []rpc.API   // List of APIs currently provided by the node
-	http          *httpServer //
-	ws            *httpServer //
-	ipc           *ipcServer  // Stores information about the ipc http server
-	inprocHandler *rpc.Server // In-process RPC request handler to process the API requests
-
 	stop       chan struct{} // Channel to wait for termination notifications
-	lock       sync.RWMutex
+	sw         *p2p.Switch   // p2p connections
 	blockStore types.StoreDB
 	stateDB    cstate.Store
 	nodeKey    *p2p.NodeKey
 	transport  *p2p.MultiplexTransport
 	addrBook   pex.AddrBook // known peers
 	pexReactor *pex.Reactor
+
+	lock          sync.RWMutex
+	lifecycles    []Lifecycle // All registered backends, services, and auxiliary services that have a lifecycle
+	rpcAPIs       []rpc.API   // List of APIs currently provided by the node
+	http          *httpServer //
+	ws            *httpServer //
+	ipc           *ipcServer  // Stores information about the ipc http server
+	inprocHandler *rpc.Server // In-process RPC request handler to process the API requests
 }
 
 // New creates a new P2P node, ready for protocol registration.
@@ -124,7 +120,7 @@ func New(conf *Config) (*Node, error) {
 	node := &Node{
 		config:        conf,
 		inprocHandler: rpc.NewServer(),
-		serviceFuncs:  []ServiceConstructor{},
+		lifecycles:    []Lifecycle{},
 		eventmux:      new(event.TypeMux),
 		log:           logger,
 		stop:          make(chan struct{}),
@@ -137,14 +133,8 @@ func New(conf *Config) (*Node, error) {
 	if err := node.openDataDir(); err != nil {
 		return nil, err
 	}
-	db, err := node.OpenDatabase("chaindata", 16, 32, "chaindata")
-	if err != nil {
-		return nil, err
-	}
-	stateDB := cstate.NewStore(db.DB())
 
-	// Acquire the instance directory lock.
-	keyDir, isEphem, err := getKeyStoreDir(conf)
+	keyDir, isEphem, err := conf.GetKeyStoreDir()
 	if err != nil {
 		return nil, err
 	}
@@ -156,12 +146,8 @@ func New(conf *Config) (*Node, error) {
 
 	// Setting up the p2p server
 	nodeKey := &p2p.NodeKey{PrivKey: conf.NodeKey()}
-	state, err := stateDB.LoadStateFromDBOrGenesisDoc(conf.Genesis)
-	if err != nil {
-		return nil, err
-	}
 
-	nodeInfo, err := makeNodeInfo(conf, nodeKey, state)
+	nodeInfo, err := makeNodeInfo(conf, nodeKey)
 	if err != nil {
 		return nil, err
 	}
@@ -195,13 +181,11 @@ func New(conf *Config) (*Node, error) {
 	}
 
 	node.sw = sw
-	node.blockStore = db
 	node.nodeKey = nodeKey
 	node.transport = transport
 	node.addrBook = addrBook
 	node.pexReactor = pexReactor
 	node.BaseService = *bs.NewBaseService(logger, "Node", node)
-	node.stateDB = stateDB
 
 	// Configure RPC servers.
 	node.http = newHTTPServer(node.log, conf.HTTPTimeouts)
@@ -211,22 +195,17 @@ func New(conf *Config) (*Node, error) {
 	return node, nil
 }
 
-// Register injects a new service into the node's stack. The service created by
-// the passed constructor must be unique in its type with regard to sibling ones.
-func (n *Node) Register(constructor ServiceConstructor) error {
+// RegisterLifecycle registers the given Lifecycle on the node.
+func (n *Node) RegisterLifecycle(lifecycle Lifecycle) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
-	n.serviceFuncs = append(n.serviceFuncs, constructor)
-	return nil
+	n.lifecycles = append(n.lifecycles, lifecycle)
 }
 
 // Start create a live P2P node and starts running it.
 func (n *Node) OnStart() error {
 	n.lock.Lock()
 	defer n.lock.Unlock()
-
-	// Start collecting metrics
-	go metrics.CollectProcessMetrics(3 * time.Second)
 
 	// Start the transport.
 	addr, err := p2p.NewNetAddressString(p2p.IDAddressString(n.nodeKey.ID(), n.config.P2P.ListenAddress))
@@ -237,55 +216,18 @@ func (n *Node) OnStart() error {
 		return err
 	}
 
-	// Otherwise copy and specialize the P2P configuration
-	services := make(map[reflect.Type]Service)
-	for _, constructor := range n.serviceFuncs {
-		// Create a new context for the particular service
-		ctx := &ServiceContext{
-			Config:     n.config,
-			services:   make(map[reflect.Type]Service),
-			EventMux:   n.eventmux,
-			BlockStore: n.blockStore,
-			StateDB:    n.stateDB,
-			AccMan:     n.accMan,
+	// Start all registered lifecycles.
+	var started []Lifecycle
+	for _, lifecycle := range n.lifecycles {
+		if err = lifecycle.Start(); err != nil {
+			break
 		}
-		for kind, s := range services { // copy needed for threaded access
-			ctx.services[kind] = s
-		}
-		// Construct and save the service
-		service, err := constructor(ctx)
-		if err != nil {
-			return err
-		}
-		kind := reflect.TypeOf(service)
-		if _, exists := services[kind]; exists {
-			return &bs.DuplicateServiceError{Kind: kind}
-		}
-		services[kind] = service
+		started = append(started, lifecycle)
 	}
-
-	// Start each of the services
-	var started []reflect.Type
-	for kind, service := range services {
-		// Start the next service, stopping all previous upon failure
-		if err := service.Start(n.sw); err != nil {
-			for _, kind := range started {
-				_ = services[kind].Stop()
-			}
-			_ = n.sw.Stop()
-
-			return err
-		}
-		// Mark the service started for potential cleanup
-		started = append(started, kind)
+	// Check if any lifecycle failed to start.
+	if err != nil {
+		n.Stop()
 	}
-
-	// Assign all enabled APIs to the service
-	apis := n.apis()
-	for _, service := range services {
-		apis = append(apis, service.APIs()...)
-	}
-	n.rpcAPIs = apis
 
 	// start RPC endpoints
 	if err := n.openRPCEndpoints(); err != nil {
@@ -295,8 +237,6 @@ func (n *Node) OnStart() error {
 		return err
 	}
 
-	// Finish initializing the startup
-	n.services = services
 	n.stop = make(chan struct{})
 
 	// Start the switch (the P2P server).
@@ -432,9 +372,9 @@ func (n *Node) OnStop() {
 	failure := &bs.StopError{
 		Services: make(map[reflect.Type]error),
 	}
-	for kind, service := range n.services {
+	for _, service := range n.lifecycles {
 		if err := service.Stop(); err != nil {
-			failure.Services[kind] = err
+			failure.Services[reflect.TypeOf(service)] = err
 		}
 	}
 
@@ -450,8 +390,6 @@ func (n *Node) OnStop() {
 	if err := n.transport.Close(); err != nil {
 		n.Logger.Error("Error closing transport", "err", err)
 	}
-
-	n.services = nil
 
 	// Release instance directory lock.
 	if n.instanceDirLock != nil {
@@ -496,24 +434,6 @@ func (n *Node) Restart() error {
 	return nil
 }
 
-// Service retrieves a currently running service registered of a specific type.
-func (n *Node) Service(service interface{}) error {
-	n.lock.RLock()
-	defer n.lock.RUnlock()
-
-	// Short circuit if the node's not running
-	if n.sw == nil {
-		return bs.ErrNodeStopped
-	}
-	// Otherwise try to find the service to return
-	element := reflect.ValueOf(service).Elem()
-	if running, ok := n.services[element.Type()]; ok {
-		element.Set(reflect.ValueOf(running))
-		return nil
-	}
-	return bs.ErrServiceUnknown
-}
-
 // RegisterHandler mounts a handler on the given path on the canonical HTTP server.
 //
 // The name of the handler is shown in a log message when the HTTP server starts
@@ -524,6 +444,14 @@ func (n *Node) RegisterHandler(name, path string, handler http.Handler) {
 
 	n.http.mux.Handle(path, handler)
 	n.http.handlerNames[path] = name
+}
+
+// RegisterAPIs registers the APIs a service provides on the node.
+func (n *Node) RegisterAPIs(apis []rpc.API) {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	n.rpcAPIs = append(n.rpcAPIs, apis...)
 }
 
 // DataDir retrieves the current datadir used by the protocol stack.
@@ -593,6 +521,16 @@ func (n *Node) ResolvePath(x string) string {
 	return n.config.ResolvePath(x)
 }
 
+// P2PSwitch retrieves the currently running P2P network layer. This method is meant
+// only to inspect fields of the currently running server. Callers should not
+// start or stop the returned p2p switch.
+func (n *Node) P2PSwitch() *p2p.Switch {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	return n.sw
+}
+
 func createTransport(
 	config *Config,
 	nodeInfo p2p.NodeInfo,
@@ -638,7 +576,6 @@ func splitAndTrimEmpty(s, sep, cutset string) []string {
 func makeNodeInfo(
 	config *Config,
 	nodeKey *p2p.NodeKey,
-	state cstate.LatestBlockState,
 ) (p2p.NodeInfo, error) {
 	txIndexerStatus := "on"
 
@@ -649,7 +586,7 @@ func makeNodeInfo(
 			uint64(1),
 		),
 		DefaultNodeID: nodeKey.ID(),
-		Network:       state.ChainID,
+		Network:       "", // TRICK! All running nodes have network id of blank ;)
 		Version:       nodeVersion,
 		Channels: []byte{
 			cs.StateChannel, cs.DataChannel, cs.VoteChannel, cs.VoteSetBitsChannel,

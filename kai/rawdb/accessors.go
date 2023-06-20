@@ -706,6 +706,17 @@ func DeleteBlockMeta(db kaidb.Writer, height uint64) {
 	_ = db.Delete(blockMetaKey(height))
 }
 
+func DeleteBlockPart(db kaidb.Database, height uint64) error {
+	blockMeta := ReadBlockMeta(db, height)
+	for i := 0; i < int(blockMeta.BlockID.PartsHeader.Total); i++ {
+		if err := db.Delete(blockPartKey(height, i)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+
 // ReadAppHash ...
 func ReadAppHash(db kaidb.KeyValueReader, height uint64) common.Hash {
 	b, _ := db.Get(calcAppHashKey(height))

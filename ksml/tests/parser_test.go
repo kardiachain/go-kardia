@@ -31,10 +31,8 @@ import (
 	"github.com/kardiachain/go-kardia/ksml"
 	message "github.com/kardiachain/go-kardia/ksml/proto"
 	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
-	"github.com/kardiachain/go-kardia/mainchain/staking"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
 	kaiType "github.com/kardiachain/go-kardia/types"
@@ -142,14 +140,12 @@ func setup(sampleCode []byte, sampleDefinition string, globalPatterns []string, 
 		Alloc:    ga,
 	}
 
-	logger := log.New()
-	stakingUtil, _ := staking.NewSmcStakingUtil()
-	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, db, g, stakingUtil)
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(db.DB(), g)
 	if genesisErr != nil {
 		return nil, err
 	}
 
-	bc, err := blockchain.NewBlockChain(logger, db, chainConfig)
+	bc, err := blockchain.NewBlockChain(db.DB(), nil, g)
 	if err != nil {
 		return nil, err
 	}

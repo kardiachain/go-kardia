@@ -42,9 +42,9 @@ type StateProcessor struct {
 }
 
 // NewStateProcessor initialises a new StateProcessor.
-func NewStateProcessor(logger log.Logger, bc *BlockChain) *StateProcessor {
+func NewStateProcessor(bc *BlockChain) *StateProcessor {
 	return &StateProcessor{
-		logger: logger,
+		logger: log.New(),
 		bc:     bc,
 	}
 }

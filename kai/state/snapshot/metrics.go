@@ -16,7 +16,7 @@
 
 package snapshot
 
-import "github.com/ethereum/go-ethereum/metrics"
+import "github.com/kardiachain/go-kardia/lib/metrics"
 
 // Metrics in generation
 var (

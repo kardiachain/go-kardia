@@ -29,9 +29,11 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 )
 
-// DefaultConfig contains default settings for use on the Kardia main net.
-var DefaultConfig = Config{
-	NetworkId:               1,
+// Defaults contains default settings for use on the Kardia main net.
+var Defaults = Config{
+	NetworkId:               24,
+	TxLookupLimit:           2350000,
+	DatabaseCache:           512,
 	TrieCleanCache:          154,
 	TrieCleanCacheJournal:   "triecache",
 	TrieCleanCacheRejournal: 60 * time.Minute,
@@ -39,6 +41,8 @@ var DefaultConfig = Config{
 	TrieTimeout:             60 * time.Minute,
 	SnapshotCache:           102,
 	TxPool:                  tx_pool.DefaultTxPoolConfig,
+	AcceptTxs:               true,
+	GasOracle:               oracles.DefaultOracleConfig(),
 }
 
 //go:generate gencodec -type Config -field-override configMarshaling -formats toml -out gen_config.go
@@ -55,6 +59,10 @@ type Config struct {
 	NoPruning  bool // Whether to disable pruning and flush everything to disk
 	NoPrefetch bool // Whether to disable prefetching and only load state on deman
 
+	TxLookupLimit uint64 `toml:",omitempty"` // The maximum number of blocks from head whose tx indices are reserved.
+
+	DatabaseCache int
+
 	TrieCleanCache          int
 	TrieCleanCacheJournal   string        `toml:",omitempty"` // Disk journal directory for trie cache to survive node restarts
 	TrieCleanCacheRejournal time.Duration `toml:",omitempty"` // Time interval to regenerate the journal for clean cache
@@ -67,19 +75,19 @@ type Config struct {
 	TxPool tx_pool.TxPoolConfig
 
 	// DbInfo stores configuration information to setup database
-	DBInfo rawdb.DbInfo
+	DBInfo rawdb.DbInfo `toml:",omitempty"`
 
 	// acceptTxs accept tx sync processes
-	AcceptTxs uint32
+	AcceptTxs bool
 
 	// ServiceName is used to display as log's prefix
 	ServiceName string
 
 	// Consensus defines the configuration for the Kardia consensus service,
 	// including timeouts and details about the block structure.
-	Consensus *configs.ConsensusConfig
+	Consensus *configs.ConsensusConfig `toml:",omitempty"`
 
-	FastSync *configs.FastSyncConfig
+	FastSync *configs.FastSyncConfig `toml:",omitempty"`
 
-	GasOracle *oracles.Config
+	GasOracle *oracles.Config `toml:",omitempty"`
 }

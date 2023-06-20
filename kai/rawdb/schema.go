@@ -29,6 +29,9 @@ import (
 
 // The fields below define the low level database schema prefixing.
 var (
+	// databaseVersionKey tracks the current database version.
+	databaseVersionKey = []byte("DatabaseVersion")
+
 	// headBlockKey tracks the latest known full block's hash.
 	headBlockKey = []byte("LastBlock")
 
@@ -80,6 +83,7 @@ var (
 
 	PreimagePrefix = []byte("secure-key-")    // PreimagePrefix + hash -> preimage
 	configPrefix   = []byte("kardia-config-") // config prefix for the db
+	genesisPrefix  = []byte("kardia-genesis-") // genesis state prefix for the db
 
 	// BloomBitsIndexPrefix is the data table of a chain indexer to track its progress
 	BloomBitsIndexPrefix = []byte("iB") // BloomBitsIndexPrefix is the data table of a chain indexer to track its progress
@@ -235,6 +239,11 @@ func storageSnapshotsKey(accountHash common.Hash) []byte {
 	return append(SnapshotStoragePrefix, accountHash.Bytes()...)
 }
 
+// codeKey = CodePrefix + hash
+func codeKey(hash common.Hash) []byte {
+	return append(contractAbiPrefix, hash.Bytes()...)
+}
+
 // IsCodeKey reports whether the given byte slice is the key of contract code,
 // if so return the raw code hash as well.
 func IsCodeKey(key []byte) (bool, []byte) {
@@ -242,4 +251,9 @@ func IsCodeKey(key []byte) (bool, []byte) {
 		return true, key[len(contractAbiPrefix):]
 	}
 	return false, nil
+}
+
+// genesisStateSpecKey = genesisPrefix + hash
+func genesisStateSpecKey(hash common.Hash) []byte {
+	return append(genesisPrefix, hash.Bytes()...)
 }

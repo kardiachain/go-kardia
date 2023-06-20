@@ -136,9 +136,6 @@ type Config struct {
 	// in the devp2p node identifier.
 	Version string `toml:"-"`
 
-	// Node type: `archive` or `full`
-	GCmode string
-
 	// DataDir is the file system folder the node should use for any data storage
 	// requirements. The configured data directory will not be directly shared with
 	// registered services, instead those can use utility methods to create/access
@@ -233,23 +230,23 @@ type Config struct {
 	Logger log.Logger `toml:",omitempty"`
 
 	// Configuration of the Kardia's blockchain (or main chain).
-	MainChainConfig MainChainConfig
+	MainChainConfig MainChainConfig `toml:"-"`
 
 	// Configuration of the dual's blockchain.
-	DualChainConfig DualChainConfig
+	DualChainConfig DualChainConfig `toml:"-"`
 
 	// If this node is many blocks behind the tip of the chain, FastSync
 	// allows them to catchup quickly by downloading blocks in parallel
 	// and verifying their commits
-	FastSync *configs.FastSyncConfig
+	FastSync *configs.FastSyncConfig `toml:",omitempty"`
 
-	GasOracle *oracles.Config
+	GasOracle *oracles.Config `toml:",omitempty"`
 
 	// ======== DEV ENVIRONMENT CONFIG =========
 	// Configuration of this node when running in dev environment.
-	NodeMetadata *NodeMetadata
+	NodeMetadata *NodeMetadata `toml:",omitempty"`
 
-	Genesis *genesis.Genesis
+	Genesis *genesis.Genesis `toml:",omitempty"`
 }
 
 // IPCEndpoint resolves an IPC endpoint based on a configured value, taking into
@@ -474,10 +471,10 @@ func (c *Config) KeyDirConfig() (string, error) {
 	return keydir, err
 }
 
-// getKeyStoreDir retrieves the key directory and will create
+// GetKeyStoreDir retrieves the key directory and will create
 // and ephemeral one if necessary.
-func getKeyStoreDir(conf *Config) (string, bool, error) {
-	keydir, err := conf.KeyDirConfig()
+func (c *Config) GetKeyStoreDir() (string, bool, error) {
+	keydir, err := c.KeyDirConfig()
 	if err != nil {
 		return "", false, err
 	}

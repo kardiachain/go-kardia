@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -157,9 +158,9 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCom
 	}
 
 	bo.saveBlockInfo(blockInfo, block)
-	bo.blockchain.DB().WriteHeadBlockHash(block.Hash())
-	bo.blockchain.DB().WriteTxLookupEntries(block)
-	bo.blockchain.DB().WriteAppHash(block.Height(), root)
+	rawdb.WriteHeadBlockHash(bo.blockchain.db, block.Hash())
+	rawdb.WriteTxLookupEntries(bo.blockchain.db, block)
+	rawdb.WriteAppHash(bo.blockchain.db, block.Height(), root)
 	bo.blockchain.InsertHeadBlock(block)
 
 	// send logs of emitted events to logs feed for collecting
@@ -175,7 +176,7 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCom
 // CommitBlockTxsIfNotFound executes and commits block txs if the block state root is not found in storage.
 // Proposer and validators should already commit the block txs, so this function prevents double tx execution.
 func (bo *BlockOperations) CommitBlockTxsIfNotFound(block *types.Block, lastCommit stypes.LastCommitInfo, byzVals []stypes.Evidence) ([]*types.Validator, common.Hash, error) {
-	root := bo.blockchain.DB().ReadAppHash(block.Height())
+	root := rawdb.ReadAppHash(bo.blockchain.db, block.Height())
 	if !bo.blockchain.CheckCommittedStateRoot(root) {
 		bo.logger.Trace("Block has unseen state root, execute & commit block txs", "height", block.Height())
 		return bo.CommitAndValidateBlockTxs(block, lastCommit, byzVals)
