@@ -36,7 +36,7 @@ import (
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/accounts/keystore"
-	"github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/metrics"
@@ -84,7 +84,7 @@ func (c *Config) getP2PConfig() (*configs.P2PConfig, error) {
 }
 
 // getDbInfo gets database information from config. Currently, it only supports levelDb
-func (c *Config) getDbInfo() storage.DbInfo {
+func (c *Config) getDbInfo() rawdb.DbInfo {
 	database := c.MainChain.Database
 	nodeDir := filepath.Join(c.DataDir, c.Name, database.Dir)
 	if database.Drop == 1 {
@@ -93,7 +93,7 @@ func (c *Config) getDbInfo() storage.DbInfo {
 			panic(err)
 		}
 	}
-	return storage.NewLevelDbInfo(nodeDir, database.Caches, database.Handles)
+	return rawdb.NewLevelDbInfo(nodeDir, database.Caches, database.Handles)
 }
 
 // getTxPoolConfig gets txPoolConfig from config, based on target network
@@ -194,11 +194,17 @@ func (c *Config) getNodeConfig() (*node.Config, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if c.Node.GCMode != "archive" && c.Node.GCMode != "full" {
+		return nil, fmt.Errorf(`either set GCMode as "archive" or "full"`)
+	}
+	
 	nodeConfig := node.Config{
 		Name:             n.Name,
 		Version:          configs.Version,
 		DataDir:          n.DataDir,
 		P2P:              p2pConfig,
+		GCmode:           c.Node.GCMode,
 		HTTPHost:         n.HTTPHost,
 		HTTPPort:         n.HTTPPort,
 		HTTPCors:         n.HTTPCors,

@@ -21,7 +21,7 @@ package service
 import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
-	"github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
 )
 
@@ -39,7 +39,7 @@ type DualConfig struct {
 	DualEventPool event_pool.Config
 
 	// DbInfo stores configuration information to setup database
-	DBInfo storage.DbInfo
+	DBInfo rawdb.DbInfo
 
 	ProtocolName string
 

@@ -32,7 +32,7 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
-	"github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
@@ -50,7 +50,7 @@ const (
 // Mainchain configs
 type MainChainConfig struct {
 	// DbInfo stores configuration information to setup database
-	DBInfo storage.DbInfo
+	DBInfo rawdb.DbInfo
 
 	// Genesis is genesis block which contain initial Block and accounts
 	Genesis *genesis.Genesis
@@ -85,7 +85,7 @@ type DualChainConfig struct {
 	ChainId uint64 // ID of dual chain unique to a dualnode group, such as for dual eth.
 
 	// DbInfo stores configuration information to setup database
-	DBInfo storage.DbInfo
+	DBInfo rawdb.DbInfo
 
 	// Genesis is genesis block which contain initial Block and accounts
 	DualGenesis *genesis.Genesis
@@ -135,6 +135,9 @@ type Config struct {
 	// Version should be set to the version number of the program. It is used
 	// in the devp2p node identifier.
 	Version string `toml:"-"`
+
+	// Node type: `archive` or `full`
+	GCmode string
 
 	// DataDir is the file system folder the node should use for any data storage
 	// requirements. The configured data directory will not be directly shared with

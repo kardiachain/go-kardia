@@ -29,7 +29,7 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/accounts/abi"
 	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
-	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -241,7 +241,7 @@ func TestStateTransition_TransitionDb_noFee(t *testing.T) {
 func TestStateTransition_TransitionDb_withFee(t *testing.T) {
 	// Start setting up blockchain
 	blockDB := memorydb.New()
-	storeDB := kvstore.NewStoreDB(blockDB)
+	storeDB := rawdb.NewStoreDB(blockDB)
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
 	address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
 	stakingUtil, _ := staking.NewSmcStakingUtil()

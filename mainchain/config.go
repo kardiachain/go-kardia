@@ -20,9 +20,10 @@ package kai
 
 import (
 	"math/big"
+	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/mainchain/oracles"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
@@ -30,28 +31,43 @@ import (
 
 // DefaultConfig contains default settings for use on the Kardia main net.
 var DefaultConfig = Config{
-
-	NetworkId: 1,
-
-	TxPool: tx_pool.DefaultTxPoolConfig,
+	NetworkId:               1,
+	TrieCleanCache:          154,
+	TrieCleanCacheJournal:   "triecache",
+	TrieCleanCacheRejournal: 60 * time.Minute,
+	TrieDirtyCache:          256,
+	TrieTimeout:             60 * time.Minute,
+	SnapshotCache:           102,
+	TxPool:                  tx_pool.DefaultTxPoolConfig,
 }
 
 //go:generate gencodec -type Config -field-override configMarshaling -formats toml -out gen_config.go
 
 type Config struct {
+	// The genesis block, which is inserted if the database is empty.
+	// If nil, the Kardia main net block is used.
+	Genesis *genesis.Genesis `toml:",omitempty"`
+
 	// Protocol options
 	ChainId   *big.Int
 	NetworkId uint64
 
-	// The genesis block, which is inserted if the database is empty.
-	// If nil, the Kardia main net block is used.
-	Genesis *genesis.Genesis `toml:",omitempty"`
+	NoPruning  bool // Whether to disable pruning and flush everything to disk
+	NoPrefetch bool // Whether to disable prefetching and only load state on deman
+
+	TrieCleanCache          int
+	TrieCleanCacheJournal   string        `toml:",omitempty"` // Disk journal directory for trie cache to survive node restarts
+	TrieCleanCacheRejournal time.Duration `toml:",omitempty"` // Time interval to regenerate the journal for clean cache
+	TrieDirtyCache          int
+	TrieTimeout             time.Duration
+	SnapshotCache           int
+	Preimages               bool
 
 	// Transaction pool options
 	TxPool tx_pool.TxPoolConfig
 
 	// DbInfo stores configuration information to setup database
-	DBInfo storage.DbInfo
+	DBInfo rawdb.DbInfo
 
 	// acceptTxs accept tx sync processes
 	AcceptTxs uint32

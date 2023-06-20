@@ -23,7 +23,7 @@ import (
 	"testing"
 
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -89,7 +89,7 @@ func BenchmarkTransactionTrace(b *testing.B) {
 		Code:    []byte{},
 		Balance: big.NewInt(500000000000000),
 	}
-	statedb := tests.MakePreState(storage.NewMemoryDatabase().DB(), alloc)
+	statedb := tests.MakePreState(rawdb.NewMemoryDatabase().DB(), alloc)
 	// Create the tracer, the EVM environment and run it
 	tracer := logger.NewStructLogger(&logger.LogConfig{
 		Debug: false,

@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
@@ -154,7 +154,7 @@ func (dbo *DualBlockOperations) CreateProposalBlock(height uint64, lastState cst
 // This also validate the new state root against the block root.
 func (dbo *DualBlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCommit stypes.LastCommitInfo, byzVals []stypes.Evidence) ([]*types.Validator, common.Hash, error) {
 	root, err := dbo.commitDualEvents(block.DualEvents())
-	kvstore.WriteAppHash(dbo.blockchain.db.DB(), block.Height(), root)
+	rawdb.WriteAppHash(dbo.blockchain.db.DB(), block.Height(), root)
 	return nil, root, err
 }
 

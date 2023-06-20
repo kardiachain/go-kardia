@@ -25,7 +25,7 @@ import (
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
-	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
@@ -111,7 +111,7 @@ func TestCreateGenesisBlock(t *testing.T) {
 	configs.AddDefaultStakingContractAddress()
 	// Init kai database
 	blockDB := memorydb.New()
-	db := kvstore.NewStoreDB(blockDB)
+	db := rawdb.NewStoreDB(blockDB)
 	// Create genesis block with state_processor_test.genesisAccounts
 	g := genesis.DefaultTestnetGenesisBlock(genesisAccounts)
 	chainConfig, hash, err := setupGenesis(g, db)
@@ -150,7 +150,7 @@ func TestCreateGenesisBlock(t *testing.T) {
 
 func TestGenesisAllocFromAccountAndContract(t *testing.T) {
 	blockDB := memorydb.New()
-	db := kvstore.NewStoreDB(blockDB)
+	db := rawdb.NewStoreDB(blockDB)
 	// Create genesis block with state_processor_test.genesisAccounts
 	InitValue = big.NewInt(int64(math.Pow10(10))) // Update Genesis Account Values
 	initBalance = InitValue.Mul(InitValue, big.NewInt(int64(math.Pow10(18))))

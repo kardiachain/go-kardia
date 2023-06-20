@@ -38,11 +38,6 @@ import (
 	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 )
 
-var (
-	// EmptyRootHash ...
-	EmptyRootHash = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
-)
-
 //go:generate go run github.com/fjl/gencodec -type Header -field-override headerMarshaling -out gen_header_json.go
 //go:generate go run ../lib/rlp/rlpgen -type Header -out gen_header_rlp.go
 
@@ -589,6 +584,41 @@ func (b *Block) ToProto() (*kproto.Block, error) {
 	pb.Evidence = *protoEvidence
 
 	return pb, nil
+}
+
+// FromProto sets a protobuf Block to the given pointer.
+//
+// UNSAFE: validation for this block is skipped.
+func BlockFromProtoUnsafe(bp *kproto.Block) (*Block, error) {
+	if bp == nil {
+		return nil, errors.New("nil block")
+	}
+
+	b := new(Block)
+	h, err := HeaderFromProto(&bp.Header)
+	if err != nil {
+		return nil, err
+	}
+	b.header = &h
+	data, err := DataFromProto(&bp.Data)
+	if err != nil {
+		return nil, err
+	}
+	b.transactions = data
+	b.evidence = &EvidenceData{}
+	if err := b.evidence.FromProto(&bp.Evidence); err != nil {
+		return nil, err
+	}
+
+	if bp.LastCommit != nil {
+		lc, err := CommitFromProto(bp.LastCommit)
+		if err != nil {
+			return nil, err
+		}
+		b.lastCommit = lc
+	}
+
+	return b, nil
 }
 
 // FromProto sets a protobuf Block to the given pointer.

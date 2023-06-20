@@ -24,11 +24,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
-
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/kaidb"
-	"github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/lib/bloombits"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/types"
@@ -68,7 +66,7 @@ func benchmarkBloomBits(b *testing.B, sectionSize uint64) {
 	benchDataDir := configs.DefaultDataDir() + "/chaindata"
 	b.Log("Running bloombits benchmark   section size:", sectionSize)
 
-	db, err := storage.NewLevelDBDatabase(benchDataDir, 128, 1024, "")
+	db, err := rawdb.NewLevelDBDatabase(benchDataDir, 128, 1024, "")
 	if err != nil {
 		b.Fatalf("error opening database at %v: %v", benchDataDir, err)
 	}
@@ -114,7 +112,7 @@ func benchmarkBloomBits(b *testing.B, sectionSize uint64) {
 			comp := common.CompressBytes(data)
 			dataSize += uint64(len(data))
 			compSize += uint64(len(comp))
-			kvstore.WriteBloomBits(db.DB(), uint(i), sectionIdx, sectionHead, comp)
+			rawdb.WriteBloomBits(db.DB(), uint(i), sectionIdx, sectionHead, comp)
 		}
 		if sectionIdx%50 == 0 {
 			b.Log(" section", sectionIdx, "/", cnt)
@@ -133,7 +131,7 @@ func benchmarkBloomBits(b *testing.B, sectionSize uint64) {
 	for i := 0; i < benchFilterCnt; i++ {
 		if i%20 == 0 {
 			db.DB().Close()
-			db, _ = storage.NewLevelDBDatabase(benchDataDir, 128, 1024, "")
+			db, _ = rawdb.NewLevelDBDatabase(benchDataDir, 128, 1024, "")
 			backend = &testBackend{db: db, sections: cnt}
 		}
 		var addr common.Address
@@ -164,7 +162,7 @@ func clearBloomBits(db kaidb.Database) {
 func BenchmarkNoBloomBits(b *testing.B) {
 	benchDataDir := configs.DefaultDataDir() + "/chaindata"
 	b.Log("Running benchmark without bloombits")
-	db, err := storage.NewLevelDBDatabase(benchDataDir, 128, 1024, "")
+	db, err := rawdb.NewLevelDBDatabase(benchDataDir, 128, 1024, "")
 	if err != nil {
 		b.Fatalf("error opening database at %v: %v", benchDataDir, err)
 	}

@@ -730,6 +730,10 @@ func (s *Stream) Uint() (uint64, error) {
 	return s.uint(64)
 }
 
+func (s *Stream) Uint64() (uint64, error) {
+	return s.uint(64)
+}
+
 func (s *Stream) uint(maxbits int) (uint64, error) {
 	kind, size, err := s.Kind()
 	if err != nil {

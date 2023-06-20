@@ -25,9 +25,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardia/kai/storage"
-
-	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 
 	"github.com/kardiachain/go-kardia/kai/kaidb"
 
@@ -78,7 +76,7 @@ func (k *KardiaService) startBloomHandlers(sectionSize uint64) {
 					db := k.blockchain.DB()
 					for i, section := range task.Sections {
 						head := db.ReadCanonicalHash((section+1)*sectionSize - 1)
-						if compVector, err := kvstore.ReadBloomBits(db.DB(), task.Bit, section, head); err == nil {
+						if compVector, err := rawdb.ReadBloomBits(db.DB(), task.Bit, section, head); err == nil {
 							if blob, err := common.DecompressBytes(compVector, int(sectionSize/8)); err == nil {
 								task.Bitsets[i] = blob
 							} else {
@@ -124,7 +122,7 @@ type BloomIndexer struct {
 func NewBloomIndexer(db kaidb.Database, size, confirms uint64) *BloomIndexer {
 	backend := &BloomIndexer{
 		db:      db,
-		indexDb: storage.NewMemoryDatabase().DB(),
+		indexDb: rawdb.NewMemoryDatabase().DB(),
 
 		sectionSize: size,
 		confirmsReq: confirms,
@@ -160,7 +158,7 @@ func (b *BloomIndexer) Commit() error {
 		if err != nil {
 			return err
 		}
-		kvstore.WriteBloomBits(batch, uint(i), b.section, b.head, common.CompressBytes(bits))
+		rawdb.WriteBloomBits(batch, uint(i), b.section, b.head, common.CompressBytes(bits))
 	}
 	return batch.Write()
 }

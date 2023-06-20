@@ -27,7 +27,7 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	message2 "github.com/kardiachain/go-kardia/dualnode/message"
 	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
-	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/ksml"
 	message "github.com/kardiachain/go-kardia/ksml/proto"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -52,7 +52,7 @@ func (db *MemoryDbInfo) Name() string {
 }
 
 func (db *MemoryDbInfo) Start() (types.StoreDB, error) {
-	return kvstore.NewStoreDB(memorydb.New()), nil
+	return rawdb.NewStoreDB(memorydb.New()), nil
 }
 
 func TestGetPrefix_WithoutPrefix(t *testing.T) {

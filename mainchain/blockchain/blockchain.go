@@ -23,15 +23,19 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/events"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/kai/state"
+	"github.com/kardiachain/go-kardia/kai/state/snapshot"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/trie"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -44,13 +48,42 @@ var (
 	ErrNoGenesis = errors.New("Genesis not found in chain")
 )
 
+// CacheConfig contains the configuration values for the trie database
+// that's resident in a blockchain.
+type CacheConfig struct {
+	TrieCleanLimit      int           // Memory allowance (MB) to use for caching trie nodes in memory
+	TrieCleanJournal    string        // Disk journal for saving clean cache entries.
+	TrieCleanRejournal  time.Duration // Time interval to dump clean cache to disk periodically
+	TrieCleanNoPrefetch bool          // Whether to disable heuristic state prefetching for followup blocks
+	TrieDirtyLimit      int           // Memory limit (MB) at which to start flushing dirty trie nodes to disk
+	TrieDirtyDisabled   bool          // Whether to disable trie write caching and GC altogether (archive node)
+	TrieTimeLimit       time.Duration // Time limit after which to flush the current in-memory trie to disk
+	SnapshotLimit       int           // Memory allowance (MB) to use for caching snapshot entries in memory
+	Preimages           bool          // Whether to store preimage of trie key to the disk
+
+	SnapshotNoBuild bool // Whether the background generation is allowed
+	SnapshotWait    bool // Wait for snapshot construction on startup. TODO(karalabe): This is a dirty hack for testing, nuke it
+}
+
+// defaultCacheConfig are the default caching values if none are specified by the
+// user (also used during testing).
+var defaultCacheConfig = &CacheConfig{
+	TrieCleanLimit: 256,
+	TrieDirtyLimit: 256,
+	TrieTimeLimit:  5 * time.Minute,
+	SnapshotLimit:  256,
+	SnapshotWait:   true,
+}
+
 type BlockChain struct {
 	logger log.Logger
 
 	chainConfig *configs.ChainConfig // Chain & network configuration
+	cacheConfig *CacheConfig         // Cache configuration for pruning
 
-	db types.StoreDB // Blockchain database
-	hc *HeaderChain
+	db    types.StoreDB  // Blockchain database
+	snaps *snapshot.Tree // Snapshot tree for fast trie leaf access
+	hc    *HeaderChain
 
 	chainHeadFeed event.Feed
 	logsFeed      event.Feed
@@ -111,15 +144,23 @@ func (bc *BlockChain) Config() *configs.ChainConfig { return bc.chainConfig }
 
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database. It initialises the default Kardia Validator and Processor.
-func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs.ChainConfig) (*BlockChain, error) {
+func NewBlockChain(logger log.Logger, cacheConfig *CacheConfig, db types.StoreDB, chainConfig *configs.ChainConfig) (*BlockChain, error) {
+	if cacheConfig == nil {
+		cacheConfig = defaultCacheConfig
+	}
 	blockCache, _ := lru.New(blockCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)
 
 	bc := &BlockChain{
-		logger:       logger,
-		chainConfig:  chainConfig,
-		db:           db,
-		stateCache:   state.NewDatabase(db.DB()),
+		logger:      logger,
+		chainConfig: chainConfig,
+		db:          db,
+		cacheConfig: cacheConfig,
+		stateCache: state.NewDatabaseWithConfig(db.DB(), &trie.Config{
+			Cache:     cacheConfig.TrieCleanLimit,
+			Journal:   cacheConfig.TrieCleanJournal,
+			Preimages: cacheConfig.Preimages,
+		}),
 		blockCache:   blockCache,
 		futureBlocks: futureBlocks,
 		quit:         make(chan struct{}),
@@ -137,6 +178,28 @@ func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs.Cha
 
 	if err := bc.loadLastState(); err != nil {
 		return nil, err
+	}
+
+	// Load any existing snapshot, regenerating it if loading failed
+	if bc.cacheConfig.SnapshotLimit > 0 {
+		// If the chain was rewound past the snapshot persistent layer (causing
+		// a recovery block number to be persisted to disk), check if we're still
+		// in recovery mode and in that case, don't invalidate the snapshot on a
+		// head mismatch.
+		var recover bool
+
+		head := bc.CurrentBlock()
+		if layer := rawdb.ReadSnapshotRecoveryNumber(bc.db.DB()); layer != nil && *layer >= head.Height() {
+			log.Warn("Enabling snapshot recovery", "chainhead", head.Height(), "diskbase", *layer)
+			recover = true
+		}
+		snapconfig := snapshot.Config{
+			CacheSize:  bc.cacheConfig.SnapshotLimit,
+			Recovery:   recover,
+			NoBuild:    bc.cacheConfig.SnapshotNoBuild,
+			AsyncBuild: !bc.cacheConfig.SnapshotWait,
+		}
+		bc.snaps, _ = snapshot.New(snapconfig, bc.db.DB(), bc.stateCache.TrieDB(), head.AppHash())
 	}
 
 	// Take ownership of this particular state
@@ -207,7 +270,7 @@ func (bc *BlockChain) State() (*state.StateDB, error) {
 // StateAt returns a new mutable state based on a particular point in time.
 func (bc *BlockChain) StateAt(height uint64) (*state.StateDB, error) {
 	root := bc.DB().ReadAppHash(height)
-	return state.New(bc.logger, root, bc.stateCache)
+	return state.New(root, bc.stateCache, bc.snaps)
 }
 
 // CheckCommittedStateRoot returns true if the given state root is already committed and existed on trie database.
@@ -237,7 +300,7 @@ func (bc *BlockChain) loadLastState() error {
 	}
 	root := bc.DB().ReadAppHash(currentBlock.Height())
 	// Make sure the state associated with the block is available
-	if _, err := state.New(bc.logger, root, bc.stateCache); err != nil {
+	if _, err := state.New(root, bc.stateCache, nil); err != nil {
 		// Dangling block without a state associated, init from scratch
 		bc.logger.Warn("Head state missing, repairing chain", "height", currentBlock.Height(), "hash", currentBlock.Hash())
 		if err := bc.repair(&currentBlock); err != nil {
@@ -293,7 +356,7 @@ func (bc *BlockChain) repair(head **types.Block) error {
 	for {
 		root := bc.DB().ReadAppHash((*head).Height())
 		// Abort if we've rewound to a head block that does have associated state
-		if _, err := state.New(bc.logger, root, bc.stateCache); err == nil {
+		if _, err := state.New(root, bc.stateCache, nil); err == nil {
 			bc.logger.Info("Rewound blockchain to past state", "height", (*head).Height(), "hash", (*head).Hash())
 			return nil
 		}
@@ -357,7 +420,7 @@ func (bc *BlockChain) SetHead(head uint64) error {
 	}
 	if currentBlock := bc.CurrentBlock(); currentBlock != nil {
 		root := bc.DB().ReadAppHash(currentBlock.Height())
-		if _, err := state.New(bc.logger, root, bc.stateCache); err != nil {
+		if _, err := state.New(root, bc.stateCache, nil); err != nil {
 			// Rewound state missing, rolled back to before pivot, reset to genesis
 			bc.currentBlock.Store(bc.genesisBlock)
 		}

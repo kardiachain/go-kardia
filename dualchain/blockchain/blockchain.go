@@ -169,7 +169,6 @@ func (bc *DualBlockChain) LoadSeenCommit(height uint64) *types.Commit {
 	return bc.db.ReadSeenCommit(height)
 }
 
-//
 func (bc *DualBlockChain) LoadBlockMeta(height uint64) *types.BlockMeta {
 	return bc.db.ReadBlockMeta(height)
 }
@@ -204,7 +203,7 @@ func (dbc *DualBlockChain) State() (*state.StateDB, error) {
 // StateAt returns a new mutable state based on a particular point in time.
 func (dbc *DualBlockChain) StateAt(height uint64) (*state.StateDB, error) {
 	root := dbc.DB().ReadAppHash(height)
-	return state.New(dbc.logger, root, dbc.stateCache)
+	return state.New(root, dbc.stateCache, nil)
 }
 
 // CheckCommittedStateRoot returns true if the given state root is already committed and existed on trie database.
@@ -237,7 +236,7 @@ func (dbc *DualBlockChain) loadLastState() error {
 	}
 	// Make sure the state associated with the block is available
 	root := dbc.db.ReadAppHash(currentBlock.Height())
-	if _, err := state.New(dbc.logger, root, dbc.stateCache); err != nil {
+	if _, err := state.New(root, dbc.stateCache, nil); err != nil {
 		// Dangling block without a state associated, init from scratch
 		dbc.logger.Warn("Head state missing, repairing chain", "height", currentBlock.Height(), "hash", currentBlock.Hash())
 		if err := dbc.repair(&currentBlock); err != nil {
@@ -293,7 +292,7 @@ func (dbc *DualBlockChain) repair(head **types.Block) error {
 	for {
 		root := dbc.db.ReadAppHash((*head).Height())
 		// Abort if we've rewound to a head block that does have associated state
-		if _, err := state.New(dbc.logger, root, dbc.stateCache); err == nil {
+		if _, err := state.New(root, dbc.stateCache, nil); err == nil {
 			dbc.logger.Info("Rewound blockchain to past state", "height", (*head).Height(), "hash", (*head).Hash())
 			return nil
 		}
@@ -350,7 +349,7 @@ func (dbc *DualBlockChain) SetHead(head uint64) error {
 	}
 	if currentBlock := dbc.CurrentBlock(); currentBlock != nil {
 		root := dbc.db.ReadAppHash(currentBlock.Height())
-		if _, err := state.New(dbc.logger, root, dbc.stateCache); err != nil {
+		if _, err := state.New(root, dbc.stateCache, nil); err != nil {
 			// Rewound state missing, rolled back to before pivot, reset to genesis
 			dbc.currentBlock.Store(dbc.genesisBlock)
 		}
