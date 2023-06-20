@@ -17,8 +17,8 @@
 package rawdb
 
 import (
-	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/kai/kaidb"
+	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 )
 

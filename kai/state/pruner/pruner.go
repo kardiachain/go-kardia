@@ -497,10 +497,10 @@ const warningLog = `
 WARNING!
 
 The clean trie cache is not found. Please delete it by yourself after the 
-pruning. Remember don't start the Geth without deleting the clean trie cache
+pruning. Remember don't start the Kaigo without deleting the clean trie cache
 otherwise the entire database may be damaged!
 
-Check the command description "geth snapshot prune-state --help" for more details.
+Check the command description "kaigo snapshot prune-state --help" for more details.
 `
 
 func deleteCleanTrieCache(path string) {

@@ -101,6 +101,12 @@ var (
 		Value:    true,
 		Category: flags.KaiCategory,
 	}
+	BloomFilterSizeFlag = &cli.Uint64Flag{
+		Name:     "bloomfilter.size",
+		Usage:    "Megabytes of memory allocated to bloom-filter for pruning",
+		Value:    2048,
+		Category: flags.KaiCategory,
+	}
 	TxLookupLimitFlag = &cli.Uint64Flag{
 		Name:     "txlookuplimit",
 		Usage:    "Number of recent blocks to maintain transactions index for (default = about one year, 0 = entire chain)",

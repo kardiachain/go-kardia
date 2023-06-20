@@ -90,7 +90,7 @@ func init() {
 	app.Copyright = "Copyright 2013-2023 The go-kardia Authors"
 	app.Commands = []*cli.Command{
 		// See snapshot.go
-		// snapshotCommand,
+		snapshotCommand,
 		dumpConfigCommand,
 	}
 	sort.Sort(cli.CommandsByName(app.Commands))
