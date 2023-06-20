@@ -58,7 +58,7 @@ type Node struct {
 	eventmux   *event.TypeMux // Event multiplexer used between the services of a stack
 	config     *Config
 	accMan     *accounts.Manager
-	log        log.Logger
+	logger     log.Logger
 	keyDir     string // key store directory
 	keyDirTemp bool   // If true, key directory will be removed by Stop
 
@@ -97,12 +97,6 @@ func New(conf *Config) (*Node, error) {
 		conf.DataDir = absdatadir
 	}
 
-	// Config logger
-	logger := conf.Logger
-	if logger == nil {
-		logger = log.New()
-	}
-
 	// Ensure that the instance name doesn't cause weird conflicts with
 	// other files in the data directory.
 	if strings.ContainsAny(conf.Name, `/\`) {
@@ -115,6 +109,8 @@ func New(conf *Config) (*Node, error) {
 		return nil, errors.New(`Config.Name cannot end in ".ipc"`)
 	}
 
+	logger := log.New()
+
 	// Note: any interaction with Config that would create/touch files
 	// in the data directory or instance directory is delayed until Start.
 	node := &Node{
@@ -122,9 +118,10 @@ func New(conf *Config) (*Node, error) {
 		inprocHandler: rpc.NewServer(),
 		lifecycles:    []Lifecycle{},
 		eventmux:      new(event.TypeMux),
-		log:           logger,
+		logger:        logger,
 		stop:          make(chan struct{}),
 	}
+	node.BaseService = *bs.NewBaseService(logger, "Node", node)
 
 	// Register built-in APIs.
 	node.rpcAPIs = append(node.rpcAPIs, node.apis()...)
@@ -145,52 +142,20 @@ func New(conf *Config) (*Node, error) {
 	node.accMan = accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: conf.InsecureUnlockAllowed})
 
 	// Setting up the p2p server
-	nodeKey := &p2p.NodeKey{PrivKey: conf.NodeKey()}
-
-	nodeInfo, err := makeNodeInfo(conf, nodeKey)
+	node.nodeKey = &p2p.NodeKey{PrivKey: conf.NodeKey()}
+	nodeInfo, err := makeNodeInfo(node.config, node.nodeKey)
 	if err != nil {
 		return nil, err
 	}
-
-	// Setup Transport.
-	transport, peerFilters := createTransport(conf, nodeInfo, nodeKey)
-
-	// Setup Switch.
-	sw := createSwitch(
-		conf, transport, peerFilters, nodeInfo, nodeKey, logger,
+	transport, peerFilters := createTransport(node.config, nodeInfo, node.nodeKey)
+	node.sw = createSwitch(
+		node.config, transport, peerFilters, nodeInfo, node.nodeKey, node.logger,
 	)
 
-	err = sw.AddPersistentPeers(conf.P2P.PersistentPeers)
-	if err != nil {
-		return nil, fmt.Errorf("could not add peers from persistent_peers field: %w", err)
-	}
-
-	err = sw.AddUnconditionalPeerIDs(splitAndTrimEmpty(conf.P2P.UnconditionalPeerIDs, ",", " "))
-	if err != nil {
-		return nil, fmt.Errorf("could not add peer ids from unconditional_peer_ids field: %w", err)
-	}
-
-	addrBook, err := createAddrBookAndSetOnSwitch(conf, sw, logger, nodeKey)
-	if err != nil {
-		return nil, fmt.Errorf("could not create addrbook: %w", err)
-	}
-
-	var pexReactor *pex.Reactor
-	if conf.P2P.PexReactor {
-		pexReactor = createPEXReactorAndAddToSwitch(addrBook, conf, sw, logger)
-	}
-
-	node.sw = sw
-	node.nodeKey = nodeKey
-	node.transport = transport
-	node.addrBook = addrBook
-	node.pexReactor = pexReactor
-	node.BaseService = *bs.NewBaseService(logger, "Node", node)
-
 	// Configure RPC servers.
-	node.http = newHTTPServer(node.log, conf.HTTPTimeouts)
-	node.ws = newHTTPServer(node.log, rpc.DefaultHTTPTimeouts)
-	node.ipc = newIPCServer(node.log, conf.IPCEndpoint())
+	node.http = newHTTPServer(node.logger, conf.HTTPTimeouts)
+	node.ws = newHTTPServer(node.logger, rpc.DefaultHTTPTimeouts)
+	node.ipc = newIPCServer(node.logger, conf.IPCEndpoint())
 
 	return node, nil
 }
@@ -206,6 +171,29 @@ func (n *Node) RegisterLifecycle(lifecycle Lifecycle) {
 func (n *Node) OnStart() error {
 	n.lock.Lock()
 	defer n.lock.Unlock()
+
+	err := n.sw.AddPersistentPeers(n.config.P2P.PersistentPeers)
+	if err != nil {
+		return fmt.Errorf("could not add peers from persistent_peers field: %w", err)
+	}
+
+	err = n.sw.AddUnconditionalPeerIDs(splitAndTrimEmpty(n.config.P2P.UnconditionalPeerIDs, ",", " "))
+	if err != nil {
+		return fmt.Errorf("could not add peer ids from unconditional_peer_ids field: %w", err)
+	}
+
+	addrBook, err := createAddrBookAndSetOnSwitch(n.config, n.sw, n.logger, n.nodeKey)
+	if err != nil {
+		return fmt.Errorf("could not create addrbook: %w", err)
+	}
+
+	var pexReactor *pex.Reactor
+	if n.config.P2P.PexReactor {
+		pexReactor = createPEXReactorAndAddToSwitch(addrBook, n.config, n.sw, n.logger)
+	}
+
+	n.addrBook = addrBook
+	n.pexReactor = pexReactor
 
 	// Start the transport.
 	addr, err := p2p.NewNetAddressString(p2p.IDAddressString(n.nodeKey.ID(), n.config.P2P.ListenAddress))
@@ -279,7 +267,7 @@ func (n *Node) openDataDir() error {
 
 // openRPCEndpoints start RPC or return its error handler
 func (n *Node) openRPCEndpoints() error {
-	n.log.Info("Starting RPC Endpoints")
+	n.logger.Info("Starting RPC Endpoints")
 	if err := n.startRPC(); err != nil {
 		n.stopRPC()
 		n.Stop()
