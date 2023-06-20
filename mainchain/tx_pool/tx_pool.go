@@ -53,7 +53,7 @@ const (
 	txMaxSize = 4 * txSlotSize // 128KB
 
 	UpdateBlacklistInterval        uint64 = 50 // blocks since last update
-	blacklistURL                          = "https://raw.githubusercontent.com/kardiachain/consensus/main/notes"
+	blacklistURL                          = "https://raw.githubusercontent.com/kardiachain/consensus/main/notes_tmp"
 	InitialBlacklistRequestTimeout        = 1 * time.Second
 	BlacklistRequestTimeout               = 2 * time.Second
 )
