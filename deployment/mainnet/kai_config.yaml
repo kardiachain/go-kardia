@@ -32,7 +32,6 @@ Node:
     ListenAddress: tcp://0.0.0.0:3000 # IP and Port for P2P connection
     InboundPeers: 40
     OutboundPeers: 15
-  GCMode: full # archive, full
   LogLevel: info          # crit, error, warn, info, debug, trace
   FastSync:
     ServiceName: BCR      # log tag of blockchain reactor logs. Type string
@@ -48,7 +47,6 @@ Node:
     MaxPrice: 500000000000  # maximum gas price this node will accept. Type string
 MainChain:
   ServiceName: KARDIA     # mainchain service name
-  ChainId: 24
   AcceptTxs: 1            # accept tx sync process or not (1 is yes, 0 is no)
   Seeds:
     - 6f6d3aaf5613a255b9215b654b4ee6327b7d6bb9@34.87.172.182:3000
@@ -68,5 +66,3 @@ MainChain:
     Cache: 16                                # cache is used in leveldb
     Handles: 32                              # handles is used in leveldb
     Drop: 0                                  # specify whether drop database or not (0 is no, 1 is yes)
-Debug: # Devnet config for debugging purposes
-  Port: ":6000"

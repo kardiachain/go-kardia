@@ -1,17 +1,51 @@
 version: '3.4'
 
 services:
-  mainnet-node:
-    container_name: kai-mainnet-node
+  mainnet-node-legacy:
+    container_name: kai-mainnet-legacy
     image: gcr.io/indigo-history-235904/go-kardia:stable
     ports:
-      - 3000:3000
-      - 3000:3000/udp
-      - 8545:8545
+      - 3100:3000
+      - 3100:3000/udp
+      - 8645:8545
+      - 6100:6000
     volumes:
       - ./kai_config.yaml:/go/bin/kai_config.yaml
-      - .:/root/.kardia
-    command: [ "--network", "mainnet", "--node", "kai_config.yaml" ]
+      - ./nodelegacy:/root/.kardia
+    command:
+      [
+        "--network",
+        "mainnet",
+        "--node",
+        "kai_config.yaml",
+        "--metrics",
+        "--metrics.expensive"
+      ]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 300m
+  mainnet-node-dev:
+    container_name: kai-mainnet-node-dev
+    build: ../..
+    image: go-kardia:dev
+    ports:
+      - 3101:3000
+      - 3101:3000/udp
+      - 8656:8545
+      - 6101:6000
+    volumes:
+      - ./kai_config.yaml:/go/bin/kai_config.yaml
+      - ./nodedev:/root/.kardia
+    command:
+      [
+        "--network",
+        "mainnet",
+        "--node",
+        "kai_config.yaml",
+        "--metrics",
+        "--metrics.expensive"
+      ]
     logging:
       driver: "json-file"
       options:

@@ -11,7 +11,7 @@ services:
   node1:
     container_name: node1
     build: ../..
-    image: go-kardia:latest
+    image: gcr.io/indigo-history-235904/go-kardia:stable
     ports:
       - 3000:3000
       - 3000:3000/udp
@@ -20,21 +20,16 @@ services:
       kardia:
         ipv4_address: 172.20.0.2
     volumes:
-      - ./genesis.yaml:/go/bin/genesis.yaml
       - ./node1.yaml:/go/bin/node1.yaml
-      - ./node1:/root/.kardia
-    command: [ 
-      "--genesis", "genesis.yaml", 
-      "--network", "testnet", 
-      "--node","node1.yaml"
-    ]
+      - .:/root/.kardia
+    command: [ "--network", "mainnet", "--node","node1.yaml" ]
     logging:
       driver: "json-file"
       options:
         max-size: 300m
   node2:
     container_name: node2
-    image: go-kardia:latest
+    image: gcr.io/indigo-history-235904/go-kardia:stable
     ports:
       - 3001:3000
       - 3001:3000/udp
@@ -43,21 +38,16 @@ services:
       kardia:
         ipv4_address: 172.20.0.3
     volumes:
-      - ./genesis.yaml:/go/bin/genesis.yaml
       - ./node2.yaml:/go/bin/node2.yaml
-      - ./node2:/root/.kardia
-    command: [  
-      "--genesis", "genesis.yaml",
-      "--network", "testnet",
-      "--node","node2.yaml" 
-    ]
+      - ./:/root/.kardia
+    command: [ "--network", "mainnet", "--node","node2.yaml" ]
     logging:
       driver: "json-file"
       options:
         max-size: 300m
   node3:
     container_name: node3
-    image: go-kardia:latest
+    image: gcr.io/indigo-history-235904/go-kardia:stable
     ports:
       - 3002:3000
       - 3002:3000/udp
@@ -66,14 +56,9 @@ services:
       kardia:
         ipv4_address: 172.20.0.4
     volumes:
-      - ./genesis.yaml:/go/bin/genesis.yaml
       - ./node3.yaml:/go/bin/node3.yaml
-      - ./node3:/root/.kardia
-    command: [
-      "--genesis", "genesis.yaml",
-      "--network", "testnet", 
-      "--node","node3.yaml"
-    ]
+      - ./:/root/.kardia
+    command: [ "--network", "mainnet", "--node","node3.yaml" ]
     logging:
       driver: "json-file"
       options:
