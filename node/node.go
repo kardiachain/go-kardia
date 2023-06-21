@@ -148,8 +148,9 @@ func New(conf *Config) (*Node, error) {
 		return nil, err
 	}
 	transport, peerFilters := createTransport(node.config, nodeInfo, node.nodeKey)
+	node.transport = transport
 	node.sw = createSwitch(
-		node.config, transport, peerFilters, nodeInfo, node.nodeKey, node.logger,
+		node.config, node.transport, peerFilters, nodeInfo, node.nodeKey, node.logger,
 	)
 
 	// Configure RPC servers.
