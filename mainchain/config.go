@@ -50,38 +50,38 @@ var Defaults = Config{
 type Config struct {
 	// The genesis block, which is inserted if the database is empty.
 	// If nil, the Kardia main net block is used.
-	Genesis *genesis.Genesis `toml:",omitempty"`
+	Genesis *genesis.Genesis `toml:"-"`
 
 	// Protocol options
-	ChainId   *big.Int
-	NetworkId uint64
+	ChainId   *big.Int `toml:",omitempty"`
+	NetworkId uint64   `toml:",omitempty"`
 
 	NoPruning  bool // Whether to disable pruning and flush everything to disk
 	NoPrefetch bool // Whether to disable prefetching and only load state on deman
 
 	TxLookupLimit uint64 `toml:",omitempty"` // The maximum number of blocks from head whose tx indices are reserved.
 
-	DatabaseCache int
+	DatabaseCache int `toml:",omitempty"`
 
-	TrieCleanCache          int
+	TrieCleanCache          int           `toml:",omitempty"`
 	TrieCleanCacheJournal   string        `toml:",omitempty"` // Disk journal directory for trie cache to survive node restarts
 	TrieCleanCacheRejournal time.Duration `toml:",omitempty"` // Time interval to regenerate the journal for clean cache
-	TrieDirtyCache          int
-	TrieTimeout             time.Duration
-	SnapshotCache           int
-	Preimages               bool
+	TrieDirtyCache          int           `toml:",omitempty"`
+	TrieTimeout             time.Duration `toml:",omitempty"`
+	SnapshotCache           int           `toml:",omitempty"`
+	Preimages               bool          `toml:",omitempty"`
 
 	// Transaction pool options
-	TxPool tx_pool.TxPoolConfig
+	TxPool tx_pool.TxPoolConfig `toml:",omitempty"`
 
 	// DbInfo stores configuration information to setup database
 	DBInfo rawdb.DbInfo `toml:",omitempty"`
 
 	// acceptTxs accept tx sync processes
-	AcceptTxs bool
+	AcceptTxs bool `toml:",omitempty"`
 
 	// ServiceName is used to display as log's prefix
-	ServiceName string
+	ServiceName string `toml:",omitempty"`
 
 	// Consensus defines the configuration for the Kardia consensus service,
 	// including timeouts and details about the block structure.

@@ -25,6 +25,7 @@ import (
 	"unicode"
 
 	"github.com/kardiachain/go-kardia/cmd/utils"
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/accounts"
 	"github.com/kardiachain/go-kardia/kai/accounts/keystore"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -33,7 +34,6 @@ import (
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/urfave/cli/v2"
 
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/kardiachain/go-kardia/internal/flags"
 	"github.com/kardiachain/go-kardia/internal/kaiapi"
 	"github.com/kardiachain/go-kardia/internal/version"
@@ -104,9 +104,7 @@ func defaultNodeConfig() node.Config {
 	git, _ := version.VCS()
 	cfg := node.DefaultConfig
 	cfg.Name = clientIdentifier
-	cfg.Version = params.VersionWithCommit(git.Commit, git.Date)
-	cfg.HTTPModules = append(cfg.HTTPModules, "kai")
-	cfg.WSModules = append(cfg.WSModules, "kai")
+	cfg.Version = configs.VersionWithCommit(git.Commit, git.Date)
 	cfg.IPCPath = "kaigo.ipc"
 	return cfg
 }
@@ -151,6 +149,13 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, kaigoConfig) {
 	}
 
 	utils.SetKaiConfig(ctx, stack, &cfg.Kai)
+
+	// Update datadir changes
+	if cfg.Node.DataDir != configs.DefaultDataDir() {
+		cfg.Node.P2P.RootDir = cfg.Node.DataDir
+		cfg.Kai.Consensus.RootDir = cfg.Node.DataDir
+	}
+
 	applyMetricConfig(ctx, &cfg)
 
 	return stack, cfg

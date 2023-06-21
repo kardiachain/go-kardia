@@ -121,7 +121,7 @@ var (
 	pprofPortFlag = &cli.IntFlag{
 		Name:     "pprof.port",
 		Usage:    "pprof HTTP server listening port",
-		Value:    6060,
+		Value:    6000,
 		Category: flags.LoggingCategory,
 	}
 	pprofAddrFlag = &cli.StringFlag{

@@ -178,7 +178,7 @@ func (n *Node) OnStart() error {
 		return fmt.Errorf("could not add peers from persistent_peers field: %w", err)
 	}
 
-	err = n.sw.AddUnconditionalPeerIDs(splitAndTrimEmpty(n.config.P2P.UnconditionalPeerIDs, ",", " "))
+	err = n.sw.AddUnconditionalPeerIDs(n.config.P2P.UnconditionalPeerIDs)
 	if err != nil {
 		return fmt.Errorf("could not add peer ids from unconditional_peer_ids field: %w", err)
 	}
@@ -268,8 +268,9 @@ func (n *Node) openDataDir() error {
 
 // openRPCEndpoints start RPC or return its error handler
 func (n *Node) openRPCEndpoints() error {
-	n.logger.Info("Starting RPC Endpoints")
+	n.logger.Info("Starting RPC endpoints")
 	if err := n.startRPC(); err != nil {
+		n.logger.Error("Failed to start RPC endpoints", "err", err)
 		n.stopRPC()
 		n.Stop()
 	}
@@ -535,7 +536,7 @@ func createTransport(
 	)
 
 	// Limit the number of incoming connections.
-	max := config.P2P.MaxNumInboundPeers + len(splitAndTrimEmpty(config.P2P.UnconditionalPeerIDs, ",", " "))
+	max := config.P2P.MaxNumInboundPeers + len(config.P2P.UnconditionalPeerIDs)
 	p2p.MultiplexTransportMaxIncomingConnections(max)(transport)
 
 	return transport, peerFilters

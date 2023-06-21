@@ -29,7 +29,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/internal/flags"
 	"github.com/kardiachain/go-kardia/internal/kaiapi"
@@ -436,82 +435,8 @@ func setGenesis(ctx *cli.Context, cfg *kai.Config) {
 	}
 }
 
-func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
-	// setNodeKey(ctx, cfg)
-	// setNAT(ctx, cfg)
-	// setListenAddress(ctx, cfg)
-	// setBootstrapNodes(ctx, cfg)
-	// setBootstrapNodesV5(ctx, cfg)
-
-	// lightClient := ctx.String(SyncModeFlag.Name) == "light"
-	// lightServer := (ctx.Int(LightServeFlag.Name) != 0)
-
-	// lightPeers := ctx.Int(LightMaxPeersFlag.Name)
-	// if lightClient && !ctx.IsSet(LightMaxPeersFlag.Name) {
-	// 	// dynamic default - for clients we use 1/10th of the default for servers
-	// 	lightPeers /= 10
-	// }
-
-	// if ctx.IsSet(MaxPeersFlag.Name) {
-	// 	cfg.MaxPeers = ctx.Int(MaxPeersFlag.Name)
-	// 	if lightServer && !ctx.IsSet(LightMaxPeersFlag.Name) {
-	// 		cfg.MaxPeers += lightPeers
-	// 	}
-	// } else {
-	// 	if lightServer {
-	// 		cfg.MaxPeers += lightPeers
-	// 	}
-	// 	if lightClient && ctx.IsSet(LightMaxPeersFlag.Name) && cfg.MaxPeers < lightPeers {
-	// 		cfg.MaxPeers = lightPeers
-	// 	}
-	// }
-	// if !(lightClient || lightServer) {
-	// 	lightPeers = 0
-	// }
-	// ethPeers := cfg.MaxPeers - lightPeers
-	// if lightClient {
-	// 	ethPeers = 0
-	// }
-	// log.Info("Maximum peer count", "ETH", ethPeers, "LES", lightPeers, "total", cfg.MaxPeers)
-
-	// if ctx.IsSet(MaxPendingPeersFlag.Name) {
-	// 	cfg.MaxPendingPeers = ctx.Int(MaxPendingPeersFlag.Name)
-	// }
-	// if ctx.IsSet(NoDiscoverFlag.Name) || lightClient {
-	// 	cfg.NoDiscovery = true
-	// }
-
-	// // if we're running a light client or server, force enable the v5 peer discovery
-	// // unless it is explicitly disabled with --nodiscover note that explicitly specifying
-	// // --v5disc overrides --nodiscover, in which case the later only disables v4 discovery
-	// forceV5Discovery := (lightClient || lightServer) && !ctx.Bool(NoDiscoverFlag.Name)
-	// if ctx.IsSet(DiscoveryV5Flag.Name) {
-	// 	cfg.DiscoveryV5 = ctx.Bool(DiscoveryV5Flag.Name)
-	// } else if forceV5Discovery {
-	// 	cfg.DiscoveryV5 = true
-	// }
-
-	// if netrestrict := ctx.String(NetrestrictFlag.Name); netrestrict != "" {
-	// 	list, err := netutil.ParseNetlist(netrestrict)
-	// 	if err != nil {
-	// 		Fatalf("Option %q: %v", NetrestrictFlag.Name, err)
-	// 	}
-	// 	cfg.NetRestrict = list
-	// }
-
-	// if ctx.Bool(DeveloperFlag.Name) {
-	// 	// --dev mode can't use p2p networking.
-	// 	cfg.MaxPeers = 0
-	// 	cfg.ListenAddr = ""
-	// 	cfg.NoDial = true
-	// 	cfg.NoDiscovery = true
-	// 	cfg.DiscoveryV5 = false
-	// }
-}
-
 // SetNodeConfig applies node-related command line flags to the config.
 func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
-	// SetP2PConfig(ctx, &cfg.P2P)
 	setIPC(ctx, cfg)
 	setHTTP(ctx, cfg)
 	setWS(ctx, cfg)

@@ -130,21 +130,21 @@ type EnvironmentConfig struct {
 type Config struct {
 	// Name sets the instance name of the node. It must not contain the / character and is
 	// used in the devp2p node identifier.
-	Name string `toml:"-"`
+	Name string `toml:",omitempty"`
 
 	// Version should be set to the version number of the program. It is used
 	// in the devp2p node identifier.
-	Version string `toml:"-"`
+	Version string `toml:",omitempty"`
 
 	// DataDir is the file system folder the node should use for any data storage
 	// requirements. The configured data directory will not be directly shared with
 	// registered services, instead those can use utility methods to create/access
 	// databases or flat files. This enables ephemeral nodes which can fully reside
 	// in memory.
-	DataDir string
+	DataDir string `toml:",omitempty"`
 
 	// Configuration of peer-to-peer networking.
-	P2P *configs.P2PConfig
+	P2P *configs.P2PConfig `toml:",omitempty"`
 
 	// KeyStoreDir is the file system folder that contains private keys. The directory can
 	// be specified as a relative path, in which case it is resolved relative to the
@@ -153,24 +153,24 @@ type Config struct {
 	// If KeyStoreDir is empty, the default location is the "keystore" subdirectory of
 	// DataDir. If DataDir is unspecified and KeyStoreDir is empty, an ephemeral directory
 	// is created by New and destroyed when the node is stopped.
-	KeyStoreDir string
+	KeyStoreDir string `toml:",omitempty"`
 
 	// UseLightweightKDF lowers the memory and CPU requirements of the key store
 	// scrypt KDF at the expense of security.
-	UseLightweightKDF bool
+	UseLightweightKDF bool `toml:",omitempty"`
 
 	// InsecureUnlockAllowed allows user to unlock accounts in unsafe http environment.
-	InsecureUnlockAllowed bool
+	InsecureUnlockAllowed bool `toml:",omitempty"`
 
 	// IPCPath is the requested location to place the IPC endpoint. If the path is
 	// a simple file name, it is placed inside the data directory (or on the root
 	// pipe path on Windows), whereas if it's a resolvable path name (absolute or
 	// relative), then that specific path is enforced. An empty path disables IPC.
-	IPCPath string
+	IPCPath string `toml:",omitempty"`
 
 	// HTTPHost is the host interface on which to start the HTTP RPC server. If this
 	// field is empty, no HTTP API endpoint will be started.
-	HTTPHost string
+	HTTPHost string `toml:",omitempty"`
 
 	// HTTPPort is the TCP port number on which to start the HTTP RPC server. The
 	// default zero value is/ valid and will pick a port number randomly (useful
@@ -194,15 +194,15 @@ type Config struct {
 	// HTTPModules is a list of API modules to expose via the HTTP RPC interface.
 	// If the module list is empty, all RPC API endpoints designated public will be
 	// exposed.
-	HTTPModules []string
+	HTTPModules []string `toml:",omitempty"`
 
 	// HTTPTimeouts allows for customization of the timeout values used by the HTTP RPC
 	// interface.
-	HTTPTimeouts rpc.HTTPTimeouts
+	HTTPTimeouts rpc.HTTPTimeouts `toml:",omitempty"`
 
 	// WSHost is the host interface on which to start the websocket RPC server. If
 	// this field is empty, no websocket API endpoint will be started.
-	WSHost string
+	WSHost string `toml:",omitempty"`
 
 	// WSPort is the TCP port number on which to start the websocket RPC server. The
 	// default zero value is/ valid and will pick a port number randomly (useful for
@@ -217,7 +217,7 @@ type Config struct {
 	// WSModules is a list of API modules to expose via the websocket RPC interface.
 	// If the module list is empty, all RPC API endpoints designated public will be
 	// exposed.
-	WSModules []string
+	WSModules []string `toml:",omitempty"`
 
 	// WSExposeAll exposes all API modules via the WebSocket RPC interface rather
 	// than just the public ones.
@@ -246,7 +246,7 @@ type Config struct {
 	// Configuration of this node when running in dev environment.
 	NodeMetadata *NodeMetadata `toml:",omitempty"`
 
-	Genesis *genesis.Genesis `toml:",omitempty"`
+	Genesis *genesis.Genesis `toml:"-"`
 }
 
 // IPCEndpoint resolves an IPC endpoint based on a configured value, taking into

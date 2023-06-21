@@ -30,8 +30,13 @@ var (
 // P2PConfig defines the configuration options for the peer-to-peer networking layer
 type P2PConfig struct { //nolint: maligned
 	// This field must be set to a valid secp256k1 private key.
-	PrivateKey *ecdsa.PrivateKey `toml:"-"`
-	RootDir    string            `mapstructure:"home"`
+	PrivateKey *ecdsa.PrivateKey `toml:",omitempty"`
+
+	RootDir string `toml:"-" mapstructure:"home"`
+
+	// Set true for strict address routability rules
+	// Set false for private or local networks
+	AddrBookStrict bool `mapstructure:"addr_book_strict"`
 
 	// Address to listen for incoming connections
 	ListenAddress string `mapstructure:"laddr"`
@@ -39,34 +44,37 @@ type P2PConfig struct { //nolint: maligned
 	// Address to advertise to peers for them to dial
 	ExternalAddress string `mapstructure:"external_address"`
 
+	// Seed mode, in which node constantly crawls the network and looks for
+	// peers. If another node asks it for addresses, it responds and disconnects.
+	//
+	// Does not work if the peer-exchange reactor is disabled.
+	SeedMode bool `mapstructure:"seed_mode"`
+
 	// Comma separated list of seed nodes to connect to
 	// We only use these if we can’t connect to peers in the addrbook
 	Seeds []string `mapstructure:"seeds"`
 
+	// Maximum pause when redialing a persistent peer (if zero, exponential backoff is used)
+	PersistentPeersMaxDialPeriod time.Duration `mapstructure:"persistent_peers_max_dial_period"`
+
 	// Comma separated list of nodes to keep persistent connections to
 	PersistentPeers []string `mapstructure:"persistent_peers"`
 
+	// List of node IDs, to which a connection will be (re)established ignoring any existing limits
+	UnconditionalPeerIDs []string `mapstructure:"unconditional_peer_ids"`
+
+	// Comma separated list of peer IDs to keep private (will not be gossiped to
+	// other peers)
+	PrivatePeerIDs []string `mapstructure:"private_peer_ids"`
+
 	// UPNP port forwarding
 	UPNP bool `mapstructure:"upnp"`
-
-	// Path to address book
-	AddrBook string `mapstructure:"addr_book_file"`
-
-	// Set true for strict address routability rules
-	// Set false for private or local networks
-	AddrBookStrict bool `mapstructure:"addr_book_strict"`
 
 	// Maximum number of inbound peers
 	MaxNumInboundPeers int `mapstructure:"max_num_inbound_peers"`
 
 	// Maximum number of outbound peers to connect to, excluding persistent peers
 	MaxNumOutboundPeers int `mapstructure:"max_num_outbound_peers"`
-
-	// List of node IDs, to which a connection will be (re)established ignoring any existing limits
-	UnconditionalPeerIDs string `mapstructure:"unconditional_peer_ids"`
-
-	// Maximum pause when redialing a persistent peer (if zero, exponential backoff is used)
-	PersistentPeersMaxDialPeriod time.Duration `mapstructure:"persistent_peers_max_dial_period"`
 
 	// Time to wait before flushing messages out on the connection
 	FlushThrottleTimeout time.Duration `mapstructure:"flush_throttle_timeout"`
@@ -82,16 +90,6 @@ type P2PConfig struct { //nolint: maligned
 
 	// Set true to enable the peer-exchange reactor
 	PexReactor bool `mapstructure:"pex"`
-
-	// Seed mode, in which node constantly crawls the network and looks for
-	// peers. If another node asks it for addresses, it responds and disconnects.
-	//
-	// Does not work if the peer-exchange reactor is disabled.
-	SeedMode bool `mapstructure:"seed_mode"`
-
-	// Comma separated list of peer IDs to keep private (will not be gossiped to
-	// other peers)
-	PrivatePeerIDs string `mapstructure:"private_peer_ids"`
 
 	// Toggle to disable guard against peers connecting from the same ip.
 	AllowDuplicateIP bool `mapstructure:"allow_duplicate_ip"`
@@ -111,11 +109,11 @@ type P2PConfig struct { //nolint: maligned
 // DefaultP2PConfig returns a default configuration for the peer-to-peer layer
 func DefaultP2PConfig() *P2PConfig {
 	return &P2PConfig{
-		ListenAddress:                "tcp://0.0.0.0:26656",
+		RootDir:                      DefaultDataDir(),
+		AddrBookStrict:               true,
+		ListenAddress:                "tcp://0.0.0.0:3000",
 		ExternalAddress:              "",
 		UPNP:                         false,
-		AddrBook:                     filepath.Join(DefaultDataDir(), defaultAddrBookName),
-		AddrBookStrict:               true,
 		MaxNumInboundPeers:           40,
 		MaxNumOutboundPeers:          15,
 		PersistentPeersMaxDialPeriod: 0 * time.Second,
@@ -143,7 +141,7 @@ func DefaultP2PConfig() *P2PConfig {
 
 // AddrBookFile returns the full path to the address book
 func (cfg *P2PConfig) AddrBookFile() string {
-	return rootify(cfg.AddrBook, cfg.RootDir)
+	return filepath.Join(cfg.RootDir, defaultAddrBookName)
 }
 
 // Address return the main address
@@ -284,15 +282,4 @@ func (cfg *InstrumentationConfig) ValidateBasic() error {
 		return errors.New("max_open_connections can't be negative")
 	}
 	return nil
-}
-
-//-----------------------------------------------------------------------------
-// Utils
-
-// helper function to make config creation independent of root dir
-func rootify(path, root string) string {
-	if filepath.IsAbs(path) {
-		return path
-	}
-	return filepath.Join(root, path)
 }

@@ -1,0 +1,76 @@
+[Kai]
+NetworkId = 24
+NoPruning = false
+NoPrefetch = false
+AcceptTxs = true
+
+[Kai.FastSync]
+ServiceName = "BCR"
+Enable = true
+MaxPeers = 10
+TargetPending = 10
+PeerTimeout = 15000000000
+MinRecvRate = 0
+
+[Node]
+Name = "kaigo"
+Version = "2.1.0-stable-a4f29c9c"
+DataDir = "/home/steven/.kardia"
+IPCPath = "kaigo.ipc"
+HTTPHost = "localhost"
+HTTPPort = 8545
+HTTPCors = ["*"]
+HTTPVirtualHosts = ["0.0.0.0", "127.0.0.1", "localhost"]
+HTTPModules = [
+    "node",
+    "kai",
+    "tx",
+    "account",
+    "debug",
+    "net",
+    "eth",
+    "txpool",
+    "web3",
+]
+WSHost = "localhost"
+WSPort = 8546
+WSOrigins = ["*"]
+WSModules = [
+    "node",
+    "kai",
+    "tx",
+    "account",
+    "debug",
+    "net",
+    "eth",
+    "txpool",
+    "web3",
+]
+
+[Node.P2P]
+# PrivateKey = ""
+AddrBookStrict = false
+ListenAddress = "tcp://0.0.0.0:3000"
+ExternalAddress = ""
+SeedMode = false
+Seeds = [
+    "6f6d3aaf5613a255b9215b654b4ee6327b7d6bb9@34.87.172.182:3000",
+    "8854c90d9a5d5b9f65c9a5b83047421274c431e1@34.87.174.171:3000",
+    "eec19374e2f7df3bf6b734a319cfd38b1e215b34@34.126.73.34:3000",
+    "d7acfdf01f4e3d0d535a9c77b568f0bbf2224028@34.87.115.154:3000",
+    "6e167a36c1fde26ea8867e8bb419cd02c59a8647@35.240.235.48:3000",
+    "1e54a8d737ea4cbb2797b4d115f527285ebc1960@35.186.149.95:3000",
+    "61ff9218d3e587e4d40b94a67fea6a1c04497597@34.143.203.90:3000",
+    "09fe09a87bb88af8c93cd3b3e3affb04a4b156f4@34.126.181.26:3000",
+    "e8b02ebc2572a5976d33963acf753b917acb40ee@35.247.166.212:3000",
+    "45162a0dce131b11f278c5351287e8a3ca04f147@34.126.150.138:3000",
+    "c7a6d21e95be085b6943092cca88d0002d3f9366@35.198.215.9:3000",
+    "275df9c8270ed0b4535d2e20fd05cb4fb03e5b92@34.126.177.91:3000",
+]
+PersistentPeers = []
+UnconditionalPeerIDs = []
+PrivatePeerIDs = []
+
+[Metrics]
+HTTP = "127.0.0.1"
+Port = 6000
