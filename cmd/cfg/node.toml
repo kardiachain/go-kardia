@@ -17,7 +17,7 @@ Name = "kaigo"
 Version = "2.1.0-stable-a4f29c9c"
 DataDir = "/home/steven/.kardia"
 IPCPath = "kaigo.ipc"
-HTTPHost = "localhost"
+HTTPHost = "0.0.0.0"
 HTTPPort = 8545
 HTTPCors = ["*"]
 HTTPVirtualHosts = ["0.0.0.0", "127.0.0.1", "localhost"]
@@ -32,7 +32,7 @@ HTTPModules = [
     "txpool",
     "web3",
 ]
-WSHost = "localhost"
+WSHost = "0.0.0.0"
 WSPort = 8546
 WSOrigins = ["*"]
 WSModules = [
@@ -72,5 +72,5 @@ UnconditionalPeerIDs = []
 PrivatePeerIDs = []
 
 [Metrics]
-HTTP = "127.0.0.1"
+HTTP = "0.0.0.0"
 Port = 6000
