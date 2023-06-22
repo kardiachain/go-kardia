@@ -9,6 +9,7 @@ ServiceName = "BCR"
 Enable = true
 MaxPeers = 10
 TargetPending = 10
+SyncTimeout = 6000000000000 # 1mins
 PeerTimeout = 15000000000
 MinRecvRate = 0
 

@@ -202,7 +202,7 @@ func newScheduler(initHeight uint64, startTime time.Time, fastSync *configs.Fast
 	sc := scheduler{
 		initHeight:     initHeight,
 		lastAdvance:    startTime,
-		syncTimeout:    60 * time.Second,
+		syncTimeout:    fastSync.SyncTimeout,
 		height:         initHeight,
 		blockStates:    make(map[uint64]blockState),
 		peers:          make(map[p2p.ID]*scPeer),
