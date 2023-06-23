@@ -241,7 +241,7 @@ func (bc *BlockChain) Stop() {
 		return
 	}
 
-	log.Info("Stopping blockchain")
+	log.Info("Stopping blockchain", "height", bc.CurrentBlock().Height(), "hash", bc.CurrentBlock().Hash(), "app hash", bc.CurrentBlock().AppHash())
 
 	// Ensure that the entirety of the state snapshot is journalled to disk.
 	var snapBase common.Hash
