@@ -579,6 +579,9 @@ func SetKaiConfig(ctx *cli.Context, stack *node.Node, cfg *kai.Config) {
 	case ctx.IsSet(TestnetFlag.Name):
 		cfg.FastSync = configs.TestFastSyncConfig()
 		cfg.Consensus = configs.TestConsensusConfig()
+	default:
+		cfg.FastSync = configs.DefaultFastSyncConfig()
+		cfg.Consensus = configs.DefaultConsensusConfig()
 	}
 
 	// Gas oracle
