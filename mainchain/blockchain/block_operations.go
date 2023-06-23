@@ -292,7 +292,7 @@ func (bo *BlockOperations) commitBlock(txs types.Transactions, header *types.Hea
 	}
 
 	// GasPool
-	bo.logger.Info("header gas limit", "limit", header.GasLimit)
+	bo.logger.Debug("header gas limit", "limit", header.GasLimit)
 	gasPool := new(types.GasPool).AddGas(header.GasLimit)
 
 	kvmConfig := kvm.Config{}
