@@ -56,10 +56,6 @@ func (hc *HeaderChain) CurrentHeader() *types.Header {
 }
 
 // NewHeaderChain creates a new HeaderChain structure.
-//
-//	getValidator should return the parent's validator
-//	procInterrupt points to the parent's interrupt semaphore
-//	wg points to the parent's shutdown wait group
 func NewHeaderChain(db kaidb.Database, config *configs.ChainConfig) (*HeaderChain, error) {
 	headerCache, _ := lru.New(headerCacheLimit)
 	heightCache, _ := lru.New(heightCacheLimit)
