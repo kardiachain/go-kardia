@@ -439,7 +439,3 @@ func (bc *BlockChain) insert(block *types.Block) {
 func (bc *BlockChain) SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) {
 	rawdb.WriteBlock(bc.db, block, blockParts, seenCommit)
 }
-
-func (bc *BlockChain) ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) (*kvm.ExecutionResult, error) {
-	return ApplyMessage(vm, msg, gp)
-}

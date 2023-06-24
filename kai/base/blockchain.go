@@ -23,7 +23,6 @@ import (
 	"github.com/kardiachain/go-kardia/kai/events"
 	"github.com/kardiachain/go-kardia/kai/kaidb"
 	"github.com/kardiachain/go-kardia/kai/state"
-	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/types"
@@ -46,5 +45,4 @@ type BaseBlockChain interface {
 	StateAt(root uint64) (*state.StateDB, error)
 	DB() kaidb.Database
 	P2P() *configs.P2PConfig
-	ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) (*kvm.ExecutionResult, error)
 }

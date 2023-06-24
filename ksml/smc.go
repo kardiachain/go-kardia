@@ -341,7 +341,7 @@ func EstimateGas(from common.Address, to common.Address, currentHeader *types.He
 	defer kaiVm.Cancel()
 	// Apply the transaction to the current state (included in the env)
 	gp := new(types.GasPool).AddGas(common.MaxUint64)
-	result, err := bc.ApplyMessage(kaiVm, msg, gp)
+	result, err := blockchain.ApplyMessage(kaiVm, msg, gp)
 	if err != nil {
 		return 0, err
 	}
