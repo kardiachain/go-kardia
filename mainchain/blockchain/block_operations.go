@@ -177,7 +177,7 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCom
 // Proposer and validators should already commit the block txs, so this function prevents double tx execution.
 func (bo *BlockOperations) CommitBlockTxsIfNotFound(block *types.Block, lastCommit stypes.LastCommitInfo, byzVals []stypes.Evidence) ([]*types.Validator, common.Hash, error) {
 	root := rawdb.ReadAppHash(bo.blockchain.db, block.Height())
-	if !bo.blockchain.CheckCommittedStateRoot(root) {
+	if !bo.blockchain.HasState(root) {
 		bo.logger.Trace("Block has unseen state root, execute & commit block txs", "height", block.Height())
 		return bo.CommitAndValidateBlockTxs(block, lastCommit, byzVals)
 	}
