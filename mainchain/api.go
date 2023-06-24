@@ -476,7 +476,7 @@ func (s *PublicKaiAPI) GetValidatorSet(blockHeight rpc.BlockHeight) (*types.Vali
 
 // GetCommit get validators' commits for the block by height
 func (s *PublicKaiAPI) GetCommit(blockHeight rpc.BlockHeight) *types.Commit {
-	return s.kaiService.APIBackend.kai.blockchain.ReadCommit(blockHeight.Uint64())
+	return s.kaiService.APIBackend.kai.blockchain.LoadBlockCommit(blockHeight.Uint64())
 }
 
 // AccountResult is the result structs for GetProof

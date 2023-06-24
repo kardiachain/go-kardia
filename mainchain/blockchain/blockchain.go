@@ -110,43 +110,6 @@ type BlockChain struct {
 	vmConfig  kvm.Config      // vm configurations
 }
 
-func (bc *BlockChain) P2P() *configs.P2PConfig {
-	return bc.P2P()
-}
-
-// GetVMConfig returns the block chain VM config.
-func (bc *BlockChain) GetVMConfig() *kvm.Config {
-	return &bc.vmConfig
-}
-
-// Genesis retrieves the chain's genesis block.
-func (bc *BlockChain) Genesis() *types.Block {
-	return bc.genesisBlock
-}
-
-// CurrentHeader retrieves the current head header of the canonical chain. The
-// header is retrieved from the HeaderChain's internal cache.
-func (bc *BlockChain) CurrentHeader() *types.Header {
-	return bc.hc.CurrentHeader()
-}
-
-// CurrentBlock retrieves the current head block of the canonical chain. The
-// block is retrieved from the blockchain's internal cache.
-func (bc *BlockChain) CurrentBlock() *types.Block {
-	return bc.currentBlock.Load().(*types.Block)
-}
-
-func (bc *BlockChain) Processor() *StateProcessor {
-	return bc.processor
-}
-
-func (bc *BlockChain) DB() kaidb.Database {
-	return bc.db
-}
-
-// Config retrieves the blockchain's chain configuration.
-func (bc *BlockChain) Config() *configs.ChainConfig { return bc.chainConfig }
-
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database. It initialises the default Kardia Validator and Processor.
 func NewBlockChain(db kaidb.Database, cacheConfig *CacheConfig, gs *genesis.Genesis) (*BlockChain, error) {
@@ -292,75 +255,6 @@ func (bc *BlockChain) Stop() {
 	log.Info("Blockchain stopped")
 }
 
-// GetBlockByHeight retrieves a block from the database by number, caching it
-// (associated with its hash) if found.
-func (bc *BlockChain) GetBlockByHeight(height uint64) *types.Block {
-	hash := rawdb.ReadCanonicalHash(bc.db, height)
-	if hash == (common.Hash{}) {
-		return nil
-	}
-	return bc.GetBlock(hash, height)
-}
-
-// LoadBlockPart ...
-func (bc *BlockChain) LoadBlockPart(height uint64, index int) *types.Part {
-	return rawdb.ReadBlockPart(bc.db, height, index)
-}
-
-// LoadBlockMeta ...
-func (bc *BlockChain) LoadBlockMeta(height uint64) *types.BlockMeta {
-	return rawdb.ReadBlockMeta(bc.db, height)
-}
-
-// LoadBlockCommit ...
-func (bc *BlockChain) LoadBlockCommit(height uint64) *types.Commit {
-	return rawdb.ReadCommit(bc.db, height)
-}
-
-// LoadSeenCommit ...
-func (bc *BlockChain) LoadSeenCommit(height uint64) *types.Commit {
-	return rawdb.ReadSeenCommit(bc.db, height)
-}
-
-// GetBlock retrieves a block from the database by hash and number,
-// caching it if found.
-func (bc *BlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
-	// Short circuit if the block's already in the cache, retrieve otherwise
-	if block, ok := bc.blockCache.Get(hash); ok {
-		return block.(*types.Block)
-	}
-	block := rawdb.ReadBlock(bc.db, number)
-	if block == nil {
-		return nil
-	}
-	// Cache the found block for next time and return
-	bc.blockCache.Add(block.Hash(), block)
-	return block
-}
-
-// GetHeader retrieves a block header from the database by hash and height,
-// caching it if found.
-func (bc *BlockChain) GetHeader(hash common.Hash, height uint64) *types.Header {
-	return bc.hc.GetHeader(hash, height)
-}
-
-// State returns a new mutatable state at head block.
-func (bc *BlockChain) State() (*state.StateDB, error) {
-	return bc.StateAt(bc.CurrentBlock().Height())
-}
-
-// StateAt returns a new mutable state based on a particular point in time.
-func (bc *BlockChain) StateAt(height uint64) (*state.StateDB, error) {
-	root := rawdb.ReadAppHash(bc.db, height)
-	return state.New(root, bc.stateCache, bc.snaps)
-}
-
-// HasState checks if state trie is fully present in the database or not.
-func (bc *BlockChain) HasState(hash common.Hash) bool {
-	_, err := bc.stateCache.OpenTrie(hash)
-	return err == nil
-}
-
 // loadLastState loads the last known chain state from the database. This method
 // assumes that the chain manager mutex is held.
 func (bc *BlockChain) loadLastState() error {
@@ -449,27 +343,6 @@ func (bc *BlockChain) repair(head **types.Block) error {
 		}
 		*head = block
 	}
-}
-
-// GetBlockByHash retrieves a block from the database by hash, caching it if found.
-func (bc *BlockChain) GetBlockByHash(hash common.Hash) *types.Block {
-	height := bc.hc.GetBlockHeight(hash)
-	if height == nil {
-		return nil
-	}
-	return bc.GetBlock(hash, *height)
-}
-
-// GetHeaderByHash retrieves a block header from the database by hash, caching it if
-// found.
-func (bc *BlockChain) GetHeaderByHash(hash common.Hash) *types.Header {
-	return bc.hc.GetHeaderByHash(hash)
-}
-
-// GetHeaderByHash retrieves a block header from the database by height, caching it if
-// found.
-func (bc *BlockChain) GetHeaderByHeight(height uint64) *types.Header {
-	return bc.hc.GetHeaderByHeight(height)
 }
 
 // SetHead rewinds the local chain to a new head. In the case of headers, everything
@@ -563,25 +436,10 @@ func (bc *BlockChain) insert(block *types.Block) {
 	}
 }
 
-// Reads commit from db.
-func (bc *BlockChain) ReadCommit(height uint64) *types.Commit {
-	return rawdb.ReadCommit(bc.db, height)
-}
-
 func (bc *BlockChain) SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) {
 	rawdb.WriteBlock(bc.db, block, blockParts, seenCommit)
 }
 
 func (bc *BlockChain) ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) (*kvm.ExecutionResult, error) {
 	return ApplyMessage(vm, msg, gp)
-}
-
-// SubscribeLogsEvent registers a subscription of []*types.Log.
-func (bc *BlockChain) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
-	return bc.scope.Track(bc.logsFeed.Subscribe(ch))
-}
-
-// SubscribeChainEvent registers a subscription of ChainHeadEvent.
-func (bc *BlockChain) SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription {
-	return bc.scope.Track(bc.chainHeadFeed.Subscribe(ch))
 }

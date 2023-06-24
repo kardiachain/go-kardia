@@ -39,7 +39,7 @@ type BaseBlockChain interface {
 	State() (*state.StateDB, error)
 	CommitTrie(root common.Hash) error
 	WriteBlockInfo(block *types.Block, blockInfo *types.BlockInfo)
-	ReadCommit(height uint64) *types.Commit
+	LoadBlockCommit(height uint64) *types.Commit
 	Config() *configs.ChainConfig
 	GetHeader(common.Hash, uint64) *types.Header
 	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
