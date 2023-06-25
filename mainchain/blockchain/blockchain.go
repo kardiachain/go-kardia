@@ -330,7 +330,7 @@ func (bc *BlockChain) repair(head **types.Block) error {
 	for {
 		root := rawdb.ReadAppHash(bc.db, (*head).Height())
 		// Abort if we've rewound to a head block that does have associated state
-		if _, err := state.New(root, bc.stateCache, nil); err == nil {
+		if bc.HasState(root) {
 			log.Info("Rewound blockchain to past state", "height", (*head).Height(), "hash", (*head).Hash())
 			return nil
 		}
@@ -373,7 +373,7 @@ func (bc *BlockChain) SetHead(head uint64) error {
 	}
 	if currentBlock := bc.CurrentBlock(); currentBlock != nil {
 		root := rawdb.ReadAppHash(bc.db, currentBlock.Height())
-		if _, err := state.New(root, bc.stateCache, nil); err != nil {
+		if !bc.HasState(root) {
 			// Rewound state missing, rolled back to before pivot, reset to genesis
 			bc.currentBlock.Store(bc.genesisBlock)
 		}

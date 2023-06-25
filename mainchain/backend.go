@@ -222,9 +222,9 @@ func (k *Kardiachain) Start() error {
 func (k *Kardiachain) Stop() error {
 	log.Info("Stopping Kardiachain backend")
 	close(k.shutdownChan)
+	k.bcR.Stop()
 	k.sw.Stop()
 	k.csManager.Stop()
-	k.bcR.Stop()
 	k.blockExec.Stop()
 	k.blockchain.Stop()
 	return nil

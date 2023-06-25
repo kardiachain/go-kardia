@@ -19,7 +19,6 @@
 package cstate
 
 import (
-	"errors"
 	"fmt"
 	"math/big"
 	"sync"
@@ -110,7 +109,8 @@ func (blockExec *BlockExecutor) ValidateBlock(state LatestBlockState, block *typ
 // It takes a blockID to avoid recomputing the parts hash.
 func (blockExec *BlockExecutor) ApplyBlock(state LatestBlockState, blockID types.BlockID, block *types.Block) (LatestBlockState, uint64, error) {
 	if blockExec.isProcInterrupted() {
-		return state, block.Height(), errors.New("cannot apply block on interrupted block executor (due to shutdown)")
+		log.Warn("Skipped applying block on interrupted block executor", "block", block.Hash(), "height", block.Height())
+		return state, state.LastBlockHeight, nil
 	}
 
 	blockExec.wg.Add(1)
