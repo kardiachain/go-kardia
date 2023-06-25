@@ -1,20 +1,18 @@
-/*
- *  Copyright 2018 KardiaChain
- *  This file is part of the go-kardia library.
- *
- *  The go-kardia library is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU Lesser General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
- *
- *  The go-kardia library is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- *  GNU Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public License
- *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
- */
+// Copyright 2019 The go-ethereum Authors
+// This file is part of the go-ethereum library.
+//
+// The go-ethereum library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// The go-ethereum library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 package prque
 
@@ -42,7 +40,7 @@ type lazyItem struct {
 	index   int
 }
 
-func testPriority(a interface{}, now mclock.AbsTime) int64 {
+func testPriority(a interface{}) int64 {
 	return a.(*lazyItem).p
 }
 
@@ -58,7 +56,6 @@ func testSetIndex(a interface{}, i int) {
 }
 
 func TestLazyQueue(t *testing.T) {
-	rand.Seed(time.Now().UnixNano())
 	clock := &mclock.Simulated{}
 	q := NewLazyQueue(testSetIndex, testPriority, testMaxPriority, clock, testQueueRefresh)
 
@@ -76,17 +73,22 @@ func TestLazyQueue(t *testing.T) {
 		q.Push(&items[i])
 	}
 
-	var lock sync.Mutex
-	stopCh := make(chan chan struct{})
+	var (
+		lock   sync.Mutex
+		wg     sync.WaitGroup
+		stopCh = make(chan chan struct{})
+	)
+	defer wg.Wait()
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		for {
 			select {
 			case <-clock.After(testQueueRefresh):
 				lock.Lock()
 				q.Refresh()
 				lock.Unlock()
-			case stop := <-stopCh:
-				close(stop)
+			case <-stopCh:
 				return
 			}
 		}
@@ -106,6 +108,8 @@ func TestLazyQueue(t *testing.T) {
 		if rand.Intn(100) == 0 {
 			p := q.PopItem().(*lazyItem)
 			if p.p != maxPri {
+				lock.Unlock()
+				close(stopCh)
 				t.Fatalf("incorrect item (best known priority %d, popped %d)", maxPri, p.p)
 			}
 			q.Push(p)
@@ -115,7 +119,5 @@ func TestLazyQueue(t *testing.T) {
 		clock.WaitForTimers(1)
 	}
 
-	stop := make(chan struct{})
-	stopCh <- stop
-	<-stop
+	close(stopCh)
 }
