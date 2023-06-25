@@ -19,6 +19,8 @@
 package genesis
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -129,9 +131,7 @@ func SetupGenesisBlock(db kaidb.Database, genesis *Genesis) (*configs.ChainConfi
 
 	// Check whether the genesis block is already written.
 	if genesis != nil {
-		log.Info("Create new genesis block")
-		block, _ := genesis.ToBlock(db)
-		hash := block.Hash()
+		hash := genesis.ToBlock(nil).Hash()
 		if hash != stored {
 			return genesis.Config, hash, &GenesisMismatchError{stored, hash}
 		}
@@ -145,6 +145,8 @@ func SetupGenesisBlock(db kaidb.Database, genesis *Genesis) (*configs.ChainConfi
 		rawdb.WriteChainConfig(db, stored, newcfg)
 		return newcfg, stored, nil
 	}
+	storedData, _ := json.Marshal(storedcfg)
+
 	// Special case: don't change the existing config of a non-mainnet chain if no new
 	// config is supplied. These chains would get AllProtocolChanges (and a compat error)
 	// if we just continued here.
@@ -152,7 +154,10 @@ func SetupGenesisBlock(db kaidb.Database, genesis *Genesis) (*configs.ChainConfi
 		return storedcfg, stored, nil
 	}
 
-	rawdb.WriteChainConfig(db, stored, newcfg)
+	// Don't overwrite if the old is identical to the new
+	if newData, _ := json.Marshal(newcfg); !bytes.Equal(storedData, newData) {
+		rawdb.WriteChainConfig(db, stored, newcfg)
+	}
 	return newcfg, stored, nil
 }
 
@@ -170,8 +175,8 @@ func (g *Genesis) configOrDefault(ghash common.Hash) *configs.ChainConfig {
 }
 
 // ToBlock creates the genesis block and writes state of a genesis specification
-// to the given database (or discards it if nil).
-func (g *Genesis) ToBlock(db kaidb.Database) (*types.Block, common.Hash) {
+// to the given database (or ephemeral database it if nil).
+func (g *Genesis) ToBlock(db kaidb.Database) *types.Block {
 	if db == nil {
 		db = memorydb.New()
 	}
@@ -212,20 +217,19 @@ func (g *Genesis) ToBlock(db kaidb.Database) (*types.Block, common.Hash) {
 		panic(err)
 	}
 
-	root := statedb.IntermediateRoot(false)
-	_, _ = statedb.Commit(false)
+	root, _ := statedb.Commit(false)
 	_ = statedb.Database().TrieDB().Commit(root, true)
 
 	head.AppHash = root
 	block := types.NewBlock(head, nil, &types.Commit{}, nil, trie.NewStackTrie(nil))
 
-	return block, block.AppHash()
+	return block
 }
 
 // Commit writes the block and state of a genesis specification to the database.
 // The block is committed as the canonical head block.
 func (g *Genesis) Commit(db kaidb.Database) (*types.Block, error) {
-	block, root := g.ToBlock(db)
+	block := g.ToBlock(db)
 	if block.Height() > 0 {
 		return nil, fmt.Errorf("can't commit genesis block with height > 0")
 	}
@@ -236,7 +240,7 @@ func (g *Genesis) Commit(db kaidb.Database) (*types.Block, error) {
 	rawdb.WriteBlockInfo(db, block.Hash(), block.Height(), nil)
 	rawdb.WriteCanonicalHash(db, block.Hash(), block.Height())
 	rawdb.WriteHeadBlockHash(db, block.Hash())
-	rawdb.WriteAppHash(db, block.Height(), root)
+	rawdb.WriteAppHash(db, block.Height(), block.AppHash())
 	rawdb.WriteChainConfig(db, block.Hash(), config)
 
 	return block, nil
