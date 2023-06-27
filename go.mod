@@ -71,7 +71,6 @@ require (
 	github.com/gballet/go-libpcsclite v0.0.0-20190607065134-2772fd86a8ff // indirect
 	github.com/go-ole/go-ole v1.2.1 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
-	github.com/google/go-cmp v0.5.2 // indirect
 	github.com/hashicorp/go-bexpr v0.1.12
 	github.com/holiman/bloomfilter/v2 v2.0.3
 	github.com/huin/goupnp v1.0.0 // indirect
@@ -100,6 +99,7 @@ require (
 	github.com/tyler-smith/go-bip39 v1.0.2 // indirect
 	github.com/urfave/cli/v2 v2.25.6
 	github.com/wsddn/go-ecdh v0.0.0-20161211032359-48726bab9208 // indirect
+	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1
 	golang.org/x/mod v0.7.0 // indirect
 	golang.org/x/text v0.5.0 // indirect
 	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba // indirect

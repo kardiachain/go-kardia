@@ -28,11 +28,13 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
 
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
 
 	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/types"
 
 	"github.com/kardiachain/go-kardia/kai/kaidb"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	kmath "github.com/kardiachain/go-kardia/lib/math"
 	kstate "github.com/kardiachain/go-kardia/proto/kardiachain/state"
 	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
@@ -50,6 +52,7 @@ type Store interface {
 	Save(LatestBlockState)
 	LoadValidators(height uint64) (*types.ValidatorSet, error)
 	LoadConsensusParams(height uint64) (kproto.ConsensusParams, error)
+	LoadStateAtHeight(height uint64) LatestBlockState
 }
 
 //------------------------------------------------------------------------
@@ -111,7 +114,15 @@ func saveState(db kaidb.KeyValueStore, state LatestBlockState, key []byte) {
 
 // LoadState loads the State from the database.
 func (s *dbStore) Load() LatestBlockState {
-	return loadState(s.db, stateKey)
+	latestState := loadState(s.db, stateKey)
+
+	head := rawdb.ReadHeadBlock(s.db)
+	if head != nil && head.Height() < latestState.LastBlockHeight {
+		log.Warn("Rewound cstate.LatestBlockState", "from", latestState.LastBlockHeight, "to", head.Height)
+		return s.LoadStateAtHeight(head.Height())
+	}
+
+	return latestState
 }
 
 func loadState(db kaidb.Database, key []byte) (state LatestBlockState) {
@@ -137,6 +148,38 @@ func loadState(db kaidb.Database, key []byte) (state LatestBlockState) {
 		sm.InitialHeight = 1
 	}
 	return *sm
+}
+
+func (s *dbStore) LoadStateAtHeight(height uint64) LatestBlockState {
+	latestState := loadState(s.db, stateKey)
+	if height <= 2 || height >= latestState.LastBlockHeight {
+		panic(fmt.Sprintf(`Latest state is at height=%v requested height=%v`, latestState.LastBlockHeight, height))
+	}
+
+	state := latestState.Copy()
+
+	block := rawdb.ReadBlock(s.db, height)
+	blockMeta := rawdb.ReadBlockMeta(s.db, height)
+	state.LastBlockHeight = height
+	state.LastBlockTotalTx = block.NumTxs()
+	state.LastBlockID = blockMeta.BlockID
+	state.LastBlockTime = block.Time()
+
+	lastvals, _ := s.LoadValidators(height - 1)
+	vals, _ := s.LoadValidators(height)
+	nextvals, _ := s.LoadValidators(height + 1)
+
+	state.LastValidators = lastvals
+	state.Validators = vals
+	state.NextValidators = nextvals
+
+	valInfo := loadValidatorsInfo(s.db, height)
+	state.LastHeightValidatorsChanged = valInfo.LastHeightChanged
+
+	appHash := rawdb.ReadAppHash(s.db, height)
+	state.AppHash = appHash
+
+	return state
 }
 
 //-----------------------------------------------------------------------------

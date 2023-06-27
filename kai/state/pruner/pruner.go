@@ -83,6 +83,8 @@ type Pruner struct {
 // NewPruner creates the pruner instance.
 func NewPruner(db kaidb.Database, config Config) (*Pruner, error) {
 	headBlock := rawdb.ReadHeadBlock(db)
+	// Dont read block.AppHash(), it is wrong. Read the app hash at height instead!
+	appHash := rawdb.ReadAppHash(db, headBlock.Height())
 	if headBlock == nil {
 		return nil, errors.New("failed to load head block")
 	}
@@ -92,7 +94,7 @@ func NewPruner(db kaidb.Database, config Config) (*Pruner, error) {
 		NoBuild:    true,
 		AsyncBuild: false,
 	}
-	snaptree, err := snapshot.New(snapconfig, db, trie.NewDatabase(db), headBlock.AppHash())
+	snaptree, err := snapshot.New(snapconfig, db, trie.NewDatabase(db), appHash)
 	if err != nil {
 		return nil, err // The relevant snapshot(s) might not exist
 	}

@@ -35,6 +35,9 @@ var (
 	// headBlockKey tracks the latest known full block's hash.
 	headBlockKey = []byte("LastBlock")
 
+	// lastPivotKey tracks the last pivot block used by fast sync (to reenable on sethead).
+	lastPivotKey = []byte("LastPivot")
+
 	// snapshotDisabledKey flags that the snapshot should not be maintained due to initial sync.
 	snapshotDisabledKey = []byte("SnapshotDisabled")
 
@@ -81,8 +84,8 @@ var (
 	trieNodeAccountPrefix = []byte("A") // trieNodeAccountPrefix + hexPath -> trie node
 	trieNodeStoragePrefix = []byte("O") // trieNodeStoragePrefix + accountHash + hexPath -> trie node
 
-	PreimagePrefix = []byte("secure-key-")    // PreimagePrefix + hash -> preimage
-	configPrefix   = []byte("kardia-config-") // config prefix for the db
+	PreimagePrefix = []byte("secure-key-")     // PreimagePrefix + hash -> preimage
+	configPrefix   = []byte("kardia-config-")  // config prefix for the db
 	genesisPrefix  = []byte("kardia-genesis-") // genesis state prefix for the db
 
 	// BloomBitsIndexPrefix is the data table of a chain indexer to track its progress

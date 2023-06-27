@@ -36,7 +36,6 @@ type BaseBlockChain interface {
 	GetBlockByHeight(height uint64) *types.Block
 	GetBlockByHash(hash common.Hash) *types.Block
 	State() (*state.StateDB, error)
-	CommitTrie(root common.Hash) error
 	WriteBlockInfo(block *types.Block, blockInfo *types.BlockInfo)
 	LoadBlockCommit(height uint64) *types.Commit
 	Config() *configs.ChainConfig

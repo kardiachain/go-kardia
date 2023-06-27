@@ -149,7 +149,7 @@ func New(stack *node.Node, config *Config) (*Kardiachain, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Info("Updated blacklisted addresses", "addresses", tx_pool.StringifyBlacklist())
+	// log.Info("Updated blacklisted addresses", "addresses", tx_pool.StringifyBlacklist())
 	kai.txPool = tx_pool.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
 	kai.txpoolR = tx_pool.NewReactor(config.TxPool, kai.txPool)
 	kai.txpoolR.SetLogger(logger)

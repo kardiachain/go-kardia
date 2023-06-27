@@ -702,7 +702,7 @@ func writeBlockPart(db kaidb.Writer, height uint64, index int, part *types.Part)
 }
 
 // DeleteBlockMeta delete block meta
-func DeleteBlockMeta(db kaidb.Writer, height uint64) {
+func DeleteBlockMeta(db kaidb.KeyValueWriter, height uint64) {
 	_ = db.Delete(blockMetaKey(height))
 }
 
@@ -715,7 +715,6 @@ func DeleteBlockPart(db kaidb.Database, height uint64) error {
 	}
 	return nil
 }
-
 
 // ReadAppHash ...
 func ReadAppHash(db kaidb.KeyValueReader, height uint64) common.Hash {
