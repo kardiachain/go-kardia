@@ -118,7 +118,7 @@ func (s *dbStore) Load() LatestBlockState {
 
 	head := rawdb.ReadHeadBlock(s.db)
 	if head != nil && head.Height() < latestState.LastBlockHeight {
-		log.Warn("Rewound cstate.LatestBlockState", "from", latestState.LastBlockHeight, "to", head.Height)
+		log.Warn("Rewound cstate.LatestBlockState", "from", latestState.LastBlockHeight, "to", head.Height())
 		return s.LoadStateAtHeight(head.Height())
 	}
 

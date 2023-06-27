@@ -191,7 +191,7 @@ func NewBlockChain(db kaidb.Database, cacheConfig *CacheConfig, gs *genesis.Gene
 				rawdb.WriteSnapshotRecoveryNumber(bc.db, snapDisk)
 			}
 		} else {
-			log.Warn("Head state missing, repairing", "number", head.Height, "hash", head.Hash())
+			log.Warn("Head state missing, repairing", "number", head.Height(), "hash", head.Hash())
 			if _, err := bc.setHeadBeyondRoot(head.Height(), common.Hash{}, true); err != nil {
 				return nil, err
 			}

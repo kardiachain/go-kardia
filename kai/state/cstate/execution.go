@@ -109,7 +109,7 @@ func (blockExec *BlockExecutor) ValidateBlock(state LatestBlockState, block *typ
 // It takes a blockID to avoid recomputing the parts hash.
 func (blockExec *BlockExecutor) ApplyBlock(state LatestBlockState, blockID types.BlockID, block *types.Block) (LatestBlockState, uint64, error) {
 	if blockExec.isProcInterrupted() {
-		log.Warn("Skipped applying block on interrupted block executor", "block", block.Hash(), "height", block.Height())
+		log.Warn("Aborted applying block on interrupted block executor", "height", block.Height(), "hash", block.Hash())
 		return state, state.LastBlockHeight, nil
 	}
 
