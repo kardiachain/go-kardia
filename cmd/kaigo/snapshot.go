@@ -198,6 +198,7 @@ func verifyState(ctx *cli.Context) error {
 	defer chaindb.Close()
 
 	headBlock := rawdb.ReadHeadBlock(chaindb)
+	root := rawdb.ReadAppHash(chaindb, headBlock.Height())
 	if headBlock == nil {
 		log.Error("Failed to load head block")
 		return errors.New("no head block")
@@ -208,7 +209,7 @@ func verifyState(ctx *cli.Context) error {
 		NoBuild:    true,
 		AsyncBuild: false,
 	}
-	snaptree, err := snapshot.New(snapconfig, chaindb, trie.NewDatabase(chaindb), headBlock.AppHash())
+	snaptree, err := snapshot.New(snapconfig, chaindb, trie.NewDatabase(chaindb), root)
 	if err != nil {
 		log.Error("Failed to open snapshot tree", "err", err)
 		return err
@@ -217,7 +218,6 @@ func verifyState(ctx *cli.Context) error {
 		log.Error("Too many arguments given")
 		return errors.New("too many arguments")
 	}
-	var root = headBlock.AppHash()
 	if ctx.NArg() == 1 {
 		root, err = parseRoot(ctx.Args().First())
 		if err != nil {
