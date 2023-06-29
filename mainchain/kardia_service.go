@@ -20,6 +20,7 @@
 package kai
 
 import (
+	"fmt"
 	bcReactor "github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
@@ -116,9 +117,18 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	if genesisErr != nil {
 		return nil, genesisErr
 	}
+
+	fmt.Printf("Before push data genesis chainConfig: %+v \n", chainConfig)
 	if chainConfig.ChainID == nil {
 		chainConfig.ChainID = config.ChainId
 	}
+
+	if chainConfig.GalaxiasBlock == nil {
+		hardfolk := uint64(0)
+		chainConfig.GalaxiasBlock = &hardfolk
+	}
+
+	fmt.Printf("After push data genesis chainConfig: %+v \n", chainConfig)
 
 	logger.Info("Initialised Kardia chain configuration", "config", chainConfig)
 
@@ -164,6 +174,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		return nil, err
 	}
 	kai.logger.Info("Updated blacklisted addresses", "addresses", tx_pool.StringifyBlacklist())
+	fmt.Printf("KaiChainConfig %+v \n", kai.chainConfig)
 	kai.txPool = tx_pool.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
 	kai.txpoolR = tx_pool.NewReactor(config.TxPool, kai.txPool)
 	kai.txpoolR.SetLogger(kai.logger)

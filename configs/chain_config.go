@@ -56,8 +56,10 @@ func (c *ChainConfig) String() string {
 	default:
 		engine = "unknown"
 	}
-	return fmt.Sprintf("{Engine: %v}",
+	return fmt.Sprintf("{Engine: %v, ChainID: %s, GalaxiesBlock: %d}",
 		engine,
+		c.ChainID.String(),
+		c.GalaxiasBlock,
 	)
 }
 
