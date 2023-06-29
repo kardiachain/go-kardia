@@ -185,6 +185,7 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 		}
 	} else {
 		mainChainConfig.ChainId = new(big.Int).SetUint64(chain.ChainID)
+		mainChainConfig.NetworkId = chain.NetworkID
 	}
 	return &mainChainConfig, nil
 }

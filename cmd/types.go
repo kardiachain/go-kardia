@@ -72,6 +72,7 @@ type (
 		Protocol           *string    `yaml:"Protocol,omitempty"`
 		AcceptTxs          uint32     `yaml:"AcceptTxs"`
 		ChainID            uint64     `yaml:"ChainId"`
+		NetworkID          uint64     `yaml:"NetworkId"`
 		Genesis            *Genesis   `yaml:"Genesis,omitempty"`
 		Database           *Database  `yaml:"Database,omitempty"`
 		Seeds              []string   `yaml:"Seeds"`
