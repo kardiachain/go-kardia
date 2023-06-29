@@ -57,8 +57,10 @@ func MakeSigner(config *configs.ChainConfig, blockNumber *uint64) Signer {
 	var signer Signer
 	switch {
 	case config.IsGalaxias(blockNumber):
+		fmt.Println("MakeSigner with NewChainIDSigner", config.ChainID.String())
 		signer = NewChainIDSigner(config.ChainID)
 	default:
+		fmt.Println("MakeSigner with default HomesteadSigner")
 		signer = HomesteadSigner{}
 	}
 	return signer
