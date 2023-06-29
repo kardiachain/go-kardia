@@ -71,6 +71,7 @@ type (
 		ServiceName        string     `yaml:"ServiceName"`
 		Protocol           *string    `yaml:"Protocol,omitempty"`
 		AcceptTxs          uint32     `yaml:"AcceptTxs"`
+		ChainID            uint64     `yaml:"ChainId"`
 		Genesis            *Genesis   `yaml:"Genesis,omitempty"`
 		Database           *Database  `yaml:"Database,omitempty"`
 		Seeds              []string   `yaml:"Seeds"`

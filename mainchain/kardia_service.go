@@ -116,6 +116,10 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	if genesisErr != nil {
 		return nil, genesisErr
 	}
+	if chainConfig.ChainID == nil {
+		chainConfig.ChainID = config.ChainId
+	}
+
 	logger.Info("Initialised Kardia chain configuration", "config", chainConfig)
 
 	// EventBus and IndexerService must be started before the handshake because
@@ -141,6 +145,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		bloomIndexer: NewBloomIndexer(kaiDb.DB(), configs.BloomBitsBlocksClient, configs.HelperTrieConfirmations),
 	}
 
+	logger.Info("Initialised Kardia chain configuration", "config", chainConfig)
 	// Create a new blockchain to attach to this Kardia object
 	kai.blockchain, err = blockchain.NewBlockChain(logger, kaiDb, kai.chainConfig)
 	if err != nil {
@@ -206,6 +211,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 // TODO: move this outside of kai package to customize kai.Config
 func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 	chainConfig := ctx.Config.MainChainConfig
+
 	kai, err := newKardiaService(ctx, &Config{
 		NetworkId:   chainConfig.NetworkId,
 		ServiceName: chainConfig.ServiceName,

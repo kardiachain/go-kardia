@@ -174,12 +174,17 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 		FastSync:    c.getFastSyncConfig(),
 		GasOracle:   c.getGasOracleConfig(),
 	}
-	if args.network == Mainnet {
-		mainChainConfig.ChainId = configs.MainnetChainID
-		mainChainConfig.NetworkId = configs.MainnetNetworkID
+
+	if chain.ChainID == 0 {
+		if args.network == Mainnet {
+			mainChainConfig.ChainId = configs.MainnetChainID
+			mainChainConfig.NetworkId = configs.MainnetNetworkID
+		} else {
+			mainChainConfig.ChainId = configs.TestnetChainID
+			mainChainConfig.NetworkId = configs.TestnetNetworkID
+		}
 	} else {
-		mainChainConfig.ChainId = configs.TestnetChainID
-		mainChainConfig.NetworkId = configs.TestnetNetworkID
+		mainChainConfig.ChainId = new(big.Int).SetUint64(chain.ChainID)
 	}
 	return &mainChainConfig, nil
 }
