@@ -474,7 +474,6 @@ func (bc *BlockChain) setHeadBeyondRoot(head uint64, root common.Hash, repair bo
 	bc.futureBlocks.Purge()
 
 	err := bc.loadLastState()
-	
 
 	return rootNumber, err
 }
@@ -567,7 +566,8 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, blockInfo *types.B
 			log.Info("State in memory for too long, committing", "time", bc.gcproc, "allowance", flushInterval, "optimum", float64(chosen-bc.lastWrite)/TriesInMemory)
 		}
 		// Flush an entire trie and restart the counters
-		bc.triedb.Commit(header.AppHash, true)
+		headerAppHash := rawdb.ReadAppHash(bc.db, header.Height)
+		bc.triedb.Commit(headerAppHash, true)
 		bc.lastWrite = chosen
 		bc.gcproc = 0
 	}

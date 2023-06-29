@@ -107,9 +107,15 @@ func NewPruner(db kaidb.Database, config Config) (*Pruner, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// TODO(lnp): block.AppHash() is not the state root of that block but rather it's from the previous block
+	// we temporarily override it to the correct the app hash which is state root of that block.
+	chainHeader := headBlock.Header()
+	chainHeader.AppHash = appHash
+
 	return &Pruner{
 		config:      config,
-		chainHeader: headBlock.Header(),
+		chainHeader: chainHeader,
 		db:          db,
 		stateBloom:  stateBloom,
 		snaptree:    snaptree,
@@ -353,6 +359,7 @@ func RecoverPruning(datadir string, db kaidb.Database, trieCachePath string) err
 		return nil // nothing to recover
 	}
 	headBlock := rawdb.ReadHeadBlock(db)
+	appHash := rawdb.ReadAppHash(db, headBlock.Height())
 	if headBlock == nil {
 		return errors.New("failed to load head block")
 	}
@@ -370,7 +377,7 @@ func RecoverPruning(datadir string, db kaidb.Database, trieCachePath string) err
 		NoBuild:    true,
 		AsyncBuild: false,
 	}
-	snaptree, err := snapshot.New(snapconfig, db, trie.NewDatabase(db), headBlock.AppHash())
+	snaptree, err := snapshot.New(snapconfig, db, trie.NewDatabase(db), appHash)
 	if err != nil {
 		return err // The relevant snapshot(s) might not exist
 	}
@@ -390,7 +397,7 @@ func RecoverPruning(datadir string, db kaidb.Database, trieCachePath string) err
 	// otherwise the dangling state will be left.
 	var (
 		found       bool
-		layers      = snaptree.Snapshots(headBlock.AppHash(), 128, true)
+		layers      = snaptree.Snapshots(appHash, 128, true)
 		middleRoots = make(map[common.Hash]struct{})
 	)
 	for _, layer := range layers {
@@ -415,10 +422,11 @@ func extractGenesis(db kaidb.Database, stateBloom *stateBloom) error {
 		return errors.New("missing genesis hash")
 	}
 	genesis := rawdb.ReadBlock(db, 0)
+	appHash := rawdb.ReadAppHash(db, 0)
 	if genesis == nil {
 		return errors.New("missing genesis block")
 	}
-	t, err := trie.NewStateTrie(trie.StateTrieID(genesis.AppHash()), trie.NewDatabase(db))
+	t, err := trie.NewStateTrie(trie.StateTrieID(appHash), trie.NewDatabase(db))
 	if err != nil {
 		return err
 	}
@@ -438,7 +446,7 @@ func extractGenesis(db kaidb.Database, stateBloom *stateBloom) error {
 				return err
 			}
 			if acc.Root != types.EmptyRootHash {
-				id := trie.StorageTrieID(genesis.AppHash(), common.BytesToHash(accIter.LeafKey()), acc.Root)
+				id := trie.StorageTrieID(appHash, common.BytesToHash(accIter.LeafKey()), acc.Root)
 				storageTrie, err := trie.NewStateTrie(id, trie.NewDatabase(db))
 				if err != nil {
 					return err

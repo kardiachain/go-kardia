@@ -269,7 +269,7 @@ func traverseState(ctx *cli.Context) error {
 		}
 		log.Info("Start traversing the state", "root", root)
 	} else {
-		root = headBlock.AppHash()
+		root = rawdb.ReadAppHash(chaindb, headBlock.Height())
 		log.Info("Start traversing the state", "root", root, "number", headBlock.Height())
 	}
 	triedb := trie.NewDatabase(chaindb)
@@ -358,7 +358,7 @@ func traverseRawState(ctx *cli.Context) error {
 		}
 		log.Info("Start traversing the state", "root", root)
 	} else {
-		root = headBlock.AppHash()
+		root = rawdb.ReadAppHash(chaindb, headBlock.Height())
 		log.Info("Start traversing the state", "root", root, "number", headBlock.Height())
 	}
 	triedb := trie.NewDatabase(chaindb)
