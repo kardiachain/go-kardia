@@ -156,13 +156,13 @@ var (
 // Flags holds all command-line flags required for debugging.
 var Flags = []cli.Flag{
 	verbosityFlag,
+	logFileFlag,
 	// logVmoduleFlag,
 	// vmoduleFlag,
 	// backtraceAtFlag,
 	// debugFlag,
 	// logjsonFlag,
 	// logFormatFlag,
-	// logFileFlag,
 	// logRotateFlag,
 	// logMaxSizeMBsFlag,
 	// logMaxBackupsFlag,
