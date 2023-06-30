@@ -234,7 +234,7 @@ func (bc *BlockChain) Stop() {
 	}
 
 	appHash := rawdb.ReadAppHash(bc.db, bc.CurrentBlock().Height())
-	log.Info("Stopping blockchain", "height", bc.CurrentBlock().Height(), "hash", bc.CurrentBlock().Hash(), "app hash", appHash)
+	log.Info("Stopping blockchain", "height", bc.CurrentBlock().Height(), "hash", bc.CurrentBlock().Hash(), "app hash", bc.CurrentBlock().AppHash(), "root", appHash)
 
 	// Ensure that the entirety of the state snapshot is journalled to disk.
 	var snapBase common.Hash

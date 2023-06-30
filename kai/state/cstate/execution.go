@@ -153,7 +153,7 @@ func (blockExec *BlockExecutor) ApplyBlock(state LatestBlockState, blockID types
 	// NOTE: if we crash between Commit and Save, events wont be fired during replay
 	fireEvents(blockExec.logger, blockExec.eventBus, block, valUpdates)
 
-	log.Info("Applied block", "height", block.Height(), "hash", block.Hash(), "app hash", block.AppHash())
+	log.Info("Applied block", "height", block.Height(), "hash", block.Hash(), "app hash", block.AppHash(), "root", state.AppHash)
 	return state, block.Height(), nil
 }
 
