@@ -28,6 +28,7 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/accounts"
 	"github.com/kardiachain/go-kardia/kai/accounts/keystore"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/metrics"
 	kai "github.com/kardiachain/go-kardia/mainchain"
@@ -124,6 +125,12 @@ func loadBaseConfig(ctx *cli.Context) kaigoConfig {
 		if err := loadConfig(file, &cfg); err != nil {
 			utils.Fatalf("%v", err)
 		}
+	}
+
+	if cfg.Node.P2P.PrivateKeyRaw != "" {
+		cfg.Node.P2P.PrivateKey, _ = crypto.HexToECDSA(cfg.Node.P2P.PrivateKeyRaw)
+	} else {
+		cfg.Node.P2P.PrivateKey, _ = crypto.GenerateKey()
 	}
 
 	// Copy duplicate configs

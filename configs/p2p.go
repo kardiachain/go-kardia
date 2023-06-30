@@ -30,7 +30,8 @@ var (
 // P2PConfig defines the configuration options for the peer-to-peer networking layer
 type P2PConfig struct { //nolint: maligned
 	// This field must be set to a valid secp256k1 private key.
-	PrivateKey *ecdsa.PrivateKey `toml:",omitempty"`
+	PrivateKey    *ecdsa.PrivateKey `toml:"-"`
+	PrivateKeyRaw string            `toml:",omitempty"`
 
 	RootDir string `toml:"-" mapstructure:"home"`
 

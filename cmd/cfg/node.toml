@@ -49,7 +49,7 @@ WSModules = [
 ]
 
 [Node.P2P]
-# PrivateKey = ""
+PrivateKeyRaw = ""
 AddrBookStrict = false
 ListenAddress = "tcp://0.0.0.0:3000"
 ExternalAddress = ""
