@@ -104,7 +104,14 @@ func saveState(db kaidb.KeyValueStore, state LatestBlockState, key []byte) {
 		// This extra logic due to validator set changes being delayed 1 block.
 		// It may get overwritten due to InitChain validator updates.
 		saveValidatorsInfo(db, nextHeight, nextHeight, state.Validators)
+		saveConsensusParamsInfo(db, state.LastHeightConsensusParamsChanged, state.LastHeightConsensusParamsChanged, state.ConsensusParams)
 	}
+
+	// Force fully write the consensus params at last height changed equals to zero
+	if state.LastHeightConsensusParamsChanged == 0 {
+		saveConsensusParamsInfo(db, state.LastHeightConsensusParamsChanged, state.LastHeightConsensusParamsChanged, state.ConsensusParams)
+	}
+
 	// Save next validators.
 	saveValidatorsInfo(db, nextHeight+1, state.LastHeightValidatorsChanged, state.NextValidators)
 	// Save next consensus params.
@@ -152,32 +159,37 @@ func loadState(db kaidb.Database, key []byte) (state LatestBlockState) {
 
 func (s *dbStore) LoadStateAtHeight(height uint64) LatestBlockState {
 	latestState := loadState(s.db, stateKey)
-	if height <= 2 || height >= latestState.LastBlockHeight {
-		panic(fmt.Sprintf(`Latest state is at height=%v requested height=%v`, latestState.LastBlockHeight, height))
-	}
 
 	state := latestState.Copy()
 
 	block := rawdb.ReadBlock(s.db, height)
-	blockMeta := rawdb.ReadBlockMeta(s.db, height)
 	state.LastBlockHeight = height
 	state.LastBlockTotalTx = block.NumTxs()
-	state.LastBlockID = blockMeta.BlockID
 	state.LastBlockTime = block.Time()
 
-	lastvals, _ := s.LoadValidators(height - 1)
-	vals, _ := s.LoadValidators(height)
-	nextvals, _ := s.LoadValidators(height + 1)
+	var lastvals *types.ValidatorSet
+	if height == 0 {
+		state.LastBlockID = types.BlockID{}
+		lastvals = nil
+	} else {
+		state.LastBlockID = rawdb.ReadBlockMeta(s.db, height).BlockID
+		lastvals, _ = s.LoadValidators(height)
+	}
 
 	state.LastValidators = lastvals
-	state.Validators = vals
-	state.NextValidators = nextvals
+	state.Validators, _ = s.LoadValidators(height + 1)
+	state.NextValidators, _ = s.LoadValidators(height + 2)
 
-	valInfo := loadValidatorsInfo(s.db, height)
+	state.ConsensusParams, _ = s.LoadConsensusParams(height + 1)
+
+	state.AppHash = rawdb.ReadAppHash(s.db, height)
+
+	// do the opposite of saveState
+	valInfo := loadValidatorsInfo(s.db, height+2)
 	state.LastHeightValidatorsChanged = valInfo.LastHeightChanged
 
-	appHash := rawdb.ReadAppHash(s.db, height)
-	state.AppHash = appHash
+	consensusParamsInfo, _ := loadConsensusParamsInfo(s.db, height+1)
+	state.LastHeightConsensusParamsChanged = consensusParamsInfo.LastHeightChanged
 
 	return state
 }
