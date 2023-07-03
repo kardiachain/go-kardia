@@ -56,6 +56,9 @@ var (
 	// snapshotSyncStatusKey tracks the snapshot sync status across restarts.
 	snapshotSyncStatusKey = []byte("SnapshotSyncStatus")
 
+	// Consensus State
+	consensusStatePrefix  = []byte("ConsensusState")  // consensusStatePrefix + num (uint64 big endian) -> consensus state
+
 	// Data item prefixes (use single byte to avoid mixing data types, avoid `i`, used for indexes).
 	headerPrefix       = []byte("h") // headerPrefix + num (uint64 big endian) + hash -> header
 	headerHashSuffix   = []byte("n") // headerPrefix + num (uint64 big endian) + headerHashSuffix -> hash
@@ -259,4 +262,9 @@ func IsCodeKey(key []byte) (bool, []byte) {
 // genesisStateSpecKey = genesisPrefix + hash
 func genesisStateSpecKey(hash common.Hash) []byte {
 	return append(genesisPrefix, hash.Bytes()...)
+}
+
+// consensusStateKey = consensusStatePrefix + num (uint64 big endian)
+func calcConsensusStateKey(height uint64) []byte {
+	return append(consensusStatePrefix, encodeBlockHeight(height)...)
 }

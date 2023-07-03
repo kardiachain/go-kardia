@@ -25,10 +25,10 @@ import (
 	"github.com/gogo/protobuf/proto"
 
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/types"
 
 	kstate "github.com/kardiachain/go-kardia/proto/kardiachain/state"
 	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
-	"github.com/kardiachain/go-kardia/types"
 	ktime "github.com/kardiachain/go-kardia/types/time"
 )
 
@@ -36,7 +36,6 @@ import (
 var (
 	RefreshBackoffHeightStep = int64(200)
 	RefreshHeightDelta       = int64(20)
-	stateKey                 = []byte("stateKey")
 )
 
 // LatestBlockState It keeps all information necessary to validate new blocks,
