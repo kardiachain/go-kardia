@@ -57,7 +57,9 @@ var (
 	snapshotSyncStatusKey = []byte("SnapshotSyncStatus")
 
 	// Consensus State
-	consensusStatePrefix  = []byte("ConsensusState")  // consensusStatePrefix + num (uint64 big endian) -> consensus state
+	consensusStatePrefix          = []byte("ConsensusState")          // consensusStatePrefix + num (uint64 big endian) -> consensus state
+	consensusValidatorsInfoPrefix = []byte("ConsensusValidatorsInfo") // consensusValidatorsInfoPrefix + hash (consensus params hash) -> consensus params info
+	consensusParamsInfoPrefix     = []byte("ConsensusParamsInfo")     // consensusParamsInfoPrefix + hash (validators hash) -> consensus validators info
 
 	// Data item prefixes (use single byte to avoid mixing data types, avoid `i`, used for indexes).
 	headerPrefix       = []byte("h") // headerPrefix + num (uint64 big endian) + hash -> header
@@ -267,4 +269,14 @@ func genesisStateSpecKey(hash common.Hash) []byte {
 // consensusStateKey = consensusStatePrefix + num (uint64 big endian)
 func calcConsensusStateKey(height uint64) []byte {
 	return append(consensusStatePrefix, encodeBlockHeight(height)...)
+}
+
+// consensusValidatorsInfoKey = consensusValidatorsInfoPrefix + hash (validators hash)
+func calcConsensusValidatorsInfoKey(hash common.Hash) []byte {
+	return append(consensusValidatorsInfoPrefix, hash.Bytes()...)
+}
+
+// consensusParamsInfoKey = consensusParamsInfoPrefix + hash (consensus params hash)
+func calcConsensusParamsInfoKey(hash common.Hash) []byte {
+	return append(consensusParamsInfoPrefix, hash.Bytes()...)
 }
