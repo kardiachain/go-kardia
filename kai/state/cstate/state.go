@@ -126,34 +126,17 @@ func (state *LatestBlockState) ToProto() (*kstate.State, error) {
 	//sm.Version = state.Version
 	sm.ChainID = state.ChainID
 	sm.InitialHeight = state.InitialHeight
-	sm.LastBlockHeight = state.LastBlockHeight
 
-	sm.LastBlockID = state.LastBlockID.ToProto()
-	sm.LastBlockTime = state.LastBlockTime
-	vals, err := state.Validators.ToProto()
-	if err != nil {
-		return nil, err
+	if state.LastBlockHeight == 0 { // At Block 0 LastValidators is nil
+		sm.LastValidatorsInfoHash = common.NewZeroHash().Bytes()
+	} else {
+		sm.LastValidatorsInfoHash = state.LastValidators.Hash().Bytes()
 	}
-	sm.Validators = vals
+	sm.ValidatorsInfoHash = state.Validators.Hash().Bytes()
+	sm.NextValidatorsInfoHash = state.NextValidators.Hash().Bytes()
 
-	nVals, err := state.NextValidators.ToProto()
-	if err != nil {
-		return nil, err
-	}
-	sm.NextValidators = nVals
-
-	if state.LastBlockHeight >= 1 { // At Block 1 LastValidators is nil
-		lVals, err := state.LastValidators.ToProto()
-		if err != nil {
-			return nil, err
-		}
-		sm.LastValidators = lVals
-	}
-
-	sm.LastHeightValidatorsChanged = state.LastHeightValidatorsChanged
-	sm.ConsensusParams = state.ConsensusParams
-	sm.LastHeightConsensusParamsChanged = state.LastHeightConsensusParamsChanged
-	sm.AppHash = state.AppHash.Bytes()
+	bz, _ := state.ConsensusParams.Marshal()
+	sm.ConsensusParamsInfoHash = common.BytesToHash(bz).Bytes()
 
 	return sm, nil
 }
@@ -168,41 +151,6 @@ func StateFromProto(pb *kstate.State) (*LatestBlockState, error) { //nolint:goli
 
 	state.ChainID = pb.ChainID
 	state.InitialHeight = pb.InitialHeight
-
-	bi, err := types.BlockIDFromProto(&pb.LastBlockID)
-	if err != nil {
-		return nil, err
-	}
-	state.LastBlockID = *bi
-	state.LastBlockHeight = pb.LastBlockHeight
-	state.LastBlockTime = pb.LastBlockTime
-
-	vals, err := types.ValidatorSetFromProto(pb.Validators)
-	if err != nil {
-		return nil, err
-	}
-	state.Validators = vals
-
-	nVals, err := types.ValidatorSetFromProto(pb.NextValidators)
-	if err != nil {
-		return nil, err
-	}
-	state.NextValidators = nVals
-
-	if state.LastBlockHeight >= 1 { // At Block 1 LastValidators is nil
-		lVals, err := types.ValidatorSetFromProto(pb.LastValidators)
-		if err != nil {
-			return nil, err
-		}
-		state.LastValidators = lVals
-	} else {
-		state.LastValidators = types.NewValidatorSet(nil)
-	}
-
-	state.LastHeightValidatorsChanged = pb.LastHeightValidatorsChanged
-	state.ConsensusParams = pb.ConsensusParams
-	state.LastHeightConsensusParamsChanged = pb.LastHeightConsensusParamsChanged
-	state.AppHash = common.BytesToHash(pb.AppHash)
 
 	return state, nil
 }

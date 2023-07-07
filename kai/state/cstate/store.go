@@ -27,14 +27,13 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
 
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/metrics"
 
-	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/types"
 
 	"github.com/kardiachain/go-kardia/kai/kaidb"
 	"github.com/kardiachain/go-kardia/kai/rawdb"
-	kmath "github.com/kardiachain/go-kardia/lib/math"
 	kstate "github.com/kardiachain/go-kardia/proto/kardiachain/state"
 	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 )
@@ -42,7 +41,8 @@ import (
 const (
 	// persist validators every valSetCheckpointInterval blocks to avoid
 	// LoadValidators taking too much time.
-	valSetCheckpointInterval = 100000
+	valSetCheckpointInterval          = 100000
+	PRUNE_LATEST_BLOCK_STATE_INTERVAL = 10000
 )
 
 type Store interface {
@@ -51,16 +51,6 @@ type Store interface {
 	Save(LatestBlockState)
 	LoadValidators(height uint64) (*types.ValidatorSet, error)
 	LoadConsensusParams(height uint64) (kproto.ConsensusParams, error)
-}
-
-//------------------------------------------------------------------------
-
-func calcValidatorsKey(height uint64) []byte {
-	return []byte(fmt.Sprintf("validatorsKey:%v", height))
-}
-
-func calcConsensusParamsKey(height uint64) []byte {
-	return []byte(fmt.Sprintf("consensusParamsKey:%v", height))
 }
 
 type dbStore struct {
@@ -92,6 +82,17 @@ func (s *dbStore) LoadStateFromDBOrGenesisDoc(genesisDoc *genesis.Genesis) (Late
 // This flushes the writes (e.g. calls SetSync).
 func (s *dbStore) Save(state LatestBlockState) {
 	saveState(s.db, state)
+
+	// Starting from the 2nd interval, we try to prune
+	// from beginning of previous interval
+	// to the end of previous interval
+	if state.LastBlockHeight%PRUNE_LATEST_BLOCK_STATE_INTERVAL == 0 && state.LastBlockHeight/PRUNE_LATEST_BLOCK_STATE_INTERVAL > 1 {
+		to := state.LastBlockHeight - PRUNE_LATEST_BLOCK_STATE_INTERVAL
+		from := to - PRUNE_LATEST_BLOCK_STATE_INTERVAL
+
+		log.Info("Pruning consensus state", "from", from, "to", to)
+		pruneState(s.db, from, to)
+	}
 }
 
 func saveState(db kaidb.KeyValueStore, state LatestBlockState) {
@@ -99,23 +100,69 @@ func saveState(db kaidb.KeyValueStore, state LatestBlockState) {
 	if err != nil {
 		panic(fmt.Sprintf(`Failed to marshal state to proto: %v\n`, err))
 	}
-	rawdb.WriteConsensusStateHeight(db, state.LastBlockHeight, *sp)
-	if metrics.EnabledExpensive {
-		consensusStateWrittenBytesMeter.Mark(int64(len(state.Bytes())))
+
+	batch := db.NewBatch()
+
+	// write validators for block #0
+	if state.LastBlockHeight == 0 {
+		sp.LastValidatorsInfoHash = saveValidatorsInfo(batch, state.LastHeightValidatorsChanged, state.LastValidators).Bytes()
+		sp.ValidatorsInfoHash = saveValidatorsInfo(batch, state.LastHeightValidatorsChanged, state.Validators).Bytes()
 	}
 
-	nextHeight := state.LastBlockHeight + 1
-	// If first block, save validators for block 1.
-	if nextHeight == 1 {
-		nextHeight = state.InitialHeight
-		// This extra logic due to validator set changes being delayed 1 block.
-		// It may get overwritten due to InitChain validator updates.
-		saveValidatorsInfo(db, nextHeight, nextHeight, state.Validators)
+	// write next validators
+	sp.NextValidatorsInfoHash = saveValidatorsInfo(batch, state.LastHeightValidatorsChanged, state.NextValidators).Bytes()
+
+	// write consensus params
+	sp.ConsensusParamsInfoHash = saveConsensusParamsInfo(batch, state.LastHeightConsensusParamsChanged, state.ConsensusParams).Bytes()
+
+	if metrics.EnabledExpensive {
+		bz, _ := sp.Marshal()
+		consensusStateWrittenBytesGauge.Inc(int64(len(bz)))
 	}
-	// Save next validators.
-	saveValidatorsInfo(db, nextHeight+1, state.LastHeightValidatorsChanged, state.NextValidators)
-	// Save next consensus params.
-	saveConsensusParamsInfo(db, uint64(nextHeight), state.LastHeightConsensusParamsChanged, state.ConsensusParams)
+
+	rawdb.WriteConsensusStateHeight(batch, state.LastBlockHeight, *sp)
+
+	batch.Write()
+}
+
+func pruneState(db kaidb.KeyValueStore, from, to uint64) {
+	valInfosCache := make(map[common.Hash]struct{}, 0) // map of val info hash -> last height validator changed
+	for i := from; i < to; i++ {
+		state := rawdb.ReadConsensusStateHeight(db, i)
+		if state != nil {
+			valInfoHash := common.BytesToHash(state.LastValidatorsInfoHash)
+			valInfosCache[valInfoHash] = struct{}{}
+		}
+		if metrics.EnabledExpensive {
+			bz, _ := state.Marshal()
+			consensusStatePrunedBytesGauge.Inc(int64(len(bz)))
+		}
+		if err := rawdb.DeleteConsensusStateHeight(db, i); err != nil {
+			log.Error("Failed to prune consensus state", "height", i)
+		}
+	}
+
+	// discards validator infos which are used by next state
+	nextState := rawdb.ReadConsensusStateHeight(db, to)
+	if nextState != nil {
+		delete(valInfosCache, common.BytesToHash(nextState.LastValidatorsInfoHash))
+		delete(valInfosCache, common.BytesToHash(nextState.ValidatorsInfoHash))
+		delete(valInfosCache, common.BytesToHash(nextState.NextValidatorsInfoHash))
+	}
+
+	// delete val infos
+	for valInfoHash := range valInfosCache {
+		if metrics.EnabledExpensive {
+			valInfo := rawdb.ReadConsensusValidatorsInfo(db, valInfoHash)
+			if valInfo != nil {
+				bz, _ := valInfo.Marshal()
+				consensusStatePrunedBytesGauge.Inc(int64(len(bz)))
+			}
+		}
+		if err := rawdb.DeleteConsensusValidatorsInfo(db, valInfoHash); err != nil {
+			log.Error("Failed to prune consensus validator info", "hash", valInfoHash)
+		}
+	}
 }
 
 // LoadState loads the State from the database.
@@ -142,57 +189,60 @@ func loadStateAtHeight(db kaidb.Database, height uint64) *LatestBlockState {
 	if state.InitialHeight == 0 {
 		state.InitialHeight = 1
 	}
-	return state
-}
 
-//-----------------------------------------------------------------------------
+	blockMeta := rawdb.ReadBlockMeta(db, height)
+	if blockMeta == nil {
+		panic(fmt.Errorf(`block meta not found at height %v`, height))
+	}
+	state.LastBlockHeight = blockMeta.Header.Height
+	state.LastBlockID = blockMeta.BlockID
+	state.LastBlockTime = blockMeta.Header.Time
+	state.LastBlockTotalTx = blockMeta.Header.NumTxs
 
-// ValidatorsInfo represents the latest validator set, or the last height it changed
-type ValidatorsInfo struct {
-	ValidatorSet      *types.ValidatorSet `rlp:"nil"`
-	LastHeightChanged uint64
-}
+	appHash := rawdb.ReadAppHash(db, height)
+	state.AppHash = appHash
 
-// Bytes serializes the ValidatorsInfo
-func (valInfo *ValidatorsInfo) Bytes() []byte {
-	b, err := rlp.EncodeToBytes(valInfo)
+	lValsInfo := rawdb.ReadConsensusValidatorsInfo(db, common.BytesToHash(sp.LastValidatorsInfoHash))
+	if state.LastBlockHeight > 0 {
+		state.LastValidators, err = types.ValidatorSetFromProto(lValsInfo.ValidatorSet)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	valsInfo := rawdb.ReadConsensusValidatorsInfo(db, common.BytesToHash(sp.ValidatorsInfoHash))
+	state.Validators, err = types.ValidatorSetFromProto(valsInfo.ValidatorSet)
 	if err != nil {
 		panic(err)
 	}
-	return b
+
+	nValsInfo := rawdb.ReadConsensusValidatorsInfo(db, common.BytesToHash(sp.NextValidatorsInfoHash))
+	state.NextValidators, err = types.ValidatorSetFromProto(nValsInfo.ValidatorSet)
+	if err != nil {
+		panic(err)
+	}
+	state.LastHeightValidatorsChanged = nValsInfo.LastHeightChanged
+
+	cparams := rawdb.ReadConsensusParamsInfo(db, common.BytesToHash(sp.ConsensusParamsInfoHash))
+	if cparams == nil {
+		panic(fmt.Errorf(`failed to load consensus params at height %v`, height))
+	}
+	state.ConsensusParams = cparams.ConsensusParams
+	state.LastHeightConsensusParamsChanged = cparams.LastHeightChanged
+
+	return state
 }
 
 // LoadValidators loads the ValidatorSet for a given height.
 // Returns ErrNoValSetForHeight if the validator set can't be found for this height.
 func (s *dbStore) LoadValidators(height uint64) (*types.ValidatorSet, error) {
-	valInfo := loadValidatorsInfo(s.db, uint64(height))
+	cstate := rawdb.ReadConsensusStateHeight(s.db, height)
+
+	valInfo := rawdb.ReadConsensusValidatorsInfo(s.db, common.BytesToHash(cstate.LastValidatorsInfoHash))
 	if valInfo == nil {
 		return nil, ErrNoValSetForHeight{height}
 	}
-	if valInfo.ValidatorSet == nil {
-		lastStoredHeight := lastStoredHeightFor(height, valInfo.LastHeightChanged)
-		valInfo2 := loadValidatorsInfo(s.db, uint64(lastStoredHeight))
-		if valInfo2 == nil || valInfo2.ValidatorSet == nil {
-			panic(
-				fmt.Sprintf("Couldn't find validators at height %d (height %d was originally requested)",
-					lastStoredHeight,
-					height,
-				),
-			)
-		}
-		vs, err := types.ValidatorSetFromProto(valInfo2.ValidatorSet)
-		if err != nil {
-			return nil, err
-		}
-		vs.IncrementProposerPriority(int64(height) - lastStoredHeight) // mutate
-		vi2, err := vs.ToProto()
-		if err != nil {
-			return nil, err
-		}
 
-		valInfo2.ValidatorSet = vi2
-		valInfo = valInfo2
-	}
 	vip, err := types.ValidatorSetFromProto(valInfo.ValidatorSet)
 	if err != nil {
 		return nil, err
@@ -200,130 +250,59 @@ func (s *dbStore) LoadValidators(height uint64) (*types.ValidatorSet, error) {
 	return vip, nil
 }
 
-func lastStoredHeightFor(height, lastHeightChanged uint64) int64 {
-	checkpointHeight := height - height%valSetCheckpointInterval
-	return kmath.MaxInt64(int64(checkpointHeight), int64(lastHeightChanged))
-}
-
-// CONTRACT: Returned ValidatorsInfo can be mutated.
-func loadValidatorsInfo(db kaidb.Database, height uint64) *kstate.ValidatorsInfo {
-	buf, err := db.Get(calcValidatorsKey(height))
-	if err != nil {
-		panic(err)
-	}
-	if len(buf) == 0 {
-		return nil
-	}
-
-	v := new(kstate.ValidatorsInfo)
-	err = v.Unmarshal(buf)
-	if err != nil {
-		// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
-		panic(fmt.Sprintf(`LoadValidators: Data has been corrupted or its spec has changed:
-				 %v\n`, err))
-	}
-
-	return v
-}
-
-// saveValidatorsInfo persists the validator set.
-//
-// `height` is the effective height for which the validator is responsible for
-// signing. It should be called from s.Save(), right before the state itself is
-// persisted.
-func saveValidatorsInfo(db kaidb.Database, height, lastHeightChanged uint64, valSet *types.ValidatorSet) {
-	if lastHeightChanged > height {
-		panic("LastHeightChanged cannot be greater than ValidatorsInfo height")
-	}
-	valInfo := &kstate.ValidatorsInfo{
+func saveValidatorsInfo(db kaidb.KeyValueWriter, lastHeightChanged uint64, valSet *types.ValidatorSet) common.Hash {
+	valInfo := kstate.ValidatorsInfo{
 		LastHeightChanged: lastHeightChanged,
 	}
-
-	if height == lastHeightChanged || height%valSetCheckpointInterval == 0 {
+	hash := common.NewZeroHash()
+	if valSet != nil {
+		hash = valSet.Hash()
 		pv, err := valSet.ToProto()
 		if err != nil {
 			panic(err)
 		}
 		valInfo.ValidatorSet = pv
 	}
-	bz, err := valInfo.Marshal()
-	if err != nil {
-		panic(err)
+
+	if metrics.EnabledExpensive {
+		bz, _ := valInfo.Marshal()
+		consensusStateWrittenBytesGauge.Inc(int64(len(bz)))
 	}
 
-	err = db.Put(calcValidatorsKey(height), bz)
-	if err != nil {
-		panic(err)
-	}
+	rawdb.WriteConsensusValidatorsInfo(db, hash, valInfo)
+	return hash
 }
-
-//-----------------------------------------------------------------------------
 
 // LoadConsensusParams loads the ConsensusParams for a given height.
 func (s *dbStore) LoadConsensusParams(height uint64) (kproto.ConsensusParams, error) {
-	empty := kproto.ConsensusParams{}
+	cstate := rawdb.ReadConsensusStateHeight(s.db, height)
 
-	paramsInfo, err := loadConsensusParamsInfo(s.db, height)
-	if err != nil {
-		return empty, fmt.Errorf("could not find consensus params for height #%d: %w", height, err)
+	params := rawdb.ReadConsensusParamsInfo(s.db, common.BytesToHash(cstate.ConsensusParamsInfoHash))
+	if params == nil {
+		return kproto.ConsensusParams{}, fmt.Errorf("could not find consensus params for height #%d", height)
+	} else {
+		return params.ConsensusParams, nil
 	}
-
-	if paramsInfo.ConsensusParams.Equal(&empty) {
-		paramsInfo2, err := loadConsensusParamsInfo(s.db, paramsInfo.LastHeightChanged)
-		if err != nil {
-			return empty, fmt.Errorf(
-				"couldn't find consensus params at height %d as last changed from height %d: %w",
-				paramsInfo.LastHeightChanged,
-				height,
-				err,
-			)
-		}
-
-		paramsInfo = paramsInfo2
-	}
-
-	return paramsInfo.ConsensusParams, nil
 }
 
-func loadConsensusParamsInfo(db kaidb.Database, height uint64) (*kstate.ConsensusParamsInfo, error) {
-	buf, err := db.Get(calcConsensusParamsKey(uint64(height)))
-	if err != nil {
-		return nil, err
-	}
-	if len(buf) == 0 {
-		return nil, nil
-	}
-
-	paramsInfo := new(kstate.ConsensusParamsInfo)
-	if err = paramsInfo.Unmarshal(buf); err != nil {
-		return nil, err
-	}
-	// TODO: ensure that buf is completely read.
-
-	return paramsInfo, nil
-}
-
-// saveConsensusParamsInfo persists the consensus params for the next block to disk.
-// It should be called from s.Save(), right before the state itself is persisted.
-// If the consensus params did not change after processing the latest block,
-// only the last height for which they changed is persisted.
-func saveConsensusParamsInfo(db kaidb.Database, nextHeight, changeHeight uint64, params kproto.ConsensusParams) {
-	paramsInfo := &kstate.ConsensusParamsInfo{
-		LastHeightChanged: changeHeight,
-	}
-
-	if changeHeight == nextHeight {
-		paramsInfo.ConsensusParams = params
+func saveConsensusParamsInfo(db kaidb.KeyValueWriter, lastHeightChanged uint64, params kproto.ConsensusParams) common.Hash {
+	paramsInfo := kstate.ConsensusParamsInfo{
+		LastHeightChanged: lastHeightChanged,
+		ConsensusParams:   params,
 	}
 
 	bz, err := paramsInfo.Marshal()
 	if err != nil {
 		panic(err)
 	}
-	err = db.Put(calcConsensusParamsKey(nextHeight), bz)
-	if err != nil {
-		panic(err)
+
+	if metrics.EnabledExpensive {
+		consensusStateWrittenBytesGauge.Inc(int64(len(bz)))
 	}
+
+	hash := common.BytesToHash(bz)
+	rawdb.WriteConsensusParamsInfo(db, hash, paramsInfo)
+	return hash
 }
 
 // MakeGenesisState creates state from types.GenesisDoc.

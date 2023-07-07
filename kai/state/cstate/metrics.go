@@ -3,5 +3,6 @@ package cstate
 import "github.com/kardiachain/go-kardia/lib/metrics"
 
 var (
-	consensusStateWrittenBytesMeter = metrics.NewRegisteredMeter("cstate/written", nil)
+	consensusStateWrittenBytesGauge = metrics.NewRegisteredGauge("cstate/written", nil)
+	consensusStatePrunedBytesGauge  = metrics.NewRegisteredGauge("cstate/pruned", nil)
 )
