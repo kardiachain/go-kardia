@@ -200,6 +200,7 @@ func (m *RequestPooledTransactions) GetHashes() [][]byte {
 
 type Message struct {
 	// Types that are valid to be assigned to Sum:
+	//
 	//	*Message_Txs
 	//	*Message_PooledTransactionHashes
 	//	*Message_PooledTransactions

@@ -25,6 +25,7 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 // PublicKey defines the keys available for use with Kardiachain Validators
 type PublicKey struct {
 	// Types that are valid to be assigned to Sum:
+	//
 	//	*PublicKey_Ecdsa
 	Sum isPublicKey_Sum `protobuf_oneof:"sum"`
 }
