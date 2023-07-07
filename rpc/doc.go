@@ -1,20 +1,21 @@
-// Copyright 2015 The go-kardia Authors
-// This file is part of the go-kardia library.
+// Copyright 2015 The go-ethereum Authors
+// This file is part of the go-ethereum library.
 //
-// The go-kardia library is free software: you can redistribute it and/or modify
+// The go-ethereum library is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// The go-kardia library is distributed in the hope that it will be useful,
+// The go-ethereum library is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU Lesser General Public License for more details.
 //
 // You should have received a copy of the GNU Lesser General Public License
-// along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 /*
+
 Package rpc implements bi-directional JSON-RPC 2.0 on multiple transports.
 
 It provides access to the exported methods of an object across a network or other I/O
@@ -22,18 +23,18 @@ connection. After creating a server or client instance, objects can be registere
 them visible as 'services'. Exported methods that follow specific conventions can be
 called remotely. It also has support for the publish/subscribe pattern.
 
-# RPC Methods
+RPC Methods
 
 Methods that satisfy the following criteria are made available for remote access:
 
-  - method must be exported
-  - method returns 0, 1 (response or error) or 2 (response and error) values
-  - method argument(s) must be exported or builtin types
-  - method returned value(s) must be exported or builtin types
+ - method must be exported
+ - method returns 0, 1 (response or error) or 2 (response and error) values
+ - method argument(s) must be exported or builtin types
+ - method returned value(s) must be exported or builtin types
 
 An example method:
 
-	func (s *CalcService) Add(a, b int) (int, error)
+ func (s *CalcService) Add(a, b int) (int, error)
 
 When the returned error isn't nil the returned integer is ignored and the error is sent
 back to the client. Otherwise the returned integer is sent back to the client.
@@ -42,7 +43,7 @@ Optional arguments are supported by accepting pointer values as arguments. E.g. 
 to do the addition in an optional finite field we can accept a mod argument as pointer
 value.
 
-	func (s *CalcService) Add(a, b int, mod *int) (int, error)
+ func (s *CalcService) Add(a, b int, mod *int) (int, error)
 
 This RPC method can be called with 2 integers and a null value as third argument. In that
 case the mod argument will be nil. Or it can be called with 3 integers, in that case mod
@@ -57,46 +58,46 @@ to the client out of order.
 
 An example server which uses the JSON codec:
 
-	 type CalculatorService struct {}
+ type CalculatorService struct {}
 
-	 func (s *CalculatorService) Add(a, b int) int {
-		return a + b
-	 }
+ func (s *CalculatorService) Add(a, b int) int {
+	return a + b
+ }
 
-	 func (s *CalculatorService) Div(a, b int) (int, error) {
-		if b == 0 {
-			return 0, errors.New("divide by zero")
-		}
-		return a/b, nil
-	 }
+ func (s *CalculatorService) Div(a, b int) (int, error) {
+	if b == 0 {
+		return 0, errors.New("divide by zero")
+	}
+	return a/b, nil
+ }
 
-	 calculator := new(CalculatorService)
-	 server := NewServer()
-	 server.RegisterName("calculator", calculator")
+ calculator := new(CalculatorService)
+ server := NewServer()
+ server.RegisterName("calculator", calculator")
 
-	 l, _ := net.ListenUnix("unix", &net.UnixAddr{Net: "unix", Name: "/tmp/calculator.sock"})
-	 for {
-		c, _ := l.AcceptUnix()
-		codec := v2.NewJSONCodec(c)
-		go server.ServeCodec(codec, 0)
-	 }
+ l, _ := net.ListenUnix("unix", &net.UnixAddr{Net: "unix", Name: "/tmp/calculator.sock"})
+ for {
+	c, _ := l.AcceptUnix()
+	codec := v2.NewJSONCodec(c)
+	go server.ServeCodec(codec, 0)
+ }
 
-# Subscriptions
+Subscriptions
 
 The package also supports the publish subscribe pattern through the use of subscriptions.
 A method that is considered eligible for notifications must satisfy the following
 criteria:
 
-  - method must be exported
-  - first method argument type must be context.Context
-  - method argument(s) must be exported or builtin types
-  - method must have return types (rpc.Subscription, error)
+ - method must be exported
+ - first method argument type must be context.Context
+ - method argument(s) must be exported or builtin types
+ - method must have return types (rpc.Subscription, error)
 
 An example method:
 
-	func (s *BlockChainService) NewBlocks(ctx context.Context) (rpc.Subscription, error) {
-		...
-	}
+ func (s *BlockChainService) NewBlocks(ctx context.Context) (rpc.Subscription, error) {
+ 	...
+ }
 
 When the service containing the subscription method is registered to the server, for
 example under the "blockchain" namespace, a subscription is created by calling the
@@ -108,7 +109,7 @@ the client and server. The server will close the connection for any write error.
 
 For more information about subscriptions, see https://github.com/ethereum/go-ethereum/wiki/RPC-PUB-SUB.
 
-# Reverse Calls
+Reverse Calls
 
 In any method handler, an instance of rpc.Client can be accessed through the
 ClientFromContext method. Using this client instance, server-to-client method calls can be
