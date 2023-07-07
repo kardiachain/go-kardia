@@ -98,6 +98,15 @@ func New(stack *node.Node, config *Config) (*Kardiachain, error) {
 		return nil, err
 	}
 
+	stakingUtil, err := staking.NewSmcStakingUtil()
+	if err != nil {
+		return nil, err
+	}
+	validator, err := staking.NewSmcValidatorUtil()
+	if err != nil {
+		return nil, err
+	}
+
 	kai := &Kardiachain{
 		config:       config,
 		chainConfig:  config.Genesis.Config,
@@ -105,6 +114,8 @@ func New(stack *node.Node, config *Config) (*Kardiachain, error) {
 		sw:           stack.P2PSwitch(),
 		chainDb:      chainDb,
 		eventBus:     eventBus,
+		staking:      stakingUtil,
+		validator:    validator,
 		bloomIndexer: NewBloomIndexer(chainDb, configs.BloomBitsBlocksClient, configs.HelperTrieConfirmations),
 		shutdownChan: make(chan bool),
 	}
@@ -154,10 +165,6 @@ func New(stack *node.Node, config *Config) (*Kardiachain, error) {
 	kai.txpoolR = tx_pool.NewReactor(config.TxPool, kai.txPool)
 	kai.txpoolR.SetLogger(logger)
 
-	stakingUtil, err := staking.NewSmcStakingUtil()
-	if err != nil {
-		return nil, err
-	}
 	bOper := blockchain.NewBlockOperations(logger, kai.blockchain, kai.txPool, evPool, stakingUtil)
 
 	kai.evR = evidence.NewReactor(evPool)
