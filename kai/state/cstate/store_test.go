@@ -20,25 +20,218 @@ package cstate_test
 
 import (
 	"testing"
+
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
+	"github.com/kardiachain/go-kardia/kai/state/cstate"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/types"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestStoreLoadValidators(t *testing.T) {
-	// stateDB := memorydb.New()
-	// stateStore := cstate.NewStore(stateDB)
-	// val, _ := types.RandValidator(true, 10)
-	// vals := types.NewValidatorSet([]*types.Validator{val})
+func TestSaveState(t *testing.T) {
+	db := memorydb.New()
+	stateStore := cstate.NewStore(db)
+	val, _ := types.RandValidator(true, 10)
+	val1, _ := types.RandValidator(true, 10)
+	lvals := types.NewValidatorSet([]*types.Validator{val})
+	vals := types.NewValidatorSet([]*types.Validator{val, val1})
+	cparams := configs.DefaultConsensusParams()
+	bz, _ := cparams.Marshal()
+	cparamsHash := common.BytesToHash(bz)
 
-	// // 1) LoadValidators loads validators using a height where they were last changed
-	// cstate.SaveValidatorsInfo(stateDB, 1, vals)
-	// loadedVals, err := stateStore.LoadValidators(2)
-	// require.NoError(t, err)
-	// assert.NotZero(t, loadedVals.Size())
+	// 1) Consensus state at block 0
+	state := cstate.LatestBlockState{
+		LastBlockHeight:                  0,
+		LastValidators:                   nil,
+		Validators:                       lvals,
+		NextValidators:                   lvals,
+		LastHeightValidatorsChanged:      1,
+		ConsensusParams:                  *cparams,
+		LastHeightConsensusParamsChanged: 0,
+	}
+	stateStore.Save(state)
 
-	// // 2) LoadValidators loads validators using a checkpoint height
+	wstate := rawdb.ReadConsensusStateHeight(db, state.LastBlockHeight)
+	assert.NotNil(t, wstate)
+	assert.Equal(t, wstate.GetLastValidatorsInfoHash(), common.NewZeroHash().Bytes())
+	assert.Equal(t, wstate.GetValidatorsInfoHash(), lvals.Hash().Bytes())
+	assert.Equal(t, wstate.GetNextValidatorsInfoHash(), lvals.Hash().Bytes())
+	assert.Equal(t, wstate.GetConsensusParamsInfoHash(), cparamsHash.Bytes())
+	lValsInfo := rawdb.ReadConsensusValidatorsInfo(db, common.BytesToHash(wstate.GetLastValidatorsInfoHash()))
+	valsInfo := rawdb.ReadConsensusValidatorsInfo(db, common.BytesToHash(wstate.GetValidatorsInfoHash()))
+	nValsInfo := rawdb.ReadConsensusValidatorsInfo(db, common.BytesToHash(wstate.GetNextValidatorsInfoHash()))
+	cparamsInfo := rawdb.ReadConsensusParamsInfo(db, cparamsHash)
+	assert.NotNil(t, lValsInfo)
+	assert.NotNil(t, valsInfo)
+	assert.NotNil(t, nValsInfo)
+	assert.NotNil(t, cparamsInfo)
+	assert.Equal(t, lValsInfo.LastHeightChanged, state.LastHeightValidatorsChanged)
+	assert.Equal(t, valsInfo.LastHeightChanged, state.LastHeightValidatorsChanged)
+	assert.Equal(t, nValsInfo.LastHeightChanged, state.LastHeightValidatorsChanged)
+	assert.Equal(t, cparamsInfo.LastHeightChanged, state.LastHeightConsensusParamsChanged)
 
-	// cstate.SaveValidatorsInfo(stateDB, cstate.ValSetCheckpointInterval, 1, vals)
+	// 2) Consensus state at block != 0
+	anotherState := cstate.LatestBlockState{
+		LastBlockHeight:                  1,
+		LastValidators:                   lvals,
+		Validators:                       vals,
+		NextValidators:                   vals,
+		LastHeightValidatorsChanged:      3,
+		ConsensusParams:                  *cparams,
+		LastHeightConsensusParamsChanged: 0,
+	}
+	stateStore.Save(anotherState)
 
-	// loadedVals, err = stateStore.LoadValidators(cstate.ValSetCheckpointInterval)
-	// require.NoError(t, err)
-	// assert.NotZero(t, loadedVals.Size())
+	wstate = rawdb.ReadConsensusStateHeight(db, anotherState.LastBlockHeight)
+	assert.NotNil(t, wstate)
+	assert.Equal(t, wstate.GetLastValidatorsInfoHash(), lvals.Hash().Bytes())
+	assert.Equal(t, wstate.GetValidatorsInfoHash(), vals.Hash().Bytes())
+	assert.Equal(t, wstate.GetNextValidatorsInfoHash(), vals.Hash().Bytes())
+	assert.Equal(t, wstate.GetConsensusParamsInfoHash(), cparamsHash.Bytes())
+	lValsInfo = rawdb.ReadConsensusValidatorsInfo(db, common.BytesToHash(wstate.GetLastValidatorsInfoHash()))
+	valsInfo = rawdb.ReadConsensusValidatorsInfo(db, common.BytesToHash(wstate.GetValidatorsInfoHash()))
+	nValsInfo = rawdb.ReadConsensusValidatorsInfo(db, common.BytesToHash(wstate.GetNextValidatorsInfoHash()))
+	cparamsInfo = rawdb.ReadConsensusParamsInfo(db, cparamsHash)
+	assert.NotNil(t, lValsInfo)
+	assert.NotNil(t, valsInfo)
+	assert.NotNil(t, nValsInfo)
+	assert.NotNil(t, cparamsInfo)
+	assert.Equal(t, lValsInfo.LastHeightChanged, state.LastHeightValidatorsChanged)
+	assert.Equal(t, valsInfo.LastHeightChanged, anotherState.LastHeightValidatorsChanged)
+	assert.Equal(t, nValsInfo.LastHeightChanged, anotherState.LastHeightValidatorsChanged)
+	assert.Equal(t, cparamsInfo.LastHeightChanged, anotherState.LastHeightConsensusParamsChanged)
+}
+
+func TestPruneState(t *testing.T) {
+	db := memorydb.New()
+	stateStore := cstate.NewStore(db)
+	val, _ := types.RandValidator(true, 10)
+	val1, _ := types.RandValidator(true, 10)
+	val2, _ := types.RandValidator(true, 10)
+	lvals := types.NewValidatorSet([]*types.Validator{val})
+	vals := types.NewValidatorSet([]*types.Validator{val, val1})
+	nvals := types.NewValidatorSet([]*types.Validator{val, val1, val2})
+	cparams := configs.DefaultConsensusParams()
+
+	// Block height H
+	var checkpointH uint64 = cstate.PRUNE_LATEST_BLOCK_STATE_INTERVAL
+	// Block height 2H
+	var checkpoint2H uint64 = 2 * cstate.PRUNE_LATEST_BLOCK_STATE_INTERVAL
+
+	// Consensus state at block #0, which will not be pruned
+	state := cstate.LatestBlockState{
+		LastBlockHeight:                  0,
+		LastValidators:                   nil,
+		Validators:                       vals,
+		NextValidators:                   vals,
+		LastHeightValidatorsChanged:      1,
+		ConsensusParams:                  *cparams,
+		LastHeightConsensusParamsChanged: 0,
+	}
+	stateStore.Save(state)
+
+	// Consensus state at block H - 1, which will be pruned
+	state = cstate.LatestBlockState{
+		LastBlockHeight:                  checkpointH - 1,
+		LastValidators:                   lvals,
+		Validators:                       vals,
+		NextValidators:                   vals,
+		LastHeightValidatorsChanged:      checkpointH - 1,
+		ConsensusParams:                  *cparams,
+		LastHeightConsensusParamsChanged: 0,
+	}
+	stateStore.Save(state)
+
+	// Consensus state at block H, which will not be pruned
+	state = cstate.LatestBlockState{
+		LastBlockHeight:                  checkpointH,
+		LastValidators:                   vals,
+		Validators:                       vals,
+		NextValidators:                   vals,
+		LastHeightValidatorsChanged:      checkpointH - 1,
+		ConsensusParams:                  *cparams,
+		LastHeightConsensusParamsChanged: 0,
+	}
+	stateStore.Save(state)
+
+	// Consensus state at block 2H, the checkpoint that triggers the pruning
+	state = cstate.LatestBlockState{
+		LastBlockHeight:                  checkpoint2H,
+		LastValidators:                   nvals,
+		Validators:                       nvals,
+		NextValidators:                   nvals,
+		LastHeightValidatorsChanged:      checkpoint2H,
+		ConsensusParams:                  *cparams,
+		LastHeightConsensusParamsChanged: 0,
+	}
+	stateStore.Save(state)
+
+	genesisState := rawdb.ReadConsensusStateHeight(db, 0)
+	assert.NotNil(t, genesisState)
+	prunedState := rawdb.ReadConsensusStateHeight(db, checkpointH-1)
+	assert.Nil(t, prunedState)
+	notPrunedState := rawdb.ReadConsensusStateHeight(db, checkpointH)
+	assert.NotNil(t, notPrunedState)
+	lValsInfo := rawdb.ReadConsensusValidatorsInfo(db, lvals.Hash())
+	assert.Nil(t, lValsInfo)
+	valsInfo := rawdb.ReadConsensusValidatorsInfo(db, vals.Hash())
+	assert.NotNil(t, valsInfo)
+}
+
+func TestLoadValidators(t *testing.T) {
+	db := memorydb.New()
+	stateStore := cstate.NewStore(db)
+	val, _ := types.RandValidator(true, 10)
+	val1, _ := types.RandValidator(true, 10)
+	lvals := types.NewValidatorSet([]*types.Validator{val})
+	vals := types.NewValidatorSet([]*types.Validator{val, val1})
+	cparams := configs.DefaultConsensusParams()
+
+	// State
+	// Consensus state at block 0
+	state := cstate.LatestBlockState{
+		LastBlockHeight:                  0,
+		LastValidators:                   nil,
+		Validators:                       lvals,
+		NextValidators:                   lvals,
+		LastHeightValidatorsChanged:      1,
+		ConsensusParams:                  *cparams,
+		LastHeightConsensusParamsChanged: 0,
+	}
+	stateStore.Save(state)
+
+	// Consensus state at block 1
+	anotherState := cstate.LatestBlockState{
+		LastBlockHeight:                  1,
+		LastValidators:                   lvals,
+		Validators:                       vals,
+		NextValidators:                   vals,
+		LastHeightValidatorsChanged:      3,
+		ConsensusParams:                  *cparams,
+		LastHeightConsensusParamsChanged: 0,
+	}
+	stateStore.Save(anotherState)
+
+	// Consensus state at block 2
+	ananotherState := cstate.LatestBlockState{
+		LastBlockHeight:                  2,
+		LastValidators:                   vals,
+		Validators:                       vals,
+		NextValidators:                   vals,
+		LastHeightValidatorsChanged:      3,
+		ConsensusParams:                  *cparams,
+		LastHeightConsensusParamsChanged: 0,
+	}
+	stateStore.Save(ananotherState)
+
+	vs1, _ := stateStore.LoadValidators(state.LastBlockHeight)
+	assert.Nil(t, vs1)
+	vs2, _ := stateStore.LoadValidators(anotherState.LastBlockHeight)
+	assert.NotNil(t, vs2)
+	assert.Equal(t, vs2.Hash(), lvals.Hash())
+	vs3, _ := stateStore.LoadValidators(ananotherState.LastBlockHeight)
+	assert.NotNil(t, vs3)
+	assert.Equal(t, vs3.Hash(), vals.Hash())
 }
