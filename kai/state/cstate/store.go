@@ -89,6 +89,9 @@ func (s *dbStore) Save(state LatestBlockState) {
 	if state.LastBlockHeight%PRUNE_LATEST_BLOCK_STATE_INTERVAL == 0 && state.LastBlockHeight/PRUNE_LATEST_BLOCK_STATE_INTERVAL > 1 {
 		to := state.LastBlockHeight - PRUNE_LATEST_BLOCK_STATE_INTERVAL
 		from := to - PRUNE_LATEST_BLOCK_STATE_INTERVAL
+		if from == 0 { // dont prune state at block #0
+			from = 1
+		}
 
 		log.Info("Pruning consensus state", "from", from, "to", to)
 		pruneState(s.db, from, to)
@@ -128,21 +131,20 @@ func saveState(db kaidb.KeyValueStore, state LatestBlockState) {
 func pruneState(db kaidb.KeyValueStore, from, to uint64) {
 	valInfosCache := make(map[common.Hash]struct{}, 0) // map of val info hash -> last height validator changed
 	for i := from; i < to; i++ {
-		state := rawdb.ReadConsensusStateHeight(db, i)
-		if state != nil {
+		if state := rawdb.ReadConsensusStateHeight(db, i); state != nil {
 			valInfoHash := common.BytesToHash(state.LastValidatorsInfoHash)
 			valInfosCache[valInfoHash] = struct{}{}
-		}
-		if metrics.EnabledExpensive {
-			bz, _ := state.Marshal()
-			consensusStatePrunedBytesGauge.Inc(int64(len(bz)))
-		}
-		if err := rawdb.DeleteConsensusStateHeight(db, i); err != nil {
-			log.Error("Failed to prune consensus state", "height", i)
+			if metrics.EnabledExpensive {
+				bz, _ := state.Marshal()
+				consensusStatePrunedBytesGauge.Inc(int64(len(bz)))
+			}
+			if err := rawdb.DeleteConsensusStateHeight(db, i); err != nil {
+				log.Error("Failed to prune consensus state", "height", i)
+			}
 		}
 	}
 
-	// discards validator infos which are used by next state
+	// discards pruning validator infos which are used by next state
 	nextState := rawdb.ReadConsensusStateHeight(db, to)
 	if nextState != nil {
 		delete(valInfosCache, common.BytesToHash(nextState.LastValidatorsInfoHash))
@@ -153,8 +155,7 @@ func pruneState(db kaidb.KeyValueStore, from, to uint64) {
 	// delete val infos
 	for valInfoHash := range valInfosCache {
 		if metrics.EnabledExpensive {
-			valInfo := rawdb.ReadConsensusValidatorsInfo(db, valInfoHash)
-			if valInfo != nil {
+			if valInfo := rawdb.ReadConsensusValidatorsInfo(db, valInfoHash); valInfo != nil {
 				bz, _ := valInfo.Marshal()
 				consensusStatePrunedBytesGauge.Inc(int64(len(bz)))
 			}
@@ -329,6 +330,7 @@ func MakeGenesisState(genDoc *genesis.Genesis) (LatestBlockState, error) {
 		nextValidatorSet = types.NewValidatorSet(validators).CopyIncrementProposerPriority(1)
 	}
 	return LatestBlockState{
+		ChainID:         genDoc.ChainID,
 		InitialHeight:   genDoc.InitialHeight,
 		LastBlockHeight: 0,
 		LastBlockID:     types.BlockID{},
