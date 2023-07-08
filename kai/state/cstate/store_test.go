@@ -180,6 +180,52 @@ func TestPruneState(t *testing.T) {
 	assert.NotNil(t, valsInfo)
 }
 
+func TestNoPruneState(t *testing.T) {
+	db := memorydb.New()
+	stateStore := cstate.NewStore(db)
+	stateStore.SetPruning(false)
+	val, _ := types.RandValidator(true, 10)
+	val1, _ := types.RandValidator(true, 10)
+	val2, _ := types.RandValidator(true, 10)
+	lvals := types.NewValidatorSet([]*types.Validator{val})
+	vals := types.NewValidatorSet([]*types.Validator{val, val1})
+	nvals := types.NewValidatorSet([]*types.Validator{val, val1, val2})
+	cparams := configs.DefaultConsensusParams()
+
+	// Block height H
+	var checkpointH uint64 = cstate.PRUNE_LATEST_BLOCK_STATE_INTERVAL
+	// Block height 2H
+	var checkpoint2H uint64 = 2 * cstate.PRUNE_LATEST_BLOCK_STATE_INTERVAL
+
+	// Consensus state at block H - 1, which will be pruned if pruning is enable
+	// But in this case, pruning is disable so this state is still persisted.
+	state := cstate.LatestBlockState{
+		LastBlockHeight:                  checkpointH - 1,
+		LastValidators:                   lvals,
+		Validators:                       vals,
+		NextValidators:                   vals,
+		LastHeightValidatorsChanged:      checkpointH - 1,
+		ConsensusParams:                  *cparams,
+		LastHeightConsensusParamsChanged: 0,
+	}
+	stateStore.Save(state)
+
+	// Consensus state at block 2H, the checkpoint that triggers the pruning
+	state = cstate.LatestBlockState{
+		LastBlockHeight:                  checkpoint2H,
+		LastValidators:                   nvals,
+		Validators:                       nvals,
+		NextValidators:                   nvals,
+		LastHeightValidatorsChanged:      checkpoint2H,
+		ConsensusParams:                  *cparams,
+		LastHeightConsensusParamsChanged: 0,
+	}
+	stateStore.Save(state)
+
+	prunedState := rawdb.ReadConsensusStateHeight(db, checkpointH-1)
+	assert.NotNil(t, prunedState)
+}
+
 func TestLoadValidators(t *testing.T) {
 	db := memorydb.New()
 	stateStore := cstate.NewStore(db)

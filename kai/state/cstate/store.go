@@ -46,6 +46,7 @@ const (
 )
 
 type Store interface {
+	SetPruning(pruning bool)
 	LoadStateFromDBOrGenesisDoc(genesisDoc *genesis.Genesis) (LatestBlockState, error)
 	Load() LatestBlockState
 	Save(LatestBlockState)
@@ -54,11 +55,15 @@ type Store interface {
 }
 
 type dbStore struct {
-	db kaidb.Database
+	db      kaidb.Database
+	pruning bool
 }
 
 func NewStore(db kaidb.Database) Store {
-	return &dbStore{db: db}
+	return &dbStore{
+		db:      db,
+		pruning: true,
+	}
 }
 
 // LoadStateFromDBOrGenesisDoc loads the most recent state from the database,
@@ -78,6 +83,10 @@ func (s *dbStore) LoadStateFromDBOrGenesisDoc(genesisDoc *genesis.Genesis) (Late
 	return state, nil
 }
 
+func (s *dbStore) SetPruning(pruning bool) {
+	s.pruning = pruning
+}
+
 // SaveState persists the State, the ValidatorsInfo, and the ConsensusParamsInfo to the database.
 // This flushes the writes (e.g. calls SetSync).
 func (s *dbStore) Save(state LatestBlockState) {
@@ -86,7 +95,7 @@ func (s *dbStore) Save(state LatestBlockState) {
 	// Starting from the 2nd interval, we try to prune
 	// from beginning of previous interval
 	// to the end of previous interval
-	if state.LastBlockHeight%PRUNE_LATEST_BLOCK_STATE_INTERVAL == 0 && state.LastBlockHeight/PRUNE_LATEST_BLOCK_STATE_INTERVAL > 1 {
+	if s.pruning && state.LastBlockHeight%PRUNE_LATEST_BLOCK_STATE_INTERVAL == 0 && state.LastBlockHeight/PRUNE_LATEST_BLOCK_STATE_INTERVAL > 1 {
 		to := state.LastBlockHeight - PRUNE_LATEST_BLOCK_STATE_INTERVAL
 		from := to - PRUNE_LATEST_BLOCK_STATE_INTERVAL
 		if from == 0 { // dont prune state at block #0

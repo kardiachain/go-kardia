@@ -150,6 +150,8 @@ func New(stack *node.Node, config *Config) (*Kardiachain, error) {
 	kai.APIBackend = &KaiAPIBackend{kai, nil}
 
 	stateDB := cstate.NewStore(chainDb)
+	stateDB.SetPruning(!config.NoPruning)
+
 	evPool, err := evidence.NewPool(stateDB, chainDb, kai.blockchain)
 	if err != nil {
 		return nil, err
