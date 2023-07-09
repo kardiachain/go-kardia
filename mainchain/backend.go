@@ -147,8 +147,6 @@ func New(stack *node.Node, config *Config) (*Kardiachain, error) {
 	// TODO: enable this
 	// kai.bloomIndexer.Start(kai.blockchain)
 
-	kai.APIBackend = &KaiAPIBackend{kai, nil}
-
 	stateDB := cstate.NewStore(chainDb)
 	stateDB.SetPruning(!config.NoPruning)
 
@@ -202,7 +200,9 @@ func New(stack *node.Node, config *Config) (*Kardiachain, error) {
 	kai.csManager.SetEventBus(kai.eventBus)
 
 	// init gas price oracle
-	kai.APIBackend.gpo = oracles.NewGasPriceOracle(kai.APIBackend, config.GasOracle)
+	gpo := oracles.NewGasPriceOracle(kai.APIBackend, config.GasOracle)
+	kai.APIBackend = NewKaiAPIBackend(kai, gpo)
+
 	kai.accMan = stack.AccountManager()
 
 	stack.RegisterAPIs(kai.APIs())

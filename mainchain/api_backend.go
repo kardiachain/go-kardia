@@ -47,6 +47,10 @@ type KaiAPIBackend struct {
 	gpo *oracles.Oracle
 }
 
+func NewKaiAPIBackend(kai *Kardiachain, gpo *oracles.Oracle) *KaiAPIBackend {
+	return &KaiAPIBackend{kai, gpo}
+}
+
 func (k *KaiAPIBackend) HeaderByHeight(ctx context.Context, height rpc.BlockHeight) *types.Header {
 	// Return the latest block if rpc.LatestBlockHeight or rpc.PendingBlockHeight has been passed in
 	if height.Uint64() == rpc.PendingBlockHeight.Uint64() {
