@@ -27,7 +27,6 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/internal/kaiapi"
 	"github.com/kardiachain/go-kardia/kai/rawdb"
-	"github.com/kardiachain/go-kardia/kai/state/cstate"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -469,9 +468,8 @@ func (s *PublicKaiAPI) KardiaCall(ctx context.Context, args kaiapi.TransactionAr
 }
 
 // GetValidatorSet get the validators set at block height
-func (s *PublicKaiAPI) GetValidatorSet(blockHeight rpc.BlockHeight) (*types.ValidatorSet, error) {
-	store := cstate.NewStore(s.kaiService.APIBackend.kai.chainDb)
-	return store.LoadValidators(blockHeight.Uint64())
+func (s *PublicKaiAPI) GetValidatorSet(ctx context.Context, blockHeight rpc.BlockHeight) (*types.ValidatorSet, error) {
+	return s.kaiService.APIBackend.GetValidatorSet(ctx, blockHeight)
 }
 
 // GetCommit get validators' commits for the block by height
