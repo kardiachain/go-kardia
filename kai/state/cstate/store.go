@@ -237,6 +237,9 @@ func loadStateAtHeight(db kaidb.Database, height uint64) *LatestBlockState {
 // Returns ErrNoValSetForHeight if the validator set can't be found for this height.
 func (s *dbStore) LoadValidators(height uint64) (*types.ValidatorSet, error) {
 	cstate := rawdb.ReadConsensusStateHeight(s.db, height)
+	if cstate == nil {
+		return nil, ErrNoConsensusStateForHeight{height}
+	}
 
 	valInfo := rawdb.ReadConsensusValidatorsInfo(s.db, common.BytesToHash(cstate.LastValidatorsInfoHash))
 	if valInfo == nil {
