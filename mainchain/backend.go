@@ -148,7 +148,6 @@ func New(stack *node.Node, config *Config) (*Kardiachain, error) {
 	// kai.bloomIndexer.Start(kai.blockchain)
 
 	stateDB := cstate.NewStore(chainDb)
-	stateDB.SetPruning(!config.NoPruning)
 
 	evPool, err := evidence.NewPool(stateDB, chainDb, kai.blockchain)
 	if err != nil {

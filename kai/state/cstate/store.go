@@ -38,32 +38,21 @@ import (
 	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 )
 
-const (
-	// persist validators every valSetCheckpointInterval blocks to avoid
-	// LoadValidators taking too much time.
-	valSetCheckpointInterval          = 100000
-	PRUNE_LATEST_BLOCK_STATE_INTERVAL = 10000
-)
-
 type Store interface {
-	SetPruning(pruning bool)
 	LoadStateFromDBOrGenesisDoc(genesisDoc *genesis.Genesis) (LatestBlockState, error)
 	Load() LatestBlockState
 	Save(LatestBlockState)
 	LoadValidators(height uint64) (*types.ValidatorSet, error)
 	LoadConsensusParams(height uint64) (kproto.ConsensusParams, error)
+	PruneState(from, to uint64) (uint64, uint64, uint64)
 }
 
 type dbStore struct {
-	db      kaidb.Database
-	pruning bool
+	db kaidb.Database
 }
 
 func NewStore(db kaidb.Database) Store {
-	return &dbStore{
-		db:      db,
-		pruning: true,
-	}
+	return &dbStore{db}
 }
 
 // LoadStateFromDBOrGenesisDoc loads the most recent state from the database,
@@ -83,28 +72,10 @@ func (s *dbStore) LoadStateFromDBOrGenesisDoc(genesisDoc *genesis.Genesis) (Late
 	return state, nil
 }
 
-func (s *dbStore) SetPruning(pruning bool) {
-	s.pruning = pruning
-}
-
 // SaveState persists the State, the ValidatorsInfo, and the ConsensusParamsInfo to the database.
 // This flushes the writes (e.g. calls SetSync).
 func (s *dbStore) Save(state LatestBlockState) {
 	saveState(s.db, state)
-
-	// Starting from the 2nd interval, we try to prune
-	// from beginning of previous interval
-	// to the end of previous interval
-	if s.pruning && state.LastBlockHeight%PRUNE_LATEST_BLOCK_STATE_INTERVAL == 0 && state.LastBlockHeight/PRUNE_LATEST_BLOCK_STATE_INTERVAL > 1 {
-		to := state.LastBlockHeight - PRUNE_LATEST_BLOCK_STATE_INTERVAL
-		from := to - PRUNE_LATEST_BLOCK_STATE_INTERVAL
-		if from == 0 { // dont prune state at block #0
-			from = 1
-		}
-
-		log.Info("Pruning consensus state", "from", from, "to", to)
-		pruneState(s.db, from, to)
-	}
 }
 
 func saveState(db kaidb.KeyValueStore, state LatestBlockState) {
@@ -137,24 +108,41 @@ func saveState(db kaidb.KeyValueStore, state LatestBlockState) {
 	batch.Write()
 }
 
-func pruneState(db kaidb.KeyValueStore, from, to uint64) {
+// PruneState prunes consensus state height in range of [from, to)
+func (s *dbStore) PruneState(from, to uint64) (uint64, uint64, uint64) {
+	if from == 0 { // do not prune state at height #0
+		from = 1
+	}
+
+	var prunedStates uint64 = 0
+	var prunedValInfos uint64 = 0
+	var prunedBytes uint64 = 0
+
 	valInfosCache := make(map[common.Hash]struct{}, 0) // map of val info hash -> last height validator changed
 	for i := from; i < to; i++ {
-		if state := rawdb.ReadConsensusStateHeight(db, i); state != nil {
+		if state := rawdb.ReadConsensusStateHeight(s.db, i); state != nil {
 			valInfoHash := common.BytesToHash(state.LastValidatorsInfoHash)
 			valInfosCache[valInfoHash] = struct{}{}
-			if metrics.EnabledExpensive {
-				bz, _ := state.Marshal()
-				consensusStatePrunedBytesGauge.Inc(int64(len(bz)))
-			}
-			if err := rawdb.DeleteConsensusStateHeight(db, i); err != nil {
+			bz, _ := state.Marshal()
+			if err := rawdb.DeleteConsensusStateHeight(s.db, i); err != nil {
 				log.Error("Failed to prune consensus state", "height", i)
+			} else {
+				prunedStates++
+				prunedBytes += uint64(len(bz))
 			}
 		}
 	}
 
+	// discards pruning validator infos which are used by genesis state
+	genesisState := rawdb.ReadConsensusStateHeight(s.db, 0)
+	if genesisState != nil {
+		delete(valInfosCache, common.BytesToHash(genesisState.LastValidatorsInfoHash))
+		delete(valInfosCache, common.BytesToHash(genesisState.ValidatorsInfoHash))
+		delete(valInfosCache, common.BytesToHash(genesisState.NextValidatorsInfoHash))
+	}
+
 	// discards pruning validator infos which are used by next state
-	nextState := rawdb.ReadConsensusStateHeight(db, to)
+	nextState := rawdb.ReadConsensusStateHeight(s.db, to)
 	if nextState != nil {
 		delete(valInfosCache, common.BytesToHash(nextState.LastValidatorsInfoHash))
 		delete(valInfosCache, common.BytesToHash(nextState.ValidatorsInfoHash))
@@ -163,16 +151,18 @@ func pruneState(db kaidb.KeyValueStore, from, to uint64) {
 
 	// delete val infos
 	for valInfoHash := range valInfosCache {
-		if metrics.EnabledExpensive {
-			if valInfo := rawdb.ReadConsensusValidatorsInfo(db, valInfoHash); valInfo != nil {
-				bz, _ := valInfo.Marshal()
-				consensusStatePrunedBytesGauge.Inc(int64(len(bz)))
+		if valInfo := rawdb.ReadConsensusValidatorsInfo(s.db, valInfoHash); valInfo != nil {
+			bz, _ := valInfo.Marshal()
+			if err := rawdb.DeleteConsensusValidatorsInfo(s.db, valInfoHash); err != nil {
+				log.Error("Failed to prune consensus validator info", "hash", valInfoHash)
+			} else {
+				prunedValInfos++
+				prunedBytes += uint64(len(bz))
 			}
 		}
-		if err := rawdb.DeleteConsensusValidatorsInfo(db, valInfoHash); err != nil {
-			log.Error("Failed to prune consensus validator info", "hash", valInfoHash)
-		}
 	}
+
+	return prunedStates, prunedValInfos, prunedBytes
 }
 
 // LoadState loads the State from the database.
