@@ -38,6 +38,7 @@ import (
 	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 )
 
+//go:generate mockery --name Store
 type Store interface {
 	LoadStateFromDBOrGenesisDoc(genesisDoc *genesis.Genesis) (LatestBlockState, error)
 	Load() LatestBlockState

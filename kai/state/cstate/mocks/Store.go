@@ -106,14 +106,40 @@ func (_m *Store) LoadValidators(height uint64) (*go_kardiatypes.ValidatorSet, er
 	return r0, r1
 }
 
+// PruneState provides a mock function with given fields: from, to
+func (_m *Store) PruneState(from uint64, to uint64) (uint64, uint64, uint64) {
+	ret := _m.Called(from, to)
+
+	var r0 uint64
+	var r1 uint64
+	var r2 uint64
+	if rf, ok := ret.Get(0).(func(uint64, uint64) (uint64, uint64, uint64)); ok {
+		return rf(from, to)
+	}
+	if rf, ok := ret.Get(0).(func(uint64, uint64) uint64); ok {
+		r0 = rf(from, to)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	if rf, ok := ret.Get(1).(func(uint64, uint64) uint64); ok {
+		r1 = rf(from, to)
+	} else {
+		r1 = ret.Get(1).(uint64)
+	}
+
+	if rf, ok := ret.Get(2).(func(uint64, uint64) uint64); ok {
+		r2 = rf(from, to)
+	} else {
+		r2 = ret.Get(2).(uint64)
+	}
+
+	return r0, r1, r2
+}
+
 // Save provides a mock function with given fields: _a0
 func (_m *Store) Save(_a0 cstate.LatestBlockState) {
 	_m.Called(_a0)
-}
-
-// SetPruning provides a mock function with given fields: pruning
-func (_m *Store) SetPruning(pruning bool) {
-	_m.Called(pruning)
 }
 
 // NewStore creates a new instance of Store. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
