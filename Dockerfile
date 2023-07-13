@@ -11,7 +11,7 @@ FROM alpine:3.18
 RUN apk add ca-certificates
 ENV PATH="${PATH}:/go/bin"
 WORKDIR /go/bin
-COPY --from=builder /go/bin/* /go/bin/
-COPY --from=builder cmd/cfg /go/bin/
+COPY --from=builder /go/bin/* .
+COPY --from=builder /go/src/github.com/kardiachain/go-kardia/cmd/cfg .
 
 ENTRYPOINT ["./cmd"]
