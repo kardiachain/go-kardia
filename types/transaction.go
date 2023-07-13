@@ -19,6 +19,7 @@
 package types
 
 import (
+	"bytes"
 	"container/heap"
 	"crypto/ecdsa"
 	"errors"
@@ -191,7 +192,6 @@ func (tx *Transaction) Size() common.StorageSize {
 }
 
 // AsMessage returns the transaction as a core.Message.
-//
 func (tx *Transaction) AsMessage(s Signer) (Message, error) {
 	msg := Message{
 		nonce:      tx.data.AccountNonce,
@@ -253,6 +253,13 @@ type Transactions []*Transaction
 // Len returns the length of s.
 func (s Transactions) Len() int { return len(s) }
 
+// EncodeIndex encodes the i'th transaction to w. Note that this does not check for errors
+// because we assume that *Transaction will only ever contain valid txs that were either
+// constructed by decoding or via public API in this package.
+func (s Transactions) EncodeIndex(i int, w *bytes.Buffer) {
+	rlp.Encode(w, s[i].data)
+}
+
 // Empty returns whether the list of transactions is empty or not.
 func (s Transactions) Empty() bool {
 	return s.Len() == 0
@@ -267,8 +274,8 @@ func (s Transactions) GetRlp(i int) []byte {
 	return enc
 }
 
-func (s Transactions) Hash() common.Hash {
-	return DeriveSha(s)
+func (s Transactions) Hash(hasher TrieHasher) common.Hash {
+	return DeriveSha(s, hasher)
 }
 
 // Contains tells whether contains hash.

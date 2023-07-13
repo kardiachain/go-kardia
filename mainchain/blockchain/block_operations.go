@@ -31,6 +31,7 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/staking/misc"
 	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardia/trie"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -139,7 +140,17 @@ func (bo *BlockOperations) CreateProposalBlock(
 // CommitAndValidateBlockTxs executes and commits the transactions in the given block.
 // New calculated state root is validated against the root field in block.
 // Transactions, new state and receipts are saved to storage.
-func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCommit stypes.LastCommitInfo, byzVals []stypes.Evidence) ([]*types.Validator, common.Hash, error) {
+func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCommit stypes.LastCommitInfo,
+	byzVals []stypes.Evidence) ([]*types.Validator, common.Hash, error) {
+	// Update blacklisted addresses after interval
+	if block.Height()%tx_pool.UpdateBlacklistInterval == 0 {
+		err := tx_pool.UpdateBlacklist(tx_pool.BlacklistRequestTimeout)
+		if err != nil {
+			bo.logger.Warn("Cannot get blacklisted addresses", "err", err)
+		}
+		bo.logger.Info("Current blacklisted addresses", "addresses", tx_pool.StringifyBlacklist())
+	}
+
 	vals, root, blockInfo, err := bo.commitBlock(block.Transactions(), block.Header(), lastCommit, byzVals)
 	if err != nil {
 		return nil, common.Hash{}, err
@@ -175,9 +186,10 @@ func (bo *BlockOperations) CommitBlockTxsIfNotFound(block *types.Block, lastComm
 
 // SaveBlock saves the given block, blockParts, and seenCommit to the underlying storage.
 // seenCommit: The +2/3 precommits that were seen which committed at height.
-//             If all the nodes restart after committing a block,
-//             we need this to reload the precommits to catch-up nodes to the
-//             most recent height.  Otherwise they'd stall at H-1.
+//
+//	If all the nodes restart after committing a block,
+//	we need this to reload the precommits to catch-up nodes to the
+//	most recent height.  Otherwise they'd stall at H-1.
 func (bo *BlockOperations) SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) {
 	if block == nil {
 		common.PanicSanity("BlockOperations try to save a nil block")
@@ -248,7 +260,7 @@ func (bo *BlockOperations) newHeader(time time.Time, height uint64, numTxs uint6
 
 // newBlock creates new block from given data.
 func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transaction, commit *types.Commit, ev []types.Evidence) *types.Block {
-	block := types.NewBlock(header, txs, commit, ev)
+	block := types.NewBlock(header, txs, commit, ev, trie.NewStackTrie(nil))
 	return block
 }
 

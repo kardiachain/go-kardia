@@ -37,6 +37,7 @@ import (
 	g "github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/mainchain/staking"
 	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
+	"github.com/kardiachain/go-kardia/trie"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -135,7 +136,7 @@ func setup() (*blockchain.BlockChain, *state.StateDB, *staking.StakingSmcUtil, *
 			},
 		},
 	}
-	block := types.NewBlock(head, nil, &types.Commit{}, nil)
+	block := types.NewBlock(head, nil, &types.Commit{}, nil, trie.NewStackTrie(nil))
 	if err := util.SetRoot(stateDB, block.Header(), nil, kvm.Config{}); err != nil {
 		return nil, nil, nil, nil, nil, err
 	}

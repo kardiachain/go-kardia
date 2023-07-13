@@ -7,6 +7,7 @@ import (
 
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
 	"github.com/kardiachain/go-kardia/lib/p2p"
+	"github.com/kardiachain/go-kardia/trie"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -28,7 +29,7 @@ type params struct {
 
 // makePcBlock makes an empty block.
 func makePcBlock(height uint64) *types.Block {
-	return types.NewBlock(&types.Header{Height: height}, nil, nil, nil)
+	return types.NewBlock(&types.Header{Height: height}, nil, nil, nil, trie.NewStackTrie(nil))
 }
 
 // makeState takes test parameters and creates a specific processor state.

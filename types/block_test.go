@@ -28,6 +28,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/merkle"
 	krand "github.com/kardiachain/go-kardia/lib/rand"
 	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/trie"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -65,7 +66,7 @@ func createHeaderRandom() *Header {
 
 func TestBlockCreation(t *testing.T) {
 	block := CreateNewBlock(1)
-	if err := block.ValidateBasic(); err != nil {
+	if err := block.ValidateBasic(nil); err != nil {
 		t.Fatal("Init block error", err)
 	}
 }
@@ -162,11 +163,11 @@ func CreateNewBlock(height uint64) *Block {
 		Signatures: []CommitSig{vote.CommitSig(), CommitSig{}},
 	}
 	evidence := []Evidence{}
-	return NewBlock(&header, txns, lastCommit, evidence)
+	return NewBlock(&header, txns, lastCommit, evidence, trie.NewStackTrie(nil))
 }
 
 func TestBlockValidateBasic(t *testing.T) {
-	require.Error(t, (*Block)(nil).ValidateBasic())
+	require.Error(t, (*Block)(nil).ValidateBasic(nil))
 
 	addr1 := common.BytesToAddress([]byte("0x01"))
 	txs := []*Transaction{
@@ -220,10 +221,10 @@ func TestBlockValidateBasic(t *testing.T) {
 		tc := tc
 		i := i
 		t.Run(tc.testName, func(t *testing.T) {
-			block := NewBlock(&Header{Height: h}, txs, commit, evList)
+			block := NewBlock(&Header{Height: h}, txs, commit, evList, trie.NewStackTrie(nil))
 			block.header.ProposerAddress = valSet.GetProposer().Address
 			tc.malleateBlock(block)
-			err := block.ValidateBasic()
+			err := block.ValidateBasic(trie.NewStackTrie(nil))
 			t.Log(err)
 			assert.Equal(t, tc.expErr, err != nil, "#%d: %v", i, err)
 		})
@@ -238,7 +239,7 @@ func TestBlockHash(t *testing.T) {
 func TestBlockMakePartSet(t *testing.T) {
 	assert.Nil(t, (*Block)(nil).MakePartSet(2))
 
-	partSet := NewBlock(&Header{Height: 3}, []*Transaction{}, nil, nil).MakePartSet(1024)
+	partSet := NewBlock(&Header{Height: 3}, []*Transaction{}, nil, nil, trie.NewStackTrie(nil)).MakePartSet(1024)
 	assert.NotNil(t, partSet)
 	assert.EqualValues(t, 1, partSet.Total())
 }
@@ -256,7 +257,7 @@ func TestBlockMakePartSetWithEvidence(t *testing.T) {
 	ev := NewMockDuplicateVoteEvidenceWithValidator(h, time.Now(), vals[0], "block-test-chain")
 	evList := []Evidence{ev}
 
-	partSet := NewBlock(&Header{Height: 3}, []*Transaction{}, commit, evList).MakePartSet(512)
+	partSet := NewBlock(&Header{Height: 3}, []*Transaction{}, commit, evList, trie.NewStackTrie(nil)).MakePartSet(512)
 	assert.NotNil(t, partSet)
 	assert.EqualValues(t, 4, partSet.Total())
 }
@@ -273,7 +274,7 @@ func TestBlockHashesTo(t *testing.T) {
 	ev := NewMockDuplicateVoteEvidenceWithValidator(h, time.Now(), vals[0], "block-test-chain")
 	evList := []Evidence{ev}
 
-	block := NewBlock(&Header{Height: 3}, []*Transaction{}, commit, evList)
+	block := NewBlock(&Header{Height: 3}, []*Transaction{}, commit, evList, trie.NewStackTrie(nil))
 	block.header.ValidatorsHash = valSet.Hash()
 	assert.False(t, block.HashesTo(common.Hash{}))
 	assert.False(t, block.HashesTo(common.BytesToHash([]byte("something else"))))
@@ -281,7 +282,7 @@ func TestBlockHashesTo(t *testing.T) {
 }
 
 func TestBlockSize(t *testing.T) {
-	size := NewBlock(&Header{Height: 3}, []*Transaction{}, nil, nil).Size()
+	size := NewBlock(&Header{Height: 3}, []*Transaction{}, nil, nil, trie.NewStackTrie(nil)).Size()
 	if size <= 0 {
 		t.Fatal("Size of the block is zero or negative")
 	}
