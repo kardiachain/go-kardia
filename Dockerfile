@@ -5,7 +5,6 @@ RUN apt-get update && apt-get install -y libzmq3-dev
 ADD . .
 WORKDIR /go/src/github.com/kardiachain/go-kardia/cmd
 RUN go install
-WORKDIR /go/bin
 
 FROM alpine:3.18
 RUN apk add ca-certificates
