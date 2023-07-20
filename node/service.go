@@ -36,7 +36,7 @@ import (
 type ServiceContext struct {
 	Config     *Config
 	services   map[reflect.Type]Service // Index of the already constructed services
-	EventMux   *event.TypeMux           // Event multiplexer used for decoupled notifications
+	EventMux   *event.Feed              // Event multiplexer used for decoupled notifications
 	BlockStore types.StoreDB
 	StateDB    cstate.Store
 	AccMan     *accounts.Manager
