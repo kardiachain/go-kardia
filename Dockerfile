@@ -1,13 +1,15 @@
-FROM golang:1.19.4
-RUN mkdir -p "$GOPATH/src/github.com/kardiachain/go-kardia"
+FROM golang:1.19.4-alpine as builder
+RUN apk update && apk add build-base cmake gcc git
 WORKDIR /go/src/github.com/kardiachain/go-kardia
-RUN apt-get update && apt-get install -y libzmq3-dev
 ADD . .
 WORKDIR /go/src/github.com/kardiachain/go-kardia/cmd/kaigo
 RUN go install
-WORKDIR /go/src/github.com/kardiachain/go-kardia/dualnode/eth/eth_client
-RUN go install
 WORKDIR /go/bin
+
+FROM alpine:3.18
 RUN mkdir -p /go/bin/cfg
-COPY cmd/cfg /go/bin/cfg
+COPY cmd/cfg/* /go/bin/cfg/
+ENV PATH="${PATH}:/go/bin"
+WORKDIR /go/bin
+COPY --from=builder /go/bin/* .
 ENTRYPOINT ["./kaigo"]
