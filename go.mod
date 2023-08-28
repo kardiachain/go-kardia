@@ -21,7 +21,6 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.4.3
 	github.com/google/cel-go v0.3.2
-	github.com/google/go-cmp v0.5.2 // indirect
 	github.com/google/uuid v1.0.0
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
@@ -36,7 +35,7 @@ require (
 	github.com/pebbe/zmq4 v1.0.0
 	github.com/petermattis/goid v0.0.0-20180202154549-b0b1615b78e5 // indirect
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.8.0
+	github.com/prometheus/client_golang v1.11.1
 	github.com/prometheus/tsdb v0.10.0
 	github.com/rjeczalik/notify v0.9.2
 	github.com/rs/cors v1.7.0
@@ -46,9 +45,9 @@ require (
 	github.com/stretchr/testify v1.8.0
 	github.com/syndtr/goleveldb v1.0.1-0.20200815110645-5c35d600f0ca
 	github.com/tyler-smith/go-bip39 v1.0.2 // indirect
-	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
-	golang.org/x/net v0.3.0
-	golang.org/x/sys v0.3.0
+	golang.org/x/crypto v0.1.0
+	golang.org/x/net v0.7.0
+	golang.org/x/sys v0.5.0
 	golang.org/x/tools v0.4.0
 	google.golang.org/genproto v0.0.0-20201111145450-ac7456db90a6
 	gopkg.in/check.v1 v1.0.0-20200902074654-038fdea0a05b
