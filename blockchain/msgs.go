@@ -35,6 +35,10 @@ func EncodeMsg(pb proto.Message) ([]byte, error) {
 		msg.Sum = &bcproto.Message_StatusRequest{StatusRequest: pb}
 	case *bcproto.StatusResponse:
 		msg.Sum = &bcproto.Message_StatusResponse{StatusResponse: pb}
+	case *bcproto.BlockHeadersByNumberRequest:
+		msg.Sum = &bcproto.Message_BlockHeadersByNumberRequest{BlockHeadersByNumberRequest: pb}
+	case *bcproto.BlockHeadersByNumberResponse:
+		msg.Sum = &bcproto.Message_BlockHeadersByNumberResponse{BlockHeadersByNumberResponse: pb}
 	default:
 		return nil, fmt.Errorf("unknown message type %T", pb)
 	}
@@ -67,6 +71,10 @@ func DecodeMsg(bz []byte) (proto.Message, error) {
 		return msg.StatusRequest, nil
 	case *bcproto.Message_StatusResponse:
 		return msg.StatusResponse, nil
+	case *bcproto.Message_BlockHeadersByNumberRequest:
+		return msg.BlockHeadersByNumberRequest, nil
+	case *bcproto.Message_BlockHeadersByNumberResponse:
+		return msg.BlockHeadersByNumberResponse, nil
 	default:
 		return nil, fmt.Errorf("unknown message type %T", msg)
 	}
@@ -97,6 +105,12 @@ func ValidateMsg(pb proto.Message) error {
 			return fmt.Errorf("base %v cannot be greater than height %v", msg.Base, msg.Height)
 		}
 	case *bcproto.StatusRequest:
+		return nil
+	case *bcproto.BlockHeadersByNumberRequest:
+		if msg.Amount > maxHeadersServe {
+			return errors.New("exceeded max headers served")
+		}
+	case *bcproto.BlockHeadersByNumberResponse:
 		return nil
 	default:
 		return fmt.Errorf("unknown message type %T", msg)

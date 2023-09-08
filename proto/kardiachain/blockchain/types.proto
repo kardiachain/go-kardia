@@ -4,6 +4,7 @@ package kardiachain.blockchain;
 option go_package = "github.com/kardiachain/go-kardia/proto/kardiachain/blockchain";
 
 import "kardiachain/types/block.proto";
+import "kardiachain/types/types.proto";
 
 // BlockRequest requests a block for a specific height
 message BlockRequest {
@@ -30,6 +31,18 @@ message StatusResponse {
   uint64 base   = 2;
 }
 
+message BlockHeadersByNumberRequest {
+  uint64 origin = 1;
+  uint64 amount = 2;
+  uint64 skip = 3;
+  bool reverse = 4;
+}
+
+message BlockHeadersByNumberResponse {
+  bool fulfilled = 1;
+  repeated kardiachain.types.Header headers = 2;
+}
+
 message Message {
   oneof sum {
     BlockRequest    block_request     = 1;
@@ -37,5 +50,7 @@ message Message {
     BlockResponse   block_response    = 3;
     StatusRequest   status_request    = 4;
     StatusResponse  status_response   = 5;
+    BlockHeadersByNumberRequest block_headers_by_number_request = 6;
+    BlockHeadersByNumberResponse block_headers_by_number_response = 7;
   }
 }
