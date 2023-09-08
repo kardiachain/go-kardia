@@ -25,6 +25,7 @@ type Peer interface {
 
 	IsOutbound() bool   // did we dial the peer
 	IsPersistent() bool // do we redial this peer when we disconnect
+	IsSnapPeer() bool
 
 	CloseConn() error // close original connection
 
@@ -219,6 +220,10 @@ func (p *peer) IsOutbound() bool {
 // IsPersistent returns true if the peer is persitent, false otherwise.
 func (p *peer) IsPersistent() bool {
 	return p.peerConn.persistent
+}
+
+func (p *peer) IsSnapPeer() bool {
+	return p.nodeInfo.(DefaultNodeInfo).ProtocolVersion.P2P >= P2PVersion2
 }
 
 // NodeInfo returns a copy of the peer's NodeInfo.
