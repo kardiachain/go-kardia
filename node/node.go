@@ -546,7 +546,7 @@ func makeNodeInfo(
 
 	nodeInfo := p2p.DefaultNodeInfo{
 		ProtocolVersion: p2p.NewProtocolVersion(
-			uint64(1), // global
+			uint64(p2p.P2PVersion2), // global
 			uint64(1),
 			uint64(1),
 		),
