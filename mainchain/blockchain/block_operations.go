@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -148,40 +149,24 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCom
 		if err != nil {
 			bo.logger.Warn("Cannot get blacklisted addresses", "err", err)
 		}
-		bo.logger.Info("Current blacklisted addresses", "addresses", tx_pool.StringifyBlacklist())
+		// bo.logger.Info("Current blacklisted addresses", "addresses", tx_pool.StringifyBlacklist())
 	}
 
-	vals, root, blockInfo, err := bo.commitBlock(block.Transactions(), block.Header(), lastCommit, byzVals)
+	// Blockchain state at head block.
+	state, err := bo.blockchain.State()
+	if err != nil {
+		bo.logger.Error("Fail to get blockchain head state", "err", err)
+		return nil, common.Hash{}, err
+	}
+
+	vals, blockInfo, err := bo.commitBlock(state, block.Transactions(), block.Header(), lastCommit, byzVals)
 	if err != nil {
 		return nil, common.Hash{}, err
 	}
 
-	bo.saveBlockInfo(blockInfo, block)
-	bo.blockchain.DB().WriteHeadBlockHash(block.Hash())
-	bo.blockchain.DB().WriteTxLookupEntries(block)
-	bo.blockchain.DB().WriteAppHash(block.Height(), root)
-	bo.blockchain.InsertHeadBlock(block)
+	bo.blockchain.WriteBlockAndSetHead(block, blockInfo, state)
 
-	// send logs of emitted events to logs feed for collecting
-	var logs []*types.Log
-	for _, r := range blockInfo.Receipts {
-		logs = append(logs, r.Logs...)
-	}
-	bo.blockchain.logsFeed.Send(logs)
-
-	return vals, root, nil
-}
-
-// CommitBlockTxsIfNotFound executes and commits block txs if the block state root is not found in storage.
-// Proposer and validators should already commit the block txs, so this function prevents double tx execution.
-func (bo *BlockOperations) CommitBlockTxsIfNotFound(block *types.Block, lastCommit stypes.LastCommitInfo, byzVals []stypes.Evidence) ([]*types.Validator, common.Hash, error) {
-	root := bo.blockchain.DB().ReadAppHash(block.Height())
-	if !bo.blockchain.CheckCommittedStateRoot(root) {
-		bo.logger.Trace("Block has unseen state root, execute & commit block txs", "height", block.Height())
-		return bo.CommitAndValidateBlockTxs(block, lastCommit, byzVals)
-	}
-
-	return nil, common.Hash{}, nil
+	return vals, state.IntermediateRoot(true), nil
 }
 
 // SaveBlock saves the given block, blockParts, and seenCommit to the underlying storage.
@@ -265,51 +250,52 @@ func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transacti
 }
 
 // commitTransactions executes the given transactions and commits the result stateDB to disk.
-func (bo *BlockOperations) commitBlock(txs types.Transactions, header *types.Header,
-	lastCommit stypes.LastCommitInfo, byzVals []stypes.Evidence) ([]*types.Validator, common.Hash, *types.BlockInfo, error) {
+func (bo *BlockOperations) commitBlock(
+	state *state.StateDB,
+	txs types.Transactions,
+	header *types.Header,
+	lastCommit stypes.LastCommitInfo,
+	byzVals []stypes.Evidence,
+) ([]*types.Validator, *types.BlockInfo, error) {
 	var (
 		receipts = types.Receipts{}
 		usedGas  = new(uint64)
 	)
-
-	// Blockchain state at head block.
-	state, err := bo.blockchain.State()
-	if err != nil {
-		bo.logger.Error("Fail to get blockchain head state", "err", err)
-		return nil, common.Hash{}, nil, err
-	}
 
 	// Mutate the block and state according to any hard-fork specs
 	if bo.blockchain.chainConfig.GalaxiasBlock != nil && *bo.blockchain.chainConfig.GalaxiasBlock == header.Height {
 		valsList, err := bo.staking.GetAllValContracts(state, header, bo.blockchain, bo.blockchain.vmConfig)
 		if err != nil {
 			bo.logger.Error("Failed to apply Galaxias Staking hardfork")
-			return nil, common.Hash{}, nil, err
+			return nil, nil, err
 		}
 		misc.ApplyGalaxiasContracts(state, valsList)
 		bo.logger.Info("Applied Galaxias hardfork successfully at", "block", header.Height)
 	}
 
 	// GasPool
-	bo.logger.Info("header gas limit", "limit", header.GasLimit)
+	bo.logger.Debug("header gas limit", "limit", header.GasLimit)
 	gasPool := new(types.GasPool).AddGas(header.GasLimit)
 
 	kvmConfig := kvm.Config{}
 
+	// processing time tracker
+	start := time.Now()
+
 	blockReward, err := bo.staking.Mint(state, header, bo.blockchain, kvmConfig)
 	if err != nil {
 		bo.logger.Error("Fail to mint", "err", err)
-		return nil, common.Hash{}, nil, err
+		return nil, nil, err
 	}
 
 	if err := bo.staking.FinalizeCommit(state, header, bo.blockchain, kvmConfig, lastCommit); err != nil {
 		bo.logger.Error("Fail to finalize commit", "err", err)
-		return nil, common.Hash{}, nil, err
+		return nil, nil, err
 	}
 
 	if err := bo.staking.DoubleSign(state, header, bo.blockchain, kvmConfig, byzVals); err != nil {
 		bo.logger.Error("Fail to apply double sign", "err", err)
-		return nil, common.Hash{}, nil, err
+		return nil, nil, err
 	}
 
 LOOP:
@@ -328,20 +314,12 @@ LOOP:
 
 	vals, err := bo.staking.ApplyAndReturnValidatorSets(state, header, bo.blockchain, kvmConfig)
 	if err != nil {
-		return nil, common.Hash{}, nil, err
+		return nil, nil, err
 	}
 
-	root, err := state.Commit(true)
-
-	if err != nil {
-		bo.logger.Error("Fail to commit new statedb after txs", "err", err)
-		return nil, common.Hash{}, nil, err
-	}
-	err = bo.blockchain.CommitTrie(root)
-	if err != nil {
-		bo.logger.Error("Fail to write statedb trie to disk", "err", err)
-		return nil, common.Hash{}, nil, err
-	}
+	proctime := time.Since(start) // processing + validation
+	// Update processing time for in-memory trie cache clean
+	bo.blockchain.AccumulateGCProc(proctime)
 
 	blockInfo := &types.BlockInfo{
 		GasUsed:  *usedGas,
@@ -350,10 +328,5 @@ LOOP:
 		Bloom:    types.CreateBloom(receipts),
 	}
 
-	return vals, root, blockInfo, nil
-}
-
-// saveReceipts saves receipts of block transactions to storage.
-func (bo *BlockOperations) saveBlockInfo(blockInfo *types.BlockInfo, block *types.Block) {
-	bo.blockchain.WriteBlockInfo(block, blockInfo)
+	return vals, blockInfo, nil
 }

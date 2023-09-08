@@ -30,7 +30,7 @@ import (
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
-	"github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -168,7 +168,7 @@ func testCallTracer(tracer string, dirPath string, t *testing.T) {
 				Time:        new(big.Int).SetUint64(uint64(test.Context.Time)),
 				GasLimit:    uint64(test.Context.GasLimit),
 			}
-			statedb := tests.MakePreState(storage.NewMemoryDatabase().DB(), test.Genesis.Alloc)
+			statedb := tests.MakePreState(rawdb.NewMemoryDatabase().DB(), test.Genesis.Alloc)
 
 			// Create the tracer, the kvm environment and run it
 			tracer, err := tracers.New(tracer, new(tracers.Context))
@@ -351,7 +351,7 @@ func TestZeroValueToNotExitCall(t *testing.T) {
 			Balance: big.NewInt(500000000000000),
 		},
 	}
-	statedb := tests.MakePreState(storage.NewMemoryDatabase().DB(), alloc)
+	statedb := tests.MakePreState(rawdb.NewMemoryDatabase().DB(), alloc)
 	// Create the tracer, the KVM environment and run it
 	tracer, err := tracers.New("callTracer", nil)
 	if err != nil {

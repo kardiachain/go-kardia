@@ -29,6 +29,7 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/accounts/abi"
 	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -55,7 +56,7 @@ func generateInput(p *Parser, extras ...interface{}) (string, *abi.ABI, *common.
 	db := p.Bc.DB()
 
 	// get abi from smart contract address, if abi is not found, returns error
-	kAbi := db.ReadSmartContractAbi(contractAddress.Hex())
+	kAbi := rawdb.ReadSmartContractAbi(db, contractAddress.Hex())
 	if kAbi == nil {
 		return "", nil, nil, nil, nil, abiNotFound
 	}
@@ -340,7 +341,7 @@ func EstimateGas(from common.Address, to common.Address, currentHeader *types.He
 	defer kaiVm.Cancel()
 	// Apply the transaction to the current state (included in the env)
 	gp := new(types.GasPool).AddGas(common.MaxUint64)
-	result, err := bc.ApplyMessage(kaiVm, msg, gp)
+	result, err := blockchain.ApplyMessage(kaiVm, msg, gp)
 	if err != nil {
 		return 0, err
 	}

@@ -1,0 +1,34 @@
+/*
+ *  Copyright 2023 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package state
+
+import "github.com/kardiachain/go-kardia/lib/metrics"
+
+var (
+	updatedAccountsGauge     = metrics.NewRegisteredGauge("state/update/accounts", nil)
+	deletedAccountsGauge     = metrics.NewRegisteredGauge("state/delete/accounts", nil)
+	accountUpdatedMeter      = metrics.NewRegisteredMeter("state/update/account", nil)
+	storageUpdatedMeter      = metrics.NewRegisteredMeter("state/update/storage", nil)
+	accountDeletedMeter      = metrics.NewRegisteredMeter("state/delete/account", nil)
+	storageDeletedMeter      = metrics.NewRegisteredMeter("state/delete/storage", nil)
+	accountTrieUpdatedMeter  = metrics.NewRegisteredMeter("state/update/accountnodes", nil)
+	storageTriesUpdatedMeter = metrics.NewRegisteredMeter("state/update/storagenodes", nil)
+	accountTrieDeletedMeter  = metrics.NewRegisteredMeter("state/delete/accountnodes", nil)
+	storageTriesDeletedMeter = metrics.NewRegisteredMeter("state/delete/storagenodes", nil)
+)

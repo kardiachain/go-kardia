@@ -32,7 +32,7 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
-	"github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
@@ -50,7 +50,7 @@ const (
 // Mainchain configs
 type MainChainConfig struct {
 	// DbInfo stores configuration information to setup database
-	DBInfo storage.DbInfo
+	DBInfo rawdb.DbInfo
 
 	// Genesis is genesis block which contain initial Block and accounts
 	Genesis *genesis.Genesis
@@ -85,7 +85,7 @@ type DualChainConfig struct {
 	ChainId uint64 // ID of dual chain unique to a dualnode group, such as for dual eth.
 
 	// DbInfo stores configuration information to setup database
-	DBInfo storage.DbInfo
+	DBInfo rawdb.DbInfo
 
 	// Genesis is genesis block which contain initial Block and accounts
 	DualGenesis *genesis.Genesis
@@ -130,21 +130,21 @@ type EnvironmentConfig struct {
 type Config struct {
 	// Name sets the instance name of the node. It must not contain the / character and is
 	// used in the devp2p node identifier.
-	Name string `toml:"-"`
+	Name string `toml:",omitempty"`
 
 	// Version should be set to the version number of the program. It is used
 	// in the devp2p node identifier.
-	Version string `toml:"-"`
+	Version string `toml:",omitempty"`
 
 	// DataDir is the file system folder the node should use for any data storage
 	// requirements. The configured data directory will not be directly shared with
 	// registered services, instead those can use utility methods to create/access
 	// databases or flat files. This enables ephemeral nodes which can fully reside
 	// in memory.
-	DataDir string
+	DataDir string `toml:",omitempty"`
 
 	// Configuration of peer-to-peer networking.
-	P2P *configs.P2PConfig
+	P2P *configs.P2PConfig `toml:",omitempty"`
 
 	// KeyStoreDir is the file system folder that contains private keys. The directory can
 	// be specified as a relative path, in which case it is resolved relative to the
@@ -153,24 +153,24 @@ type Config struct {
 	// If KeyStoreDir is empty, the default location is the "keystore" subdirectory of
 	// DataDir. If DataDir is unspecified and KeyStoreDir is empty, an ephemeral directory
 	// is created by New and destroyed when the node is stopped.
-	KeyStoreDir string
+	KeyStoreDir string `toml:",omitempty"`
 
 	// UseLightweightKDF lowers the memory and CPU requirements of the key store
 	// scrypt KDF at the expense of security.
-	UseLightweightKDF bool
+	UseLightweightKDF bool `toml:",omitempty"`
 
 	// InsecureUnlockAllowed allows user to unlock accounts in unsafe http environment.
-	InsecureUnlockAllowed bool
+	InsecureUnlockAllowed bool `toml:",omitempty"`
 
 	// IPCPath is the requested location to place the IPC endpoint. If the path is
 	// a simple file name, it is placed inside the data directory (or on the root
 	// pipe path on Windows), whereas if it's a resolvable path name (absolute or
 	// relative), then that specific path is enforced. An empty path disables IPC.
-	IPCPath string
+	IPCPath string `toml:",omitempty"`
 
 	// HTTPHost is the host interface on which to start the HTTP RPC server. If this
 	// field is empty, no HTTP API endpoint will be started.
-	HTTPHost string
+	HTTPHost string `toml:",omitempty"`
 
 	// HTTPPort is the TCP port number on which to start the HTTP RPC server. The
 	// default zero value is/ valid and will pick a port number randomly (useful
@@ -194,15 +194,15 @@ type Config struct {
 	// HTTPModules is a list of API modules to expose via the HTTP RPC interface.
 	// If the module list is empty, all RPC API endpoints designated public will be
 	// exposed.
-	HTTPModules []string
+	HTTPModules []string `toml:",omitempty"`
 
 	// HTTPTimeouts allows for customization of the timeout values used by the HTTP RPC
 	// interface.
-	HTTPTimeouts rpc.HTTPTimeouts
+	HTTPTimeouts rpc.HTTPTimeouts `toml:",omitempty"`
 
 	// WSHost is the host interface on which to start the websocket RPC server. If
 	// this field is empty, no websocket API endpoint will be started.
-	WSHost string
+	WSHost string `toml:",omitempty"`
 
 	// WSPort is the TCP port number on which to start the websocket RPC server. The
 	// default zero value is/ valid and will pick a port number randomly (useful for
@@ -217,7 +217,7 @@ type Config struct {
 	// WSModules is a list of API modules to expose via the websocket RPC interface.
 	// If the module list is empty, all RPC API endpoints designated public will be
 	// exposed.
-	WSModules []string
+	WSModules []string `toml:",omitempty"`
 
 	// WSExposeAll exposes all API modules via the WebSocket RPC interface rather
 	// than just the public ones.
@@ -230,23 +230,23 @@ type Config struct {
 	Logger log.Logger `toml:",omitempty"`
 
 	// Configuration of the Kardia's blockchain (or main chain).
-	MainChainConfig MainChainConfig
+	MainChainConfig MainChainConfig `toml:"-"`
 
 	// Configuration of the dual's blockchain.
-	DualChainConfig DualChainConfig
+	DualChainConfig DualChainConfig `toml:"-"`
 
 	// If this node is many blocks behind the tip of the chain, FastSync
 	// allows them to catchup quickly by downloading blocks in parallel
 	// and verifying their commits
-	FastSync *configs.FastSyncConfig
+	FastSync *configs.FastSyncConfig `toml:",omitempty"`
 
-	GasOracle *oracles.Config
+	GasOracle *oracles.Config `toml:",omitempty"`
 
 	// ======== DEV ENVIRONMENT CONFIG =========
 	// Configuration of this node when running in dev environment.
-	NodeMetadata *NodeMetadata
+	NodeMetadata *NodeMetadata `toml:",omitempty"`
 
-	Genesis *genesis.Genesis
+	Genesis *genesis.Genesis `toml:"-"`
 }
 
 // IPCEndpoint resolves an IPC endpoint based on a configured value, taking into
@@ -471,10 +471,10 @@ func (c *Config) KeyDirConfig() (string, error) {
 	return keydir, err
 }
 
-// getKeyStoreDir retrieves the key directory and will create
+// GetKeyStoreDir retrieves the key directory and will create
 // and ephemeral one if necessary.
-func getKeyStoreDir(conf *Config) (string, bool, error) {
-	keydir, err := conf.KeyDirConfig()
+func (c *Config) GetKeyStoreDir() (string, bool, error) {
+	keydir, err := c.KeyDirConfig()
 	if err != nil {
 		return "", false, err
 	}

@@ -31,11 +31,15 @@ type (
 	}
 	Node struct {
 		P2P struct {
-			ListenAddress string `yaml:"ListenAddress"`
-			PrivateKey    string `yaml:"PrivateKey"`
-			InboundPeers  int    `yaml:"InboundPeers"`
-			OutboundPeers int    `yaml:"OutboundPeers"`
+			ListenAddress   string   `yaml:"ListenAddress"`
+			PrivateKey      string   `yaml:"PrivateKey"`
+			InboundPeers    int      `yaml:"InboundPeers"`
+			OutboundPeers   int      `yaml:"OutboundPeers"`
+			PersistentPeers []string `yaml:"PersistentPeers"`
+			SeedMode        bool     `yaml:"SeedMode"`
+			AddrBookStrict  bool     `yaml:"AddrBookStrict"`
 		} `yaml:"P2P"`
+		GCMode               string     `yaml:"GCMode"`
 		LogLevel             string     `yaml:"LogLevel"`
 		Name                 string     `yaml:"Name"`
 		DataDir              string     `yaml:"DataDir"`

@@ -2,52 +2,41 @@ syntax = "proto3";
 package kardiachain.state;
 
 import "gogoproto/gogo.proto";
-import "google/protobuf/timestamp.proto";
-import "kardiachain/types/types.proto";
 import "kardiachain/types/validator.proto";
 import "kardiachain/types/params.proto";
 
-
 option go_package = "github.com/kardiachain/go-kardia/proto/kardiachain/state";
-
 
 // ValidatorsInfo represents the latest validator set, or the last height it changed
 message ValidatorsInfo {
-    kardiachain.types.ValidatorSet validator_set       = 1;
-    uint64                         last_height_changed = 2;
+    // bytes validator_set_hash   = 1;
+    kardiachain.types.ValidatorSet validator_set = 1;
+    uint64 last_height_changed                   = 2;
 }
-  
+
 // ConsensusParamsInfo represents the latest consensus params, or the last height it changed
 message ConsensusParamsInfo {
-    kardiachain.types.ConsensusParams consensus_params    = 1 [(gogoproto.nullable) = false];
-    uint64                            last_height_changed = 2;
-  }
+    // bytes consensus_params_hash = 1;
+    kardiachain.types.ConsensusParams consensus_params = 1 [(gogoproto.nullable) = false];
+    uint64 last_height_changed                         = 2;
+}
 
 message State {
-    string chain_id       = 2 [(gogoproto.customname) = "ChainID"];
-    uint64  initial_height = 14;
-    uint64  last_block_height = 3;
-    kardiachain.types.BlockID last_block_id     = 4
-      [(gogoproto.nullable) = false, (gogoproto.customname) = "LastBlockID"];
-    google.protobuf.Timestamp last_block_time = 5
-      [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+    string chain_id          = 1 [(gogoproto.customname) = "ChainID"];
+    uint64 initial_height    = 2;
+    uint64 last_block_height = 3 [(gogoproto.customname) = "LastBlockHeight"];
 
-     // LastValidators is used to validate block.LastCommit.
-  // Validators are persisted to the database separately every time they change,
-  // so we can query for historical validator sets.
-  // Note that if s.LastBlockHeight causes a valset change,
-  // we set s.LastHeightValidatorsChanged = s.LastBlockHeight + 1 + 1
-  // Extra +1 due to nextValSet delay.
-  kardiachain.types.ValidatorSet next_validators                = 6;
-  kardiachain.types.ValidatorSet validators                     = 7;
-  kardiachain.types.ValidatorSet last_validators                = 8;
-  uint64                         last_height_validators_changed = 9;
+    // LastValidators is used to validate block.LastCommit.
+    // Validators are persisted to the database separately every time they change,
+    // so we can query for historical validator sets.
+    // Note that if s.LastBlockHeight causes a valset change,
+    // we set s.LastHeightValidatorsChanged = s.LastBlockHeight + 1 + 1
+    // Extra +1 due to nextValSet delay.
+    bytes  last_validators_info_hash      = 4;
+    bytes  validators_info_hash           = 5;
 
-  uint64                            last_height_consensus_params_changed = 11;
+    // Last height validator changed is retrieved from here
+    bytes  next_validators_info_hash      = 6;
 
-  kardiachain.types.ConsensusParams consensus_params                     = 10 [(gogoproto.nullable) = false];
-
-
-   // the latest AppHash we've received from calling abci.Commit()
-   bytes app_hash = 13;
+    bytes  consensus_params_info_hash     = 7;
 }

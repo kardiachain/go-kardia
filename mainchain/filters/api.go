@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/rpc"
@@ -65,7 +66,7 @@ type PublicFilterAPI struct {
 func NewPublicFilterAPI(backend Backend, isNative bool) *PublicFilterAPI {
 	api := &PublicFilterAPI{
 		backend:  backend,
-		chainDb:  backend.ChainDb(),
+		chainDb:  rawdb.NewStoreDB(backend.ChainDb()),
 		events:   NewEventSystem(backend, isNative),
 		filters:  make(map[rpc.ID]*filter),
 		isNative: isNative,

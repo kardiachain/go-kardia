@@ -73,7 +73,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 
 	groupDb := ctx.BlockStore
 
-	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, groupDb, config.DualGenesis, nil)
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(groupDb.DB(), config.DualGenesis)
 	if genesisErr != nil {
 		return nil, genesisErr
 	}

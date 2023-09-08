@@ -25,11 +25,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
-
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/events"
-	"github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/kai/kaidb"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/lib/bloombits"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
@@ -39,7 +38,7 @@ import (
 
 type testBackend struct {
 	mux           *event.TypeMux
-	db            types.StoreDB
+	db            kaidb.Database
 	sections      uint64
 	txFeed        event.Feed
 	logsFeed      event.Feed
@@ -47,7 +46,7 @@ type testBackend struct {
 	chainHeadFeed event.Feed
 }
 
-func (b *testBackend) ChainDb() types.StoreDB {
+func (b *testBackend) ChainDb() kaidb.Database {
 	return b.db
 }
 
@@ -57,33 +56,33 @@ func (b *testBackend) HeaderByHeight(ctx context.Context, blockHeight rpc.BlockH
 		num  uint64
 	)
 	if blockHeight == rpc.LatestBlockHeight {
-		hash = b.db.ReadHeadBlockHash()
-		number := b.db.ReadHeaderHeight(hash)
+		hash = rawdb.ReadHeadBlockHash(b.db)
+		number := rawdb.ReadHeaderHeight(b.db, hash)
 		if number == nil {
 			return nil
 		}
 		num = *number
 	} else {
 		num = uint64(blockHeight)
-		hash = b.db.ReadCanonicalHash(num)
+		hash = rawdb.ReadCanonicalHash(b.db, num)
 	}
-	return b.db.ReadHeader(num)
+	return rawdb.ReadHeader(b.db, num)
 }
 
 func (b *testBackend) HeaderByHash(ctx context.Context, hash common.Hash) *types.Header {
-	number := b.db.ReadHeaderHeight(hash)
+	number := rawdb.ReadHeaderHeight(b.db, hash)
 	if number == nil {
 		return nil
 	}
-	return b.db.ReadHeader(*number)
+	return rawdb.ReadHeader(b.db, *number)
 }
 
 func (b *testBackend) BlockInfoByBlockHash(ctx context.Context, hash common.Hash) *types.BlockInfo {
-	height := b.db.ReadHeaderHeight(hash)
+	height := rawdb.ReadHeaderHeight(b.db, hash)
 	if height == nil {
 		return nil
 	}
-	return b.db.ReadBlockInfo(hash, *height, nil)
+	return rawdb.ReadBlockInfo(b.db, hash, *height, nil)
 }
 
 func (b *testBackend) GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error) {
@@ -94,7 +93,7 @@ func (b *testBackend) GetReceipts(ctx context.Context, hash common.Hash) (types.
 }
 
 func (b *testBackend) GetLogs(ctx context.Context, hash common.Hash) ([][]*types.Log, error) {
-	number := b.db.ReadHeaderHeight(hash)
+	number := rawdb.ReadHeaderHeight(b.db, hash)
 	if number == nil {
 		return nil, nil
 	}
@@ -143,8 +142,8 @@ func (b *testBackend) ServiceFilter(ctx context.Context, session *bloombits.Matc
 				task.Bitsets = make([][]byte, len(task.Sections))
 				for i, section := range task.Sections {
 					if rand.Int()%4 != 0 { // Handle occasional missing deliveries
-						head := b.db.ReadCanonicalHash((section+1)*configs.BloomBitsBlocks - 1)
-						task.Bitsets[i], _ = kvstore.ReadBloomBits(b.db.DB(), task.Bit, section, head)
+						head := rawdb.ReadCanonicalHash(b.db, (section+1)*configs.BloomBitsBlocks-1)
+						task.Bitsets[i], _ = rawdb.ReadBloomBits(b.db, task.Bit, section, head)
 					}
 				}
 				request <- task
@@ -162,7 +161,7 @@ func (b *testBackend) ServiceFilter(ctx context.Context, session *bloombits.Matc
 //	t.Parallel()
 //
 //	var (
-//		db          = storage.NewMemoryDatabase()
+//		db          = rawdb.NewMemoryDatabase()
 //		backend     = &testBackend{db: db}
 //		api         = NewPublicFilterAPI(backend)
 //		genesis     = new(genesis.Genesis).MustCommit(db)
@@ -213,7 +212,7 @@ func (b *testBackend) ServiceFilter(ctx context.Context, session *bloombits.Matc
 // If not it must return an error.
 func TestLogFilterCreation(t *testing.T) {
 	var (
-		db      = storage.NewMemoryDatabase()
+		db      = rawdb.NewMemoryDatabase().DB()
 		backend = &testBackend{db: db}
 		api     = NewPublicFilterAPI(backend, true)
 
@@ -257,7 +256,7 @@ func TestInvalidLogFilterCreation(t *testing.T) {
 	t.Parallel()
 
 	var (
-		db      = storage.NewMemoryDatabase()
+		db      = rawdb.NewMemoryDatabase().DB()
 		backend = &testBackend{db: db}
 		api     = NewPublicFilterAPI(backend, true)
 	)
@@ -278,7 +277,7 @@ func TestInvalidLogFilterCreation(t *testing.T) {
 
 func TestInvalidGetLogsRequest(t *testing.T) {
 	var (
-		db        = storage.NewMemoryDatabase()
+		db        = rawdb.NewMemoryDatabase().DB()
 		backend   = &testBackend{db: db}
 		api       = NewPublicFilterAPI(backend, true)
 		blockHash = common.HexToHash("0x1111111111111111111111111111111111111111111111111111111111111111")
@@ -303,7 +302,7 @@ func TestLogFilter(t *testing.T) {
 	t.Parallel()
 
 	var (
-		db      = storage.NewMemoryDatabase()
+		db      = rawdb.NewMemoryDatabase().DB()
 		backend = &testBackend{db: db}
 		api     = NewPublicFilterAPI(backend, true)
 

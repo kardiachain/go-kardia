@@ -131,9 +131,7 @@ func TestConsensusParams() *kaiproto.ConsensusParams {
 // ConsensusConfig defines the configuration for the Kardia consensus service,
 // including timeouts and details about the block structure.
 type ConsensusConfig struct {
-	RootDir string `mapstructure:"home"`
-	WalPath string `mapstructure:"wal_file"`
-	walFile string // overrides WalPath if set
+	RootDir string `toml:"-" mapstructure:"home"`
 
 	// All timeouts are in milliseconds
 	TimeoutPropose        time.Duration `mapstructure:"timeout_propose"`
@@ -159,7 +157,6 @@ type ConsensusConfig struct {
 // DefaultConsensusConfig returns a default configuration for the consensus service
 func DefaultConsensusConfig() *ConsensusConfig {
 	return &ConsensusConfig{
-		WalPath:                     filepath.Join(DefaultDataDir(), "cs.wal", "wal"),
 		TimeoutPropose:              3000 * time.Millisecond,
 		TimeoutProposeDelta:         500 * time.Millisecond,
 		TimeoutPrevote:              1000 * time.Millisecond,
@@ -196,15 +193,7 @@ func TestConsensusConfig() *ConsensusConfig {
 
 // WalFile returns the full path to the write-ahead log file
 func (cfg *ConsensusConfig) WalFile() string {
-	if cfg.walFile != "" {
-		return cfg.walFile
-	}
-	return rootify(cfg.WalPath, cfg.RootDir)
-}
-
-// SetWalFile sets the path to the write-ahead log file
-func (cfg *ConsensusConfig) SetWalFile(walFile string) {
-	cfg.walFile = walFile
+	return filepath.Join(cfg.RootDir, "cs.wal", "wal")
 }
 
 // WaitForTxs returns true if the consensus should wait for transactions before entering the propose step
@@ -254,6 +243,7 @@ type FastSyncConfig struct {
 	Enable        bool          // true if this node allow and be able to fastsync, otherwise false.
 	MaxPeers      int           // maximum peer is allowed to receive fastsync blocks from this node at a time.
 	TargetPending int           // maximum number of blocks in a batch sync.
+	SyncTimeout   time.Duration // maximum time the scheduler waits to advance in the fast sync process before finishing
 	PeerTimeout   time.Duration // maximum response time from a peer.
 	MinRecvRate   int64         // minimum receive rate from peer, otherwise prune.
 }
@@ -264,6 +254,7 @@ func DefaultFastSyncConfig() *FastSyncConfig {
 		Enable:        true,
 		MaxPeers:      10,
 		TargetPending: 10,
+		SyncTimeout:   3 * time.Minute,
 		PeerTimeout:   15 * time.Second,
 		MinRecvRate:   0, // int64(7680)
 	}

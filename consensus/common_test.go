@@ -26,9 +26,10 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kai/kaidb"
 	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
-	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	kpubsub "github.com/kardiachain/go-kardia/lib/pubsub"
@@ -272,9 +273,8 @@ func randState(nValidators int) (*ConsensusState, []*validatorStub) {
 	return cs, vss
 }
 
-func setupGenesis(g *genesis.Genesis, db types.StoreDB) (*configs.ChainConfig, common.Hash, error) {
-	stakingUtil, _ := staking.NewSmcStakingUtil()
-	return genesis.SetupGenesisBlock(log.New(), db, g, stakingUtil)
+func setupGenesis(g *genesis.Genesis, db kaidb.Database) (*configs.ChainConfig, common.Hash, error) {
+	return genesis.SetupGenesisBlock(db, g)
 }
 
 func GetBlockchain() (*blockchain.BlockChain, *configs.ChainConfig, error) {
@@ -301,15 +301,14 @@ func GetBlockchain() (*blockchain.BlockChain, *configs.ChainConfig, error) {
 	}
 
 	blockDB := memorydb.New()
-	kaiDb := kvstore.NewStoreDB(blockDB)
 	genesis := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, genesisContracts)
-	chainConfig, _, genesisErr := setupGenesis(genesis, kaiDb)
+	chainConfig, _, genesisErr := setupGenesis(genesis, blockDB)
 	if genesisErr != nil {
 		log.Error("Error setting genesis block", "err", genesisErr)
 		return nil, nil, genesisErr
 	}
 
-	bc, err := blockchain.NewBlockChain(log.New(), kaiDb, chainConfig)
+	bc, err := blockchain.NewBlockChain(blockDB, nil, nil)
 	if err != nil {
 		log.Error("Error creating new blockchain", "err", err)
 		return nil, nil, err
@@ -325,7 +324,7 @@ func newState(vs types.PrivValidator, state cstate.LatestBlockState) (*Consensus
 
 	bc, chainConfig, err := GetBlockchain()
 	blockDB := memorydb.New()
-	kaiDb := kvstore.NewStoreDB(blockDB)
+	kaiDb := rawdb.NewStoreDB(blockDB)
 	if err != nil {
 		return nil, err
 	}

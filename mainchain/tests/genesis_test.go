@@ -25,12 +25,10 @@ import (
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
-	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
-	"github.com/kardiachain/go-kardia/mainchain/staking"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -93,8 +91,7 @@ func TestGenesisAllocFromData(t *testing.T) {
 }
 
 func setupGenesis(g *genesis.Genesis, db types.StoreDB) (*configs.ChainConfig, common.Hash, error) {
-	stakingUtil, _ := staking.NewSmcStakingUtil()
-	return genesis.SetupGenesisBlock(log.New(), db, g, stakingUtil)
+	return genesis.SetupGenesisBlock(db.DB(), g)
 }
 
 func TestCreateGenesisBlock(t *testing.T) {
@@ -111,14 +108,14 @@ func TestCreateGenesisBlock(t *testing.T) {
 	configs.AddDefaultStakingContractAddress()
 	// Init kai database
 	blockDB := memorydb.New()
-	db := kvstore.NewStoreDB(blockDB)
+	db := rawdb.NewStoreDB(blockDB)
 	// Create genesis block with state_processor_test.genesisAccounts
 	g := genesis.DefaultTestnetGenesisBlock(genesisAccounts)
-	chainConfig, hash, err := setupGenesis(g, db)
+	_, hash, err := setupGenesis(g, db)
 	if err != nil {
 		t.Error(err)
 	}
-	bc, err := blockchain.NewBlockChain(log.New(), db, chainConfig)
+	bc, err := blockchain.NewBlockChain(db.DB(), nil, g)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +147,7 @@ func TestCreateGenesisBlock(t *testing.T) {
 
 func TestGenesisAllocFromAccountAndContract(t *testing.T) {
 	blockDB := memorydb.New()
-	db := kvstore.NewStoreDB(blockDB)
+	db := rawdb.NewStoreDB(blockDB)
 	// Create genesis block with state_processor_test.genesisAccounts
 	InitValue = big.NewInt(int64(math.Pow10(10))) // Update Genesis Account Values
 	initBalance = InitValue.Mul(InitValue, big.NewInt(int64(math.Pow10(18))))
@@ -159,11 +156,11 @@ func TestGenesisAllocFromAccountAndContract(t *testing.T) {
 		"0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5": initValue,
 	}
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, genesisContracts)
-	chainConfig, hash, err := setupGenesis(g, db)
+	_, hash, err := setupGenesis(g, db)
 	if err != nil {
 		t.Error(err)
 	}
-	bc, err := blockchain.NewBlockChain(log.New(), db, chainConfig)
+	bc, err := blockchain.NewBlockChain(db.DB(), nil, g)
 	if err != nil {
 		t.Fatal(err)
 	}

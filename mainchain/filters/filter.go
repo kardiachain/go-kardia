@@ -22,6 +22,8 @@ import (
 	"context"
 
 	"github.com/kardiachain/go-kardia/kai/events"
+	"github.com/kardiachain/go-kardia/kai/kaidb"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 	"github.com/kardiachain/go-kardia/lib/bloombits"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
@@ -30,7 +32,7 @@ import (
 )
 
 type Backend interface {
-	ChainDb() types.StoreDB
+	ChainDb() kaidb.Database
 	HeaderByHeight(ctx context.Context, blockHeight rpc.BlockHeight) *types.Header
 	HeaderByHash(ctx context.Context, blockHash common.Hash) *types.Header
 	BlockInfoByBlockHash(ctx context.Context, hash common.Hash) *types.BlockInfo
@@ -107,7 +109,7 @@ func newFilter(backend Backend, addresses []common.Address, topics [][]common.Ha
 		backend:   backend,
 		addresses: addresses,
 		topics:    topics,
-		db:        backend.ChainDb(),
+		db:        rawdb.NewStoreDB(backend.ChainDb()),
 	}
 }
 

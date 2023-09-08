@@ -24,7 +24,10 @@ import (
 )
 
 type (
-	ErrInvalidBlock      error
+	ErrInvalidBlock              error
+	ErrNoConsensusStateForHeight struct {
+		Height uint64
+	}
 	ErrNoValSetForHeight struct {
 		Height uint64
 	}
@@ -32,6 +35,10 @@ type (
 		Height uint64
 	}
 )
+
+func (e ErrNoConsensusStateForHeight) Error() string {
+	return fmt.Sprintf("could not find consensus state for height #%d", e.Height)
+}
 
 func (e ErrNoValSetForHeight) Error() string {
 	return fmt.Sprintf("could not find validator set for height #%d", e.Height)

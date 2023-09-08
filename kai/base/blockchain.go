@@ -21,8 +21,8 @@ package base
 import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/events"
+	"github.com/kardiachain/go-kardia/kai/kaidb"
 	"github.com/kardiachain/go-kardia/kai/state"
-	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/types"
@@ -36,14 +36,11 @@ type BaseBlockChain interface {
 	GetBlockByHeight(height uint64) *types.Block
 	GetBlockByHash(hash common.Hash) *types.Block
 	State() (*state.StateDB, error)
-	CommitTrie(root common.Hash) error
-	WriteBlockInfo(block *types.Block, blockInfo *types.BlockInfo)
-	ReadCommit(height uint64) *types.Commit
+	LoadBlockCommit(height uint64) *types.Commit
 	Config() *configs.ChainConfig
 	GetHeader(common.Hash, uint64) *types.Header
 	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 	StateAt(root uint64) (*state.StateDB, error)
-	DB() types.StoreDB
+	DB() kaidb.Database
 	P2P() *configs.P2PConfig
-	ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) (*kvm.ExecutionResult, error)
 }

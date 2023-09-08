@@ -39,7 +39,7 @@ import (
 // are attempted to be reexecuted to generate the desired state. The optional
 // base layer statedb can be passed then it's regarded as the statedb of the
 // parent block.
-func (k *KardiaService) stateAtBlock(block *types.Block, reexec uint64, base *state.StateDB, checkLive bool) (statedb *state.StateDB, err error) {
+func (k *Kardiachain) stateAtBlock(block *types.Block, reexec uint64, base *state.StateDB, checkLive bool) (statedb *state.StateDB, err error) {
 	var (
 		current  *types.Block
 		database state.Database
@@ -63,13 +63,13 @@ func (k *KardiaService) stateAtBlock(block *types.Block, reexec uint64, base *st
 
 		// Create an ephemeral trie.Database for isolating the live one. Otherwise
 		// the internal junks created by tracing will be persisted into the disk.
-		database = state.NewDatabase(k.kaiDb.DB())
+		database = state.NewDatabase(k.chainDb)
 
 		// If we didn't check the dirty database, do check the clean one, otherwise
 		// we would rewind past a persisted block (specific corner case is chain
 		// tracing from the genesis).
 		if !checkLive {
-			statedb, err = state.New(log.New(), current.AppHash(), database)
+			statedb, err = state.New(current.AppHash(), database, nil)
 			if err == nil {
 				return statedb, nil
 			}
@@ -85,7 +85,7 @@ func (k *KardiaService) stateAtBlock(block *types.Block, reexec uint64, base *st
 			}
 			current = parent
 
-			statedb, err = state.New(log.New(), current.AppHash(), database)
+			statedb, err = state.New(current.AppHash(), database, nil)
 			if err == nil {
 				break
 			}
@@ -125,7 +125,7 @@ func (k *KardiaService) stateAtBlock(block *types.Block, reexec uint64, base *st
 		if err != nil {
 			return nil, err
 		}
-		statedb, err = state.New(log.New(), root, database)
+		statedb, err = state.New(root, database, nil)
 		if err != nil {
 			return nil, fmt.Errorf("state reset after block %d failed: %v", current.Height(), err)
 		}
@@ -143,7 +143,7 @@ func (k *KardiaService) stateAtBlock(block *types.Block, reexec uint64, base *st
 }
 
 // stateAtTransaction returns the execution environment of a certain transaction.
-func (k *KardiaService) stateAtTransaction(block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.BlockContext, *state.StateDB, error) {
+func (k *Kardiachain) stateAtTransaction(block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.BlockContext, *state.StateDB, error) {
 	// Short circuit if it's genesis block.
 	if block.Height() == 0 {
 		return nil, kvm.BlockContext{}, nil, errors.New("no transaction in genesis")
@@ -176,7 +176,7 @@ func (k *KardiaService) stateAtTransaction(block *types.Block, txIndex int, reex
 		vmenv := kvm.NewKVM(context, txContext, statedb, configs.MainnetChainConfig, kvm.Config{})
 		statedb.Prepare(tx.Hash(), block.Hash(), idx)
 		if _, err := blockchain.ApplyMessage(vmenv, msg, new(types.GasPool).AddGas(tx.Gas())); err != nil {
-			k.logger.Warn("failed to apply transaction while tracing", "hash", tx.Hash(), "err", err)
+			log.Warn("failed to apply transaction while tracing", "hash", tx.Hash(), "err", err)
 		}
 		// Ensure any modifications are committed to the state
 		statedb.Finalise(true)

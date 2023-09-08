@@ -15,7 +15,6 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
-	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardia/lib/behaviour"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -161,15 +160,14 @@ func newTestReactor(p testReactorParams) *BlockchainReactor {
 			fmt.Println(err)
 			return nil
 		}
-		stateDB := memorydb.New()
-		kaiDb := kvstore.NewStoreDB(stateDB)
-		chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, kaiDb, p.genDoc, stakingUtil)
+		db := memorydb.New()
+		chainConfig, _, genesisErr := genesis.SetupGenesisBlock(db, p.genDoc)
 		if genesisErr != nil {
 			fmt.Println(genesisErr)
 			return nil
 		}
-		stateStore := cstate.NewStore(kaiDb.DB())
-		bc, err := blockchain.NewBlockChain(logger, kaiDb, chainConfig)
+		stateStore := cstate.NewStore(db)
+		bc, err := blockchain.NewBlockChain(db, nil, nil)
 		if err != nil {
 			fmt.Println(err)
 			return nil
@@ -531,15 +529,14 @@ func newReactorStore(
 		fmt.Println(err)
 		return nil, cstate.LatestBlockState{}, nil
 	}
-	stateDB := memorydb.New()
-	kaiDb := kvstore.NewStoreDB(stateDB)
-	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, kaiDb, genDoc, stakingUtil)
+	db := memorydb.New()
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(db, genDoc)
 	if genesisErr != nil {
 		fmt.Println(genesisErr)
 		return nil, cstate.LatestBlockState{}, nil
 	}
-	stateStore := cstate.NewStore(kaiDb.DB())
-	bc, err := blockchain.NewBlockChain(logger, kaiDb, chainConfig)
+	stateStore := cstate.NewStore(db)
+	bc, err := blockchain.NewBlockChain(db, nil, nil)
 	if err != nil {
 		fmt.Println(err)
 		return nil, cstate.LatestBlockState{}, nil

@@ -7,20 +7,16 @@ import (
 	fmt "fmt"
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
-	_ "github.com/gogo/protobuf/types"
-	github_com_gogo_protobuf_types "github.com/gogo/protobuf/types"
 	types "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 	io "io"
 	math "math"
 	math_bits "math/bits"
-	time "time"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
-var _ = time.Kitchen
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the proto package it is being compiled against.
@@ -30,6 +26,7 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // ValidatorsInfo represents the latest validator set, or the last height it changed
 type ValidatorsInfo struct {
+	// bytes validator_set_hash   = 1;
 	ValidatorSet      *types.ValidatorSet `protobuf:"bytes,1,opt,name=validator_set,json=validatorSet,proto3" json:"validator_set,omitempty"`
 	LastHeightChanged uint64              `protobuf:"varint,2,opt,name=last_height_changed,json=lastHeightChanged,proto3" json:"last_height_changed,omitempty"`
 }
@@ -83,6 +80,7 @@ func (m *ValidatorsInfo) GetLastHeightChanged() uint64 {
 
 // ConsensusParamsInfo represents the latest consensus params, or the last height it changed
 type ConsensusParamsInfo struct {
+	// bytes consensus_params_hash = 1;
 	ConsensusParams   types.ConsensusParams `protobuf:"bytes,1,opt,name=consensus_params,json=consensusParams,proto3" json:"consensus_params"`
 	LastHeightChanged uint64                `protobuf:"varint,2,opt,name=last_height_changed,json=lastHeightChanged,proto3" json:"last_height_changed,omitempty"`
 }
@@ -135,25 +133,20 @@ func (m *ConsensusParamsInfo) GetLastHeightChanged() uint64 {
 }
 
 type State struct {
-	ChainID         string        `protobuf:"bytes,2,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`
-	InitialHeight   uint64        `protobuf:"varint,14,opt,name=initial_height,json=initialHeight,proto3" json:"initial_height,omitempty"`
-	LastBlockHeight uint64        `protobuf:"varint,3,opt,name=last_block_height,json=lastBlockHeight,proto3" json:"last_block_height,omitempty"`
-	LastBlockID     types.BlockID `protobuf:"bytes,4,opt,name=last_block_id,json=lastBlockId,proto3" json:"last_block_id"`
-	LastBlockTime   time.Time     `protobuf:"bytes,5,opt,name=last_block_time,json=lastBlockTime,proto3,stdtime" json:"last_block_time"`
+	ChainID         string `protobuf:"bytes,1,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`
+	InitialHeight   uint64 `protobuf:"varint,2,opt,name=initial_height,json=initialHeight,proto3" json:"initial_height,omitempty"`
+	LastBlockHeight uint64 `protobuf:"varint,3,opt,name=last_block_height,json=lastBlockHeight,proto3" json:"last_block_height,omitempty"`
 	// LastValidators is used to validate block.LastCommit.
 	// Validators are persisted to the database separately every time they change,
 	// so we can query for historical validator sets.
 	// Note that if s.LastBlockHeight causes a valset change,
 	// we set s.LastHeightValidatorsChanged = s.LastBlockHeight + 1 + 1
 	// Extra +1 due to nextValSet delay.
-	NextValidators                   *types.ValidatorSet   `protobuf:"bytes,6,opt,name=next_validators,json=nextValidators,proto3" json:"next_validators,omitempty"`
-	Validators                       *types.ValidatorSet   `protobuf:"bytes,7,opt,name=validators,proto3" json:"validators,omitempty"`
-	LastValidators                   *types.ValidatorSet   `protobuf:"bytes,8,opt,name=last_validators,json=lastValidators,proto3" json:"last_validators,omitempty"`
-	LastHeightValidatorsChanged      uint64                `protobuf:"varint,9,opt,name=last_height_validators_changed,json=lastHeightValidatorsChanged,proto3" json:"last_height_validators_changed,omitempty"`
-	LastHeightConsensusParamsChanged uint64                `protobuf:"varint,11,opt,name=last_height_consensus_params_changed,json=lastHeightConsensusParamsChanged,proto3" json:"last_height_consensus_params_changed,omitempty"`
-	ConsensusParams                  types.ConsensusParams `protobuf:"bytes,10,opt,name=consensus_params,json=consensusParams,proto3" json:"consensus_params"`
-	// the latest AppHash we've received from calling abci.Commit()
-	AppHash []byte `protobuf:"bytes,13,opt,name=app_hash,json=appHash,proto3" json:"app_hash,omitempty"`
+	LastValidatorsInfoHash []byte `protobuf:"bytes,4,opt,name=last_validators_info_hash,json=lastValidatorsInfoHash,proto3" json:"last_validators_info_hash,omitempty"`
+	ValidatorsInfoHash     []byte `protobuf:"bytes,5,opt,name=validators_info_hash,json=validatorsInfoHash,proto3" json:"validators_info_hash,omitempty"`
+	// Last height validator changed is retrieved from here
+	NextValidatorsInfoHash  []byte `protobuf:"bytes,6,opt,name=next_validators_info_hash,json=nextValidatorsInfoHash,proto3" json:"next_validators_info_hash,omitempty"`
+	ConsensusParamsInfoHash []byte `protobuf:"bytes,7,opt,name=consensus_params_info_hash,json=consensusParamsInfoHash,proto3" json:"consensus_params_info_hash,omitempty"`
 }
 
 func (m *State) Reset()         { *m = State{} }
@@ -210,65 +203,30 @@ func (m *State) GetLastBlockHeight() uint64 {
 	return 0
 }
 
-func (m *State) GetLastBlockID() types.BlockID {
+func (m *State) GetLastValidatorsInfoHash() []byte {
 	if m != nil {
-		return m.LastBlockID
-	}
-	return types.BlockID{}
-}
-
-func (m *State) GetLastBlockTime() time.Time {
-	if m != nil {
-		return m.LastBlockTime
-	}
-	return time.Time{}
-}
-
-func (m *State) GetNextValidators() *types.ValidatorSet {
-	if m != nil {
-		return m.NextValidators
+		return m.LastValidatorsInfoHash
 	}
 	return nil
 }
 
-func (m *State) GetValidators() *types.ValidatorSet {
+func (m *State) GetValidatorsInfoHash() []byte {
 	if m != nil {
-		return m.Validators
+		return m.ValidatorsInfoHash
 	}
 	return nil
 }
 
-func (m *State) GetLastValidators() *types.ValidatorSet {
+func (m *State) GetNextValidatorsInfoHash() []byte {
 	if m != nil {
-		return m.LastValidators
+		return m.NextValidatorsInfoHash
 	}
 	return nil
 }
 
-func (m *State) GetLastHeightValidatorsChanged() uint64 {
+func (m *State) GetConsensusParamsInfoHash() []byte {
 	if m != nil {
-		return m.LastHeightValidatorsChanged
-	}
-	return 0
-}
-
-func (m *State) GetLastHeightConsensusParamsChanged() uint64 {
-	if m != nil {
-		return m.LastHeightConsensusParamsChanged
-	}
-	return 0
-}
-
-func (m *State) GetConsensusParams() types.ConsensusParams {
-	if m != nil {
-		return m.ConsensusParams
-	}
-	return types.ConsensusParams{}
-}
-
-func (m *State) GetAppHash() []byte {
-	if m != nil {
-		return m.AppHash
+		return m.ConsensusParamsInfoHash
 	}
 	return nil
 }
@@ -282,44 +240,36 @@ func init() {
 func init() { proto.RegisterFile("kardiachain/state/types.proto", fileDescriptor_4621b08820a993df) }
 
 var fileDescriptor_4621b08820a993df = []byte{
-	// 580 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x94, 0x4f, 0x8f, 0xd2, 0x4e,
-	0x18, 0xc7, 0xe9, 0xef, 0x07, 0x0b, 0x3b, 0x2c, 0xe0, 0x16, 0x0f, 0x15, 0x63, 0x8b, 0x44, 0x0d,
-	0x31, 0xb1, 0x4d, 0xf4, 0xe2, 0xcd, 0xa4, 0x70, 0xa0, 0xc9, 0xc6, 0x98, 0x62, 0x3c, 0x78, 0x69,
-	0x86, 0x76, 0xb6, 0x9d, 0x2c, 0x74, 0x1a, 0x66, 0xd8, 0xe8, 0x1b, 0xf0, 0xbc, 0x67, 0x5f, 0xd1,
-	0x1e, 0xf7, 0xe8, 0x09, 0x4d, 0x79, 0x21, 0x9a, 0x99, 0xfe, 0x61, 0x58, 0x38, 0x60, 0xbc, 0x75,
-	0xe6, 0xfb, 0x3c, 0x9f, 0xe7, 0x3b, 0xed, 0xb7, 0x03, 0x9e, 0x5c, 0xc1, 0x65, 0x80, 0xa1, 0x1f,
-	0x41, 0x1c, 0x5b, 0x94, 0x41, 0x86, 0x2c, 0xf6, 0x35, 0x41, 0xd4, 0x4c, 0x96, 0x84, 0x11, 0xf5,
-	0x5c, 0x92, 0x4d, 0x21, 0xf7, 0x1e, 0x86, 0x24, 0x24, 0x42, 0xb5, 0xf8, 0x53, 0x56, 0xd8, 0x33,
-	0x42, 0x42, 0xc2, 0x39, 0xb2, 0xc4, 0x6a, 0xb6, 0xba, 0xb4, 0x18, 0x5e, 0x20, 0xca, 0xe0, 0x22,
-	0xc9, 0x0b, 0x76, 0x06, 0x89, 0x11, 0xf2, 0xa0, 0xde, 0xd3, 0x7d, 0xf9, 0x1a, 0xce, 0x71, 0x00,
-	0x19, 0x59, 0xe6, 0x25, 0xfa, 0x7e, 0x49, 0x02, 0x97, 0x70, 0x91, 0x23, 0x06, 0xdf, 0x14, 0xd0,
-	0xfe, 0x54, 0xf4, 0x50, 0x27, 0xbe, 0x24, 0xea, 0x18, 0xb4, 0x4a, 0x8a, 0x47, 0x11, 0xd3, 0x94,
-	0xbe, 0x32, 0x6c, 0xbe, 0x36, 0x4c, 0xf9, 0x58, 0x99, 0x8d, 0xb2, 0x73, 0x8a, 0x98, 0x7b, 0x76,
-	0x2d, 0xad, 0x54, 0x13, 0x74, 0xe7, 0x90, 0x32, 0x2f, 0x42, 0x38, 0x8c, 0x98, 0xe7, 0x47, 0x30,
-	0x0e, 0x51, 0xa0, 0xfd, 0xd7, 0x57, 0x86, 0x55, 0xf7, 0x9c, 0x4b, 0x13, 0xa1, 0x8c, 0x32, 0x61,
-	0xf0, 0x5d, 0x01, 0xdd, 0x11, 0x89, 0x29, 0x8a, 0xe9, 0x8a, 0x7e, 0x10, 0x16, 0x85, 0x9b, 0x29,
-	0x78, 0xe0, 0x17, 0xdb, 0x5e, 0x66, 0x3d, 0x37, 0x34, 0x38, 0x60, 0xe8, 0x1e, 0xc1, 0xae, 0xde,
-	0xae, 0x8d, 0x8a, 0xdb, 0xf1, 0x77, 0xb7, 0xff, 0xda, 0xdc, 0xef, 0x1a, 0xa8, 0x4d, 0xf9, 0x87,
-	0x54, 0x5f, 0x80, 0x86, 0x98, 0xe7, 0xe1, 0xac, 0xfc, 0xd4, 0x6e, 0xa6, 0x6b, 0xa3, 0x3e, 0xe2,
-	0x7b, 0xce, 0xd8, 0xad, 0x0b, 0xd1, 0x09, 0xd4, 0xe7, 0xa0, 0x8d, 0x63, 0xcc, 0x30, 0x9c, 0xe7,
-	0x43, 0xb4, 0xb6, 0x80, 0xb7, 0xf2, 0xdd, 0x8c, 0xaf, 0xbe, 0x04, 0x62, 0x9a, 0x37, 0x9b, 0x13,
-	0xff, 0xaa, 0xa8, 0xfc, 0x5f, 0x54, 0x76, 0xb8, 0x60, 0xf3, 0xfd, 0xbc, 0x76, 0x0a, 0x5a, 0x52,
-	0x2d, 0x0e, 0xb4, 0xaa, 0x78, 0x0d, 0xbd, 0x03, 0xaf, 0x41, 0xb4, 0x39, 0x63, 0xbb, 0xcb, 0x8f,
-	0x9f, 0xae, 0x8d, 0xe6, 0x45, 0xc1, 0x72, 0xc6, 0x6e, 0xb3, 0x04, 0x3b, 0x81, 0x7a, 0x01, 0x3a,
-	0x12, 0x94, 0xe7, 0x4f, 0xab, 0xe5, 0xd8, 0x2c, 0x9c, 0x66, 0x11, 0x4e, 0xf3, 0x63, 0x11, 0x4e,
-	0xbb, 0xc1, 0xb1, 0x37, 0x3f, 0x0d, 0xc5, 0x6d, 0x95, 0x2c, 0xae, 0xaa, 0x13, 0xd0, 0x89, 0xd1,
-	0x17, 0xe6, 0x95, 0x49, 0xa0, 0xda, 0xc9, 0x71, 0xe1, 0x69, 0xf3, 0xbe, 0x6d, 0x10, 0xd5, 0x77,
-	0x00, 0x48, 0x90, 0xfa, 0x71, 0x10, 0xa9, 0x85, 0x5b, 0x11, 0x07, 0x93, 0x28, 0x8d, 0x23, 0xad,
-	0xf0, 0x3e, 0xc9, 0xca, 0x08, 0xe8, 0x72, 0x58, 0xb6, 0xc0, 0x32, 0x37, 0xa7, 0xe2, 0x83, 0x3d,
-	0xde, 0xe6, 0x66, 0xdb, 0x9d, 0x27, 0x48, 0x7d, 0x0f, 0x9e, 0xed, 0x24, 0xee, 0x5e, 0xa4, 0x4b,
-	0x54, 0x53, 0xa0, 0xfa, 0x52, 0x04, 0x77, 0xa3, 0x5b, 0xf0, 0x0e, 0xfd, 0x16, 0xe0, 0x5f, 0x7f,
-	0x8b, 0x47, 0xa0, 0x01, 0x93, 0xc4, 0x8b, 0x20, 0x8d, 0xb4, 0x56, 0x5f, 0x19, 0x9e, 0xb9, 0x75,
-	0x98, 0x24, 0x13, 0x48, 0x23, 0xdb, 0xbd, 0x4d, 0x75, 0xe5, 0x2e, 0xd5, 0x95, 0x5f, 0xa9, 0xae,
-	0xdc, 0x6c, 0xf4, 0xca, 0xdd, 0x46, 0xaf, 0xfc, 0xd8, 0xe8, 0x95, 0xcf, 0x6f, 0x43, 0xcc, 0xa2,
-	0xd5, 0xcc, 0xf4, 0xc9, 0xc2, 0x92, 0x2f, 0x9b, 0x90, 0xbc, 0xca, 0x96, 0xd9, 0xf5, 0x66, 0xed,
-	0xdd, 0x99, 0xb3, 0x13, 0x21, 0xbc, 0xf9, 0x13, 0x00, 0x00, 0xff, 0xff, 0xeb, 0xd4, 0xc4, 0xa7,
-	0x4f, 0x05, 0x00, 0x00,
+	// 458 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x53, 0xbd, 0x6e, 0x13, 0x31,
+	0x1c, 0x8f, 0x4b, 0xda, 0x80, 0xfb, 0x11, 0xea, 0x54, 0x90, 0x46, 0xe2, 0x12, 0x22, 0x81, 0xb2,
+	0x70, 0x87, 0x60, 0xa1, 0x62, 0x40, 0xba, 0x74, 0x68, 0x24, 0x06, 0x74, 0x91, 0x18, 0x58, 0x2c,
+	0xe7, 0xce, 0x3d, 0x5b, 0xbd, 0xda, 0x51, 0xec, 0x46, 0xf0, 0x02, 0xcc, 0xcc, 0x3c, 0x51, 0xc7,
+	0x8e, 0x4c, 0x11, 0xba, 0xbc, 0x06, 0x03, 0xb2, 0x7d, 0x89, 0x2e, 0xbd, 0x30, 0xb0, 0x9d, 0xff,
+	0xbf, 0x4f, 0xdd, 0xdf, 0x86, 0xcf, 0xae, 0xc8, 0x2c, 0xe1, 0x24, 0x66, 0x84, 0x8b, 0x40, 0x69,
+	0xa2, 0x69, 0xa0, 0xbf, 0x4d, 0xa9, 0xf2, 0xa7, 0x33, 0xa9, 0x25, 0x3a, 0x2e, 0xc1, 0xbe, 0x85,
+	0x3b, 0x27, 0xa9, 0x4c, 0xa5, 0x45, 0x03, 0xf3, 0xe5, 0x88, 0x9d, 0xe7, 0x65, 0x1f, 0xeb, 0x10,
+	0xcc, 0x49, 0xc6, 0x13, 0xa2, 0xe5, 0xac, 0xa0, 0x78, 0x55, 0xca, 0x94, 0xcc, 0xc8, 0x75, 0x91,
+	0xd5, 0xff, 0x0e, 0xe0, 0xd1, 0xe7, 0x95, 0x46, 0x8d, 0xc4, 0xa5, 0x44, 0xe7, 0xf0, 0x70, 0xed,
+	0x82, 0x15, 0xd5, 0x6d, 0xd0, 0x03, 0x83, 0xfd, 0x37, 0x5d, 0xbf, 0x5c, 0xcb, 0xf5, 0x5d, 0x2b,
+	0xc7, 0x54, 0x47, 0x07, 0xf3, 0xd2, 0x09, 0xf9, 0xb0, 0x95, 0x11, 0xa5, 0x31, 0xa3, 0x3c, 0x65,
+	0x1a, 0xc7, 0x8c, 0x88, 0x94, 0x26, 0xed, 0x9d, 0x1e, 0x18, 0xd4, 0xa3, 0x63, 0x03, 0x5d, 0x58,
+	0x64, 0xe8, 0x80, 0xfe, 0x4f, 0x00, 0x5b, 0x43, 0x29, 0x14, 0x15, 0xea, 0x46, 0x7d, 0xb2, 0x15,
+	0x6d, 0x9b, 0x31, 0x7c, 0x1c, 0xaf, 0xc6, 0xd8, 0x55, 0x2f, 0x0a, 0xf5, 0xb7, 0x14, 0xba, 0xe7,
+	0x10, 0xd6, 0x6f, 0x17, 0xdd, 0x5a, 0xd4, 0x8c, 0x37, 0xc7, 0xff, 0x5d, 0xee, 0xcf, 0x0e, 0xdc,
+	0x1d, 0x9b, 0x45, 0xa0, 0x97, 0xf0, 0xa1, 0xcd, 0xc3, 0x3c, 0xb1, 0x35, 0x1e, 0x85, 0xfb, 0xf9,
+	0xa2, 0xdb, 0x18, 0x9a, 0xd9, 0xe8, 0x3c, 0x6a, 0x58, 0x70, 0x94, 0xa0, 0x17, 0xf0, 0x88, 0x0b,
+	0xae, 0x39, 0xc9, 0x8a, 0x90, 0xc2, 0xfc, 0xb0, 0x98, 0x3a, 0x7f, 0xf4, 0x01, 0xda, 0x34, 0x3c,
+	0xc9, 0x64, 0x7c, 0xb5, 0x62, 0x3e, 0x30, 0xcc, 0xb0, 0x95, 0x2f, 0xba, 0xcd, 0x8f, 0x44, 0xe9,
+	0xd0, 0x60, 0x8e, 0x1f, 0x35, 0xb3, 0xcd, 0x01, 0x3a, 0x83, 0xa7, 0xd6, 0x60, 0xfd, 0xef, 0x15,
+	0xe6, 0xe2, 0x52, 0x62, 0x46, 0x14, 0x6b, 0xd7, 0x7b, 0x60, 0x70, 0x10, 0x3d, 0x31, 0x84, 0xcd,
+	0x1d, 0x5f, 0x10, 0xc5, 0xd0, 0x6b, 0x78, 0xb2, 0x55, 0xb5, 0x6b, 0x55, 0x68, 0x5e, 0x55, 0x9c,
+	0xc1, 0x53, 0x41, 0xbf, 0xfe, 0x23, 0x6c, 0xcf, 0x85, 0x19, 0xc2, 0x96, 0xb0, 0xf7, 0xb0, 0x73,
+	0x7f, 0x8d, 0x25, 0x6d, 0xc3, 0x6a, 0x9f, 0xc6, 0xd5, 0xfd, 0x1b, 0x71, 0x18, 0xdd, 0xe6, 0x1e,
+	0xb8, 0xcb, 0x3d, 0xf0, 0x3b, 0xf7, 0xc0, 0x8f, 0xa5, 0x57, 0xbb, 0x5b, 0x7a, 0xb5, 0x5f, 0x4b,
+	0xaf, 0xf6, 0xe5, 0x5d, 0xca, 0x35, 0xbb, 0x99, 0xf8, 0xb1, 0xbc, 0x0e, 0xca, 0x37, 0x3d, 0x95,
+	0xaf, 0xdc, 0x31, 0x70, 0x8f, 0xa6, 0xf2, 0xe0, 0x26, 0x7b, 0x16, 0x78, 0xfb, 0x37, 0x00, 0x00,
+	0xff, 0xff, 0x41, 0x0a, 0x49, 0x72, 0x8c, 0x03, 0x00, 0x00,
 }
 
 func (m *ValidatorsInfo) Marshal() (dAtA []byte, err error) {
@@ -420,103 +370,50 @@ func (m *State) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if m.InitialHeight != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.InitialHeight))
-		i--
-		dAtA[i] = 0x70
-	}
-	if len(m.AppHash) > 0 {
-		i -= len(m.AppHash)
-		copy(dAtA[i:], m.AppHash)
-		i = encodeVarintTypes(dAtA, i, uint64(len(m.AppHash)))
-		i--
-		dAtA[i] = 0x6a
-	}
-	if m.LastHeightConsensusParamsChanged != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.LastHeightConsensusParamsChanged))
-		i--
-		dAtA[i] = 0x58
-	}
-	{
-		size, err := m.ConsensusParams.MarshalToSizedBuffer(dAtA[:i])
-		if err != nil {
-			return 0, err
-		}
-		i -= size
-		i = encodeVarintTypes(dAtA, i, uint64(size))
-	}
-	i--
-	dAtA[i] = 0x52
-	if m.LastHeightValidatorsChanged != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.LastHeightValidatorsChanged))
-		i--
-		dAtA[i] = 0x48
-	}
-	if m.LastValidators != nil {
-		{
-			size, err := m.LastValidators.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintTypes(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x42
-	}
-	if m.Validators != nil {
-		{
-			size, err := m.Validators.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintTypes(dAtA, i, uint64(size))
-		}
+	if len(m.ConsensusParamsInfoHash) > 0 {
+		i -= len(m.ConsensusParamsInfoHash)
+		copy(dAtA[i:], m.ConsensusParamsInfoHash)
+		i = encodeVarintTypes(dAtA, i, uint64(len(m.ConsensusParamsInfoHash)))
 		i--
 		dAtA[i] = 0x3a
 	}
-	if m.NextValidators != nil {
-		{
-			size, err := m.NextValidators.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintTypes(dAtA, i, uint64(size))
-		}
+	if len(m.NextValidatorsInfoHash) > 0 {
+		i -= len(m.NextValidatorsInfoHash)
+		copy(dAtA[i:], m.NextValidatorsInfoHash)
+		i = encodeVarintTypes(dAtA, i, uint64(len(m.NextValidatorsInfoHash)))
 		i--
 		dAtA[i] = 0x32
 	}
-	n7, err7 := github_com_gogo_protobuf_types.StdTimeMarshalTo(m.LastBlockTime, dAtA[i-github_com_gogo_protobuf_types.SizeOfStdTime(m.LastBlockTime):])
-	if err7 != nil {
-		return 0, err7
+	if len(m.ValidatorsInfoHash) > 0 {
+		i -= len(m.ValidatorsInfoHash)
+		copy(dAtA[i:], m.ValidatorsInfoHash)
+		i = encodeVarintTypes(dAtA, i, uint64(len(m.ValidatorsInfoHash)))
+		i--
+		dAtA[i] = 0x2a
 	}
-	i -= n7
-	i = encodeVarintTypes(dAtA, i, uint64(n7))
-	i--
-	dAtA[i] = 0x2a
-	{
-		size, err := m.LastBlockID.MarshalToSizedBuffer(dAtA[:i])
-		if err != nil {
-			return 0, err
-		}
-		i -= size
-		i = encodeVarintTypes(dAtA, i, uint64(size))
+	if len(m.LastValidatorsInfoHash) > 0 {
+		i -= len(m.LastValidatorsInfoHash)
+		copy(dAtA[i:], m.LastValidatorsInfoHash)
+		i = encodeVarintTypes(dAtA, i, uint64(len(m.LastValidatorsInfoHash)))
+		i--
+		dAtA[i] = 0x22
 	}
-	i--
-	dAtA[i] = 0x22
 	if m.LastBlockHeight != 0 {
 		i = encodeVarintTypes(dAtA, i, uint64(m.LastBlockHeight))
 		i--
 		dAtA[i] = 0x18
+	}
+	if m.InitialHeight != 0 {
+		i = encodeVarintTypes(dAtA, i, uint64(m.InitialHeight))
+		i--
+		dAtA[i] = 0x10
 	}
 	if len(m.ChainID) > 0 {
 		i -= len(m.ChainID)
 		copy(dAtA[i:], m.ChainID)
 		i = encodeVarintTypes(dAtA, i, uint64(len(m.ChainID)))
 		i--
-		dAtA[i] = 0x12
+		dAtA[i] = 0xa
 	}
 	return len(dAtA) - i, nil
 }
@@ -572,39 +469,27 @@ func (m *State) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovTypes(uint64(l))
 	}
+	if m.InitialHeight != 0 {
+		n += 1 + sovTypes(uint64(m.InitialHeight))
+	}
 	if m.LastBlockHeight != 0 {
 		n += 1 + sovTypes(uint64(m.LastBlockHeight))
 	}
-	l = m.LastBlockID.Size()
-	n += 1 + l + sovTypes(uint64(l))
-	l = github_com_gogo_protobuf_types.SizeOfStdTime(m.LastBlockTime)
-	n += 1 + l + sovTypes(uint64(l))
-	if m.NextValidators != nil {
-		l = m.NextValidators.Size()
-		n += 1 + l + sovTypes(uint64(l))
-	}
-	if m.Validators != nil {
-		l = m.Validators.Size()
-		n += 1 + l + sovTypes(uint64(l))
-	}
-	if m.LastValidators != nil {
-		l = m.LastValidators.Size()
-		n += 1 + l + sovTypes(uint64(l))
-	}
-	if m.LastHeightValidatorsChanged != 0 {
-		n += 1 + sovTypes(uint64(m.LastHeightValidatorsChanged))
-	}
-	l = m.ConsensusParams.Size()
-	n += 1 + l + sovTypes(uint64(l))
-	if m.LastHeightConsensusParamsChanged != 0 {
-		n += 1 + sovTypes(uint64(m.LastHeightConsensusParamsChanged))
-	}
-	l = len(m.AppHash)
+	l = len(m.LastValidatorsInfoHash)
 	if l > 0 {
 		n += 1 + l + sovTypes(uint64(l))
 	}
-	if m.InitialHeight != 0 {
-		n += 1 + sovTypes(uint64(m.InitialHeight))
+	l = len(m.ValidatorsInfoHash)
+	if l > 0 {
+		n += 1 + l + sovTypes(uint64(l))
+	}
+	l = len(m.NextValidatorsInfoHash)
+	if l > 0 {
+		n += 1 + l + sovTypes(uint64(l))
+	}
+	l = len(m.ConsensusParamsInfoHash)
+	if l > 0 {
+		n += 1 + l + sovTypes(uint64(l))
 	}
 	return n
 }
@@ -851,7 +736,7 @@ func (m *State) Unmarshal(dAtA []byte) error {
 			return fmt.Errorf("proto: State: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
-		case 2:
+		case 1:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ChainID", wireType)
 			}
@@ -883,6 +768,25 @@ func (m *State) Unmarshal(dAtA []byte) error {
 			}
 			m.ChainID = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field InitialHeight", wireType)
+			}
+			m.InitialHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.InitialHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		case 3:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field LastBlockHeight", wireType)
@@ -904,252 +808,7 @@ func (m *State) Unmarshal(dAtA []byte) error {
 			}
 		case 4:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field LastBlockID", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthTypes
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthTypes
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if err := m.LastBlockID.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 5:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field LastBlockTime", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthTypes
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthTypes
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if err := github_com_gogo_protobuf_types.StdTimeUnmarshal(&m.LastBlockTime, dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 6:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field NextValidators", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthTypes
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthTypes
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.NextValidators == nil {
-				m.NextValidators = &types.ValidatorSet{}
-			}
-			if err := m.NextValidators.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 7:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Validators", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthTypes
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthTypes
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.Validators == nil {
-				m.Validators = &types.ValidatorSet{}
-			}
-			if err := m.Validators.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 8:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field LastValidators", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthTypes
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthTypes
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.LastValidators == nil {
-				m.LastValidators = &types.ValidatorSet{}
-			}
-			if err := m.LastValidators.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 9:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field LastHeightValidatorsChanged", wireType)
-			}
-			m.LastHeightValidatorsChanged = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.LastHeightValidatorsChanged |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 10:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ConsensusParams", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthTypes
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthTypes
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if err := m.ConsensusParams.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 11:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field LastHeightConsensusParamsChanged", wireType)
-			}
-			m.LastHeightConsensusParamsChanged = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.LastHeightConsensusParamsChanged |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 13:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field AppHash", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field LastValidatorsInfoHash", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -1176,16 +835,16 @@ func (m *State) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.AppHash = append(m.AppHash[:0], dAtA[iNdEx:postIndex]...)
-			if m.AppHash == nil {
-				m.AppHash = []byte{}
+			m.LastValidatorsInfoHash = append(m.LastValidatorsInfoHash[:0], dAtA[iNdEx:postIndex]...)
+			if m.LastValidatorsInfoHash == nil {
+				m.LastValidatorsInfoHash = []byte{}
 			}
 			iNdEx = postIndex
-		case 14:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field InitialHeight", wireType)
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ValidatorsInfoHash", wireType)
 			}
-			m.InitialHeight = 0
+			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowTypes
@@ -1195,11 +854,94 @@ func (m *State) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.InitialHeight |= uint64(b&0x7F) << shift
+				byteLen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTypes
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ValidatorsInfoHash = append(m.ValidatorsInfoHash[:0], dAtA[iNdEx:postIndex]...)
+			if m.ValidatorsInfoHash == nil {
+				m.ValidatorsInfoHash = []byte{}
+			}
+			iNdEx = postIndex
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field NextValidatorsInfoHash", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTypes
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.NextValidatorsInfoHash = append(m.NextValidatorsInfoHash[:0], dAtA[iNdEx:postIndex]...)
+			if m.NextValidatorsInfoHash == nil {
+				m.NextValidatorsInfoHash = []byte{}
+			}
+			iNdEx = postIndex
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ConsensusParamsInfoHash", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthTypes
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ConsensusParamsInfoHash = append(m.ConsensusParamsInfoHash[:0], dAtA[iNdEx:postIndex]...)
+			if m.ConsensusParamsInfoHash == nil {
+				m.ConsensusParamsInfoHash = []byte{}
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipTypes(dAtA[iNdEx:])

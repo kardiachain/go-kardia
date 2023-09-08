@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
+	"github.com/kardiachain/go-kardia/kai/rawdb"
 
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
-	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardia/types"
 
 	"github.com/kardiachain/go-kardia/configs"
@@ -32,7 +32,6 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 	logger := log.New("wal_generator")
 	validatorSet, privSet := types.RandValidatorSet(1, 1000000)
 	db := memorydb.New()
-	storeDB := kvstore.NewStoreDB(db)
 	stateStore := cstate.NewStore(db)
 	initValue, _ := big.NewInt(0).SetString("15000000000000000000000000", 10)
 	var alloc = genesis.GenesisAlloc{
@@ -64,7 +63,7 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 		ConsensusParams: configs.DefaultConsensusParams(),
 		Consensus:       configs.TestConsensusConfig(),
 		Validators: []*genesis.GenesisValidator{
-			&genesis.GenesisValidator{
+			{
 				Name:           "val1",
 				Address:        privSet[0].GetAddress().Hex(),
 				CommissionRate: "100000000000000000",
@@ -75,13 +74,7 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 		},
 	}
 
-	stakingUtil, _ := staking.NewSmcStakingUtil()
-	chainConfig, _, err := genesis.SetupGenesisBlock(log.New("genesis"), storeDB, gs, stakingUtil)
-	if err != nil {
-		return err
-	}
-
-	bc, err := blockchain.NewBlockChain(log.New("blockchain"), storeDB, chainConfig)
+	bc, err := blockchain.NewBlockChain(db, nil, gs)
 	if err != nil {
 		return err
 	}
@@ -89,8 +82,10 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 		GlobalSlots: 64,
 		GlobalQueue: 5120000,
 	}
+	chainConfig := rawdb.ReadChainConfig(bc.DB(), bc.CurrentHeader().Hash())
 	txPool := tx_pool.NewTxPool(txConfig, chainConfig, bc)
 	evPool := cstate.EmptyEvidencePool{}
+	stakingUtil, _ := staking.NewSmcStakingUtil()
 	bOper := blockchain.NewBlockOperations(log.New("block_operations"), bc, txPool, evPool, stakingUtil)
 	blockExec := cstate.NewBlockExecutor(stateStore, logger, evPool, bOper)
 

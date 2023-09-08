@@ -228,9 +228,9 @@ func (conR *ConsensusManager) AddPeer(peer p2p.Peer) {
 	}
 }
 
-// RemovePeer is a noop.
+// RemovePeer cleans up peer state regarding to ConsensusReactor.
 func (conR *ConsensusManager) RemovePeer(p p2p.Peer, reason interface{}) {
-	conR.Logger.Warn("ConsensusManager.RemovePeer - not yet implemented")
+	p.Set(types.PeerStateKey, struct{}{})
 }
 
 // Receive implements Reactor
@@ -609,7 +609,7 @@ OUTER_LOOP:
 	for {
 		// Manage disconnects from self or peer.
 		if !peer.IsRunning() || !conR.IsRunning() {
-			logger.Info("Stopping gossipDataRoutine for peer")
+			logger.Info("Stopping gossipVotesRoutine for peer")
 			return
 		}
 		rs := conR.conS.GetRoundState()
@@ -732,7 +732,7 @@ OUTER_LOOP:
 	for {
 		// Manage disconnects from self or peer.
 		if !peer.IsRunning() || !conR.IsRunning() {
-			logger.Info("Stopping gossipDataRoutine for peer")
+			logger.Info("Stopping queryMaj23Routine for peer")
 			return
 		}
 
@@ -1383,7 +1383,7 @@ func (m *BlockPartMessage) String() string {
 //-------------------------------------
 
 // NewValidBlockMessage is sent when a validator observes a valid block B in some round r,
-//i.e., there is a Proposal for block B and 2/3+ prevotes for the block B in the round r.
+// i.e., there is a Proposal for block B and 2/3+ prevotes for the block B in the round r.
 // In case the block is also committed, then IsCommit flag is set to true.
 type NewValidBlockMessage struct {
 	Height           uint64

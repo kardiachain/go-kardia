@@ -9,11 +9,11 @@ import (
 
 // PublicTxPoolAPI offers and API for the transaction pool. It only operates on data that is non confidential.
 type PublicTxPoolAPI struct {
-	kaiService *KardiaService
+	kaiService *Kardiachain
 }
 
 // NewPublicTxPoolAPI creates a new tx pool service that gives information about the transaction pool.
-func NewPublicTxPoolAPI(kaiService *KardiaService) *PublicTxPoolAPI {
+func NewPublicTxPoolAPI(kaiService *Kardiachain) *PublicTxPoolAPI {
 	return &PublicTxPoolAPI{kaiService}
 }
 
@@ -23,7 +23,7 @@ func (s *PublicTxPoolAPI) Content() map[string]map[string]map[string]*RPCTransac
 		"pending": make(map[string]map[string]*RPCTransaction),
 		"queued":  make(map[string]map[string]*RPCTransaction),
 	}
-	pending, queue := s.kaiService.TxPoolContent()
+	pending, queue := s.kaiService.APIBackend.TxPoolContent()
 	// Flatten the pending transactions
 	for account, txs := range pending {
 		dump := make(map[string]*RPCTransaction)
@@ -46,7 +46,7 @@ func (s *PublicTxPoolAPI) Content() map[string]map[string]map[string]*RPCTransac
 // ContentFrom returns the transactions contained within the transaction pool.
 func (s *PublicTxPoolAPI) ContentFrom(addr common.Address) map[string]map[string]*RPCTransaction {
 	content := make(map[string]map[string]*RPCTransaction, 2)
-	pending, queue := s.kaiService.TxPoolContentFrom(addr)
+	pending, queue := s.kaiService.APIBackend.TxPoolContentFrom(addr)
 
 	// Build the pending transactions
 	dump := make(map[string]*RPCTransaction, len(pending))
@@ -67,7 +67,7 @@ func (s *PublicTxPoolAPI) ContentFrom(addr common.Address) map[string]map[string
 
 // Status returns the number of pending and queued transaction in the pool.
 func (s *PublicTxPoolAPI) Status() map[string]common.Uint {
-	pending, queue := s.kaiService.Stats()
+	pending, queue := s.kaiService.APIBackend.Stats()
 	return map[string]common.Uint{
 		"pending": common.Uint(pending),
 		"queued":  common.Uint(queue),
@@ -81,7 +81,7 @@ func (s *PublicTxPoolAPI) Inspect() map[string]map[string]map[string]string {
 		"pending": make(map[string]map[string]string),
 		"queued":  make(map[string]map[string]string),
 	}
-	pending, queue := s.kaiService.TxPoolContent()
+	pending, queue := s.kaiService.APIBackend.TxPoolContent()
 
 	// Define a formatter to flatten a transaction into a string
 	var format = func(tx *types.Transaction) string {

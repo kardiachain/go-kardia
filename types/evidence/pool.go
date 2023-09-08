@@ -112,7 +112,7 @@ func (evpool *Pool) Update(state cstate.LatestBlockState, ev types.EvidenceList)
 			evpool.state.LastBlockHeight,
 		))
 	}
-	evpool.logger.Info("Updating evidence pool", "last_block_height", state.LastBlockHeight,
+	evpool.logger.Debug("Updating evidence pool", "last_block_height", state.LastBlockHeight,
 		"last_block_time", state.LastBlockTime)
 
 	// update the state
