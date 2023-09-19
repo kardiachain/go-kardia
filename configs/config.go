@@ -237,6 +237,11 @@ func (cfg *ConsensusConfig) PeerQueryMaj23Sleep() time.Duration {
 	return cfg.PeerQueryMaj23SleepDuration
 }
 
+type SyncConfig struct {
+	SyncMode       SyncMode
+	FastSyncConfig FastSyncConfig
+}
+
 // ------------------------- Consensus Params ----------------------------
 type FastSyncConfig struct {
 	ServiceName   string        // log tag of blockchain reactor logs

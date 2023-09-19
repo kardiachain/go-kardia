@@ -88,6 +88,13 @@ var (
 		Category: flags.KaiCategory,
 	}
 
+	defaultSyncMode = kai.Defaults.SyncMode
+	SyncModeFlag    = &flags.TextMarshalerFlag{
+		Name:     "syncmode",
+		Usage:    `Blockchain sync mode ("snap" or "fast")`,
+		Value:    &defaultSyncMode,
+		Category: flags.KaiCategory,
+	}
 	GCModeFlag = &cli.StringFlag{
 		Name:     "gcmode",
 		Usage:    `Blockchain garbage collection mode ("full", "archive")`,
@@ -531,6 +538,9 @@ func SetKaiConfig(ctx *cli.Context, stack *node.Node, cfg *kai.Config) {
 	log.Debug("Sanitizing Go's GC trigger", "percent", int(gogc))
 	godebug.SetGCPercent(int(gogc))
 
+	if ctx.IsSet(SyncModeFlag.Name) {
+		cfg.SyncMode = *flags.GlobalTextMarshaler(ctx, SyncModeFlag.Name).(*configs.SyncMode)
+	}
 	if ctx.IsSet(NetworkIdFlag.Name) {
 		cfg.NetworkId = ctx.Uint64(NetworkIdFlag.Name)
 	}

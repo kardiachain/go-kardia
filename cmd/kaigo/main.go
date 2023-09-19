@@ -42,6 +42,7 @@ var (
 	nodeFlags = flags.Merge([]cli.Flag{
 		utils.GenesisFlag,
 		utils.KeyStoreDirFlag,
+		utils.SyncModeFlag,
 		utils.GCModeFlag,
 		utils.SnapshotFlag,
 		utils.TxLookupLimitFlag,

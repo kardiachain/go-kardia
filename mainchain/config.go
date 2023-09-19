@@ -31,6 +31,7 @@ import (
 
 // Defaults contains default settings for use on the Kardia main net.
 var Defaults = Config{
+	SyncMode:                configs.FastSync,
 	NetworkId:               24,
 	TxLookupLimit:           2350000,
 	DatabaseCache:           512,
@@ -53,8 +54,9 @@ type Config struct {
 	Genesis *genesis.Genesis `toml:"-"`
 
 	// Protocol options
-	ChainId   *big.Int `toml:",omitempty"`
-	NetworkId uint64   `toml:",omitempty"`
+	ChainId   *big.Int         `toml:",omitempty"`
+	NetworkId uint64           `toml:",omitempty"`
+	SyncMode  configs.SyncMode `toml:",omitempty"`
 
 	NoPruning  bool // Whether to disable pruning and flush everything to disk
 	NoPrefetch bool // Whether to disable prefetching and only load state on deman

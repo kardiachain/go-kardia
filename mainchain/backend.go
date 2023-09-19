@@ -179,11 +179,17 @@ func New(stack *node.Node, config *Config) (*Kardiachain, error) {
 	// state starting configs
 	// Set private validator for consensus manager.
 	privValidator := types.NewDefaultPrivValidator(stack.Config().NodeKey())
+
+	syncConfig := &configs.SyncConfig{
+		SyncMode:       config.SyncMode,
+		FastSyncConfig: *config.FastSync,
+	}
+
 	// Determine whether we should do fast sync. This must happen after the handshake, since the
 	// app may modify the validator set, specifying ourself as the only validator.
 	config.FastSync.Enable = config.FastSync.Enable && !onlyValidatorIsUs(state, privValidator.GetAddress())
 	// Make BlockchainReactor. Don't start fast sync if we're doing a state sync first.
-	bcR := bcReactor.NewBlockchainReactor(state, blockExec, bOper, config.FastSync)
+	bcR := bcReactor.NewBlockchainReactor(state, blockExec, bOper, syncConfig)
 	kai.bcR = bcR
 	consensusState := consensus.NewConsensusState(
 		log.New(),
