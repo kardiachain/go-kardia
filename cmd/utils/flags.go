@@ -426,20 +426,26 @@ func setGenesis(ctx *cli.Context, cfg *kai.Config) {
 	switch {
 	case ctx.IsSet(MainnetFlag.Name):
 		chainConfig = configs.MainnetChainConfig
+		// Historically, mainnet does not have a proper ChainID
+		// It is set to "" (empty string)
+		cfg.Genesis = &genesis.Genesis{
+			ChainID: "",
+			Config:  chainConfig,
+		}
 	case ctx.IsSet(TestnetFlag.Name):
 		chainConfig = configs.TestnetChainConfig
+		cfg.Genesis = &genesis.Genesis{
+			ChainID: chainConfig.ChainID.String(),
+			Config:  chainConfig,
+		}
 	}
 
-	cfg.Genesis = &genesis.Genesis{
-		ChainID:         ctx.String(NetworkIdFlag.Name),
-		Config:          chainConfig,
-		InitialHeight:   1,
-		Alloc:           ga,
-		Validators:      g.Validators,
-		ConsensusParams: configs.DefaultConsensusParams(),
-		Consensus:       configs.DefaultConsensusConfig(),
-		Timestamp:       time.Unix(g.Timestamp, 0),
-	}
+	cfg.Genesis.InitialHeight = 1
+	cfg.Genesis.Alloc = ga
+	cfg.Genesis.Validators = g.Validators
+	cfg.Genesis.ConsensusParams = configs.DefaultConsensusParams()
+	cfg.Genesis.Consensus = configs.DefaultConsensusConfig()
+	cfg.Genesis.Timestamp = time.Unix(g.Timestamp, 0)
 }
 
 // SetNodeConfig applies node-related command line flags to the config.
