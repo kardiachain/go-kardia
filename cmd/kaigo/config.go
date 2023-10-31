@@ -133,6 +133,12 @@ func loadBaseConfig(ctx *cli.Context) kaigoConfig {
 		cfg.Node.P2P.PrivateKey, _ = crypto.GenerateKey()
 	}
 
+	if cfg.Node.TimeOutForStaticCall > 0 {
+		configs.TimeOutForStaticCall = cfg.Node.TimeOutForStaticCall
+	} else {
+		configs.TimeOutForStaticCall = configs.DefaultTimeOutForStaticCall
+	}
+
 	// Copy duplicate configs
 	cfg.Node.Genesis = cfg.Kai.Genesis
 	cfg.Node.FastSync = cfg.Kai.FastSync

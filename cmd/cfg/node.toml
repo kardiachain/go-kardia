@@ -47,6 +47,7 @@ WSModules = [
     "txpool",
     "web3",
 ]
+TimeOutForStaticCall = 60000
 
 [Node.P2P]
 PrivateKeyRaw = ""
