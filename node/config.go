@@ -247,6 +247,8 @@ type Config struct {
 	NodeMetadata *NodeMetadata `toml:",omitempty"`
 
 	Genesis *genesis.Genesis `toml:"-"`
+
+	TimeOutForStaticCall int `toml:"TimeOutForStaticCall,omitempty"`
 }
 
 // IPCEndpoint resolves an IPC endpoint based on a configured value, taking into
