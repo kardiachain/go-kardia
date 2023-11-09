@@ -1,4 +1,4 @@
-package mock
+package mocks
 
 import (
 	"github.com/kardiachain/go-kardia/lib/log"

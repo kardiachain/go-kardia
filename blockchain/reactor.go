@@ -3,6 +3,7 @@ package blockchain
 import (
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
@@ -32,7 +33,7 @@ type blockStore interface {
 type BlockchainReactor struct {
 	p2p.BaseReactor
 
-	fastSync  bool // if true, enable fast sync on start
+	mode      atomic.Uint32 // Synchronisation mode defining the strategy used (per sync cycle), use d.getMode() to get the SyncMode
 	scheduler *Routine
 	processor *Routine
 	logger    log.Logger
@@ -53,26 +54,26 @@ type blockApplier interface {
 
 // XXX: unify naming in this package around kaiState
 func newReactor(state cstate.LatestBlockState, store blockStore, reporter behaviour.Reporter,
-	blockApplier blockApplier, fastSync *configs.FastSyncConfig) *BlockchainReactor {
+	blockApplier blockApplier, syncConfig *configs.SyncConfig) *BlockchainReactor {
 	initHeight := state.LastBlockHeight + 1
 	if initHeight == 1 {
 		initHeight = state.InitialHeight
 	}
-	scheduler := newScheduler(initHeight, time.Now(), fastSync)
+	scheduler := newScheduler(initHeight, time.Now(), &syncConfig.FastSyncConfig)
 	pContext := newProcessorContext(store, blockApplier, state)
 	// newPcState requires a processorContext
 	processor := newPcState(pContext)
 	// Create a specific logger for blockchain reactor.
 	logger := log.New()
-	logger.AddTag(fastSync.ServiceName)
+	logger.AddTag(syncConfig.FastSyncConfig.ServiceName)
 	bcR := &BlockchainReactor{
 		scheduler: newRoutine("scheduler", scheduler.handle, chBufferSize),
 		processor: newRoutine("processor", processor.handle, chBufferSize),
 		store:     store,
 		reporter:  reporter,
 		logger:    logger,
-		fastSync:  fastSync.Enable,
 	}
+	bcR.mode.Store(uint32(syncConfig.SyncMode))
 	bcR.BaseReactor = *p2p.NewBaseReactor("Blockchain", bcR)
 	logger.Info("New blockchain reactor created")
 	return bcR
@@ -83,9 +84,9 @@ func NewBlockchainReactor(
 	state cstate.LatestBlockState,
 	blockApplier blockApplier,
 	store blockStore,
-	fastSync *configs.FastSyncConfig) *BlockchainReactor {
+	syncConfig *configs.SyncConfig) *BlockchainReactor {
 	reporter := behaviour.NewMockReporter()
-	return newReactor(state, store, reporter, blockApplier, fastSync)
+	return newReactor(state, store, reporter, blockApplier, syncConfig)
 }
 
 // SetSwitch implements Reactor interface.
@@ -119,6 +120,10 @@ func (r *BlockchainReactor) SyncHeight() uint64 {
 	return r.syncHeight
 }
 
+func (r *BlockchainReactor) getMode() configs.SyncMode {
+	return configs.SyncMode(r.mode.Load())
+}
+
 // SetLogger sets the logger of the reactor.
 func (r *BlockchainReactor) SetLogger(logger log.Logger) {
 	r.logger = logger
@@ -129,12 +134,20 @@ func (r *BlockchainReactor) SetLogger(logger log.Logger) {
 // Start implements cmn.Service interface
 func (r *BlockchainReactor) Start() error {
 	r.reporter = behaviour.NewSwitchReporter(r.BaseReactor.Switch)
-	if r.fastSync {
+
+	switch r.getMode() {
+	case configs.FastSync:
 		err := r.startSync(nil)
 		if err != nil {
 			return fmt.Errorf("failed to start fast sync: %w", err)
 		}
+
+	case configs.SnapSync:
+		panic("snap sync is not implemented!")
+		// TODO(lnp): add snap sync code here
+		// fallback to fast sync if snap sync is completed
 	}
+
 	return nil
 }
 

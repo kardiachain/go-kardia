@@ -177,7 +177,10 @@ func newTestReactor(p testReactorParams) *BlockchainReactor {
 		appl = cstate.NewBlockExecutor(stateStore, p.logger, cstate.EmptyEvidencePool{}, bOper)
 		stateStore.Save(state)
 	}
-	r := newReactor(state, store, reporter, appl, configs.TestFastSyncConfig())
+	r := newReactor(state, store, reporter, appl, &configs.SyncConfig{
+		SyncMode:       configs.FastSync,
+		FastSyncConfig: *configs.TestFastSyncConfig(),
+	})
 	return r
 }
 

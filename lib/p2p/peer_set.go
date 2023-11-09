@@ -56,6 +56,20 @@ func (ps *PeerSet) Add(peer Peer) error {
 	return nil
 }
 
+func (ps *PeerSet) SnapPeers() []Peer {
+	ps.mtx.Lock()
+	defer ps.mtx.Unlock()
+
+	snapPeers := make([]Peer, 0)
+	for _, peer := range ps.list {
+		if peer.IsSnapPeer() {
+			snapPeers = append(snapPeers, peer)
+		}
+	}
+
+	return snapPeers
+}
+
 // Has returns true if the set contains the peer referred to by this
 // peerKey, otherwise false.
 func (ps *PeerSet) Has(peerKey ID) bool {

@@ -73,6 +73,7 @@ type Switch struct {
 	chDescs      []*conn.ChannelDescriptor
 	reactorsByCh map[byte]Reactor
 	peers        *PeerSet
+	snapPeers    *PeerSet
 	dialing      *cmap.CMap
 	reconnecting *cmap.CMap
 	nodeInfo     NodeInfo // our node info
@@ -113,6 +114,7 @@ func NewSwitch(
 		chDescs:              make([]*conn.ChannelDescriptor, 0),
 		reactorsByCh:         make(map[byte]Reactor),
 		peers:                NewPeerSet(),
+		snapPeers:            NewPeerSet(),
 		dialing:              cmap.NewCMap(),
 		reconnecting:         cmap.NewCMap(),
 		metrics:              InitMetrics(),
@@ -316,6 +318,10 @@ func (sw *Switch) MaxNumOutboundPeers() int {
 // Peers returns the set of peers that are connected to the switch.
 func (sw *Switch) Peers() IPeerSet {
 	return sw.peers
+}
+
+func (sw *Switch) SnapPeers() IPeerSet {
+	return sw.snapPeers
 }
 
 // StopPeerForError disconnects from a peer due to external error.

@@ -50,10 +50,16 @@ type ProtocolVersion struct {
 	App   uint64 `json:"app"`
 }
 
+const (
+	_ = iota
+	P2PVersion1
+	P2PVersion2 // support snap peer
+)
+
 // defaultProtocolVersion populates the Block and P2P versions using
 // the global values, but not the App.
 var defaultProtocolVersion = NewProtocolVersion(
-	1,
+	P2PVersion2,
 	1,
 	0,
 )

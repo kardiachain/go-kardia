@@ -35,7 +35,6 @@ import (
 	cs "github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/kai/accounts"
 	"github.com/kardiachain/go-kardia/kai/rawdb"
-	"github.com/kardiachain/go-kardia/kai/state/cstate"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p"
@@ -55,7 +54,7 @@ var (
 type Node struct {
 	bs.BaseService
 
-	eventmux   *event.TypeMux // Event multiplexer used between the services of a stack
+	eventmux   *event.Feed // Event multiplexer used between the services of a stack
 	config     *Config
 	accMan     *accounts.Manager
 	logger     log.Logger
@@ -67,8 +66,6 @@ type Node struct {
 
 	stop       chan struct{} // Channel to wait for termination notifications
 	sw         *p2p.Switch   // p2p connections
-	blockStore types.StoreDB
-	stateDB    cstate.Store
 	nodeKey    *p2p.NodeKey
 	transport  *p2p.MultiplexTransport
 	addrBook   pex.AddrBook // known peers
@@ -117,7 +114,7 @@ func New(conf *Config) (*Node, error) {
 		config:        conf,
 		inprocHandler: rpc.NewServer(),
 		lifecycles:    []Lifecycle{},
-		eventmux:      new(event.TypeMux),
+		eventmux:      new(event.Feed),
 		logger:        logger,
 		stop:          make(chan struct{}),
 	}
@@ -206,13 +203,12 @@ func (n *Node) OnStart() error {
 	}
 
 	// Start all registered lifecycles.
-	var started []Lifecycle
 	for _, lifecycle := range n.lifecycles {
 		if err = lifecycle.Start(); err != nil {
 			break
 		}
-		started = append(started, lifecycle)
 	}
+
 	// Check if any lifecycle failed to start.
 	if err != nil {
 		n.Stop()
@@ -482,7 +478,7 @@ func (n *Node) wsServerForPort(port int) *httpServer {
 
 // EventMux retrieves the event multiplexer used by all the network services in
 // the current protocol stack.
-func (n *Node) EventMux() *event.TypeMux {
+func (n *Node) EventMux() *event.Feed {
 	return n.eventmux
 }
 
@@ -542,27 +538,6 @@ func createTransport(
 	return transport, peerFilters
 }
 
-// splitAndTrimEmpty slices s into all subslices separated by sep and returns a
-// slice of the string s with all leading and trailing Unicode code points
-// contained in cutset removed. If sep is empty, SplitAndTrim splits after each
-// UTF-8 sequence. First part is equivalent to strings.SplitN with a count of
-// -1.  also filter out empty strings, only return non-empty strings.
-func splitAndTrimEmpty(s, sep, cutset string) []string {
-	if s == "" {
-		return []string{}
-	}
-
-	spl := strings.Split(s, sep)
-	nonEmptyStrings := make([]string, 0, len(spl))
-	for i := 0; i < len(spl); i++ {
-		element := strings.Trim(spl[i], cutset)
-		if element != "" {
-			nonEmptyStrings = append(nonEmptyStrings, element)
-		}
-	}
-	return nonEmptyStrings
-}
-
 func makeNodeInfo(
 	config *Config,
 	nodeKey *p2p.NodeKey,
@@ -571,7 +546,7 @@ func makeNodeInfo(
 
 	nodeInfo := p2p.DefaultNodeInfo{
 		ProtocolVersion: p2p.NewProtocolVersion(
-			uint64(1), // global
+			uint64(p2p.P2PVersion2), // global
 			uint64(1),
 			uint64(1),
 		),
