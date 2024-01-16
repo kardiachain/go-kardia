@@ -98,6 +98,7 @@ func (s *PublicWeb3API) rpcMarshalBlock(ctx context.Context, b *types.Block, inc
 		fields["rewards"] = (*common.Big)(blockInfo.Rewards)
 		fields["size"] = common.Uint64(blockInfo.Size() + b.Size())
 	}
+	fields["uncles"] = []string{}
 	return fields, nil
 }
 
