@@ -261,7 +261,7 @@ func (t *TracerAPI) TraceCall(ctx context.Context, args kaiapi.TransactionArgs, 
 	}
 	// Execute the trace
 	msg := args.ToMessage(t.b.RPCGasCap())
-	vmctx := blockchain.NewKVMBlockContext(block.Header(), t.chainContext(ctx), nil)
+	vmctx := blockchain.NewKVMBlockContext(block.Header(), t.chainContext(ctx), &common.Address{})
 
 	var traceConfig *TraceConfig
 	if config != nil {

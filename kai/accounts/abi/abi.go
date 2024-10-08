@@ -34,6 +34,7 @@ type ABI struct {
 	Constructor Method
 	Methods     map[string]Method
 	Events      map[string]Event
+	Errors      map[string]Error
 
 	// Additional "special" functions
 	// It's separated from the original default fallback. Each contract
@@ -80,12 +81,13 @@ func (abi *ABI) UnmarshalJSON(data []byte) error {
 
 	abi.Methods = make(map[string]Method)
 	abi.Events = make(map[string]Event)
+	abi.Errors = make(map[string]Error)
 	for _, field := range fields {
 		switch field.Type {
 		case "constructor":
 			abi.Constructor = NewMethod("", "", Constructor, field.StateMutability, field.Constant, field.Payable, field.Inputs, nil)
 		case "function":
-			name := abi.overloadedMethodName(field.Name)
+			name := overloadedName(field.Name, func(s string) bool { _, ok := abi.Methods[s]; return ok })
 			abi.Methods[name] = NewMethod(name, field.Name, Function, field.StateMutability, field.Constant, field.Payable, field.Inputs, field.Outputs)
 		case "fallback":
 			if abi.HasFallback() {
@@ -101,8 +103,10 @@ func (abi *ABI) UnmarshalJSON(data []byte) error {
 			}
 			abi.Receive = NewMethod("", "", Receive, field.StateMutability, field.Constant, field.Payable, nil, nil)
 		case "event":
-			name := abi.overloadedEventName(field.Name)
+			name := overloadedName(field.Name, func(s string) bool { _, ok := abi.Events[s]; return ok })
 			abi.Events[name] = NewEvent(name, field.Name, field.Anonymous, field.Inputs)
+		case "error":
+			abi.Errors[field.Name] = NewError(field.Name, field.Inputs)
 		default:
 			return fmt.Errorf("abi: could not recognize type %v of field %v", field.Type, field.Name)
 		}
@@ -252,6 +256,17 @@ func (abi *ABI) EventByID(topic common.Hash) (*Event, error) {
 	return nil, fmt.Errorf("no event with id: %#x", topic.Hex())
 }
 
+// ErrorByID looks up an error by the 4-byte id,
+// returns nil if none found.
+func (abi *ABI) ErrorByID(sigdata [4]byte) (*Error, error) {
+	for _, errABI := range abi.Errors {
+		if bytes.Equal(errABI.ID[:4], sigdata[:]) {
+			return &errABI, nil
+		}
+	}
+	return nil, fmt.Errorf("no error with id: %#x", sigdata[:])
+}
+
 // HasFallback returns an indicator whether a fallback function is included.
 func (abi *ABI) HasFallback() bool {
 	return abi.Fallback.Type == Fallback
@@ -275,10 +290,30 @@ func UnpackRevert(data []byte) (string, error) {
 	if !bytes.Equal(data[:4], revertSelector) {
 		return "", errors.New("invalid data for unpacking")
 	}
-	typ, _ := NewType("string", "", nil)
+	typ, err := NewType("string", "", nil)
+	if err != nil {
+		return "", err
+	}
 	unpacked, err := (Arguments{{Type: typ}}).Unpack(data[4:])
 	if err != nil {
 		return "", err
 	}
 	return unpacked[0].(string), nil
+}
+
+// overloadedName returns the next available name for a given thing.
+// Needed since solidity allows for overloading.
+//
+// e.g. if the abi contains Methods send, send1
+// overloadedName would return send2 for input send.
+//
+// overloadedName works for methods, events and errors.
+func overloadedName(rawName string, isAvail func(string) bool) string {
+	name := rawName
+	ok := isAvail(name)
+	for idx := 0; ok; idx++ {
+		name = fmt.Sprintf("%s%d", rawName, idx)
+		ok = isAvail(name)
+	}
+	return name
 }
