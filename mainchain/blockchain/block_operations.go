@@ -143,13 +143,13 @@ func (bo *BlockOperations) CreateProposalBlock(
 func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCommit stypes.LastCommitInfo,
 	byzVals []stypes.Evidence) ([]*types.Validator, common.Hash, error) {
 	// Update blacklisted addresses after interval
-	if block.Height()%tx_pool.UpdateBlacklistInterval == 0 {
+	/*if block.Height()%tx_pool.UpdateBlacklistInterval == 0 {
 		err := tx_pool.UpdateBlacklist(tx_pool.BlacklistRequestTimeout)
 		if err != nil {
 			bo.logger.Warn("Cannot get blacklisted addresses", "err", err)
 		}
 		bo.logger.Info("Current blacklisted addresses", "addresses", tx_pool.StringifyBlacklist())
-	}
+	}*/
 
 	vals, root, blockInfo, err := bo.commitBlock(block.Transactions(), block.Header(), lastCommit, byzVals)
 	if err != nil {

@@ -154,10 +154,10 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	}
 
 	// Initialize the blacklist before starting node
-	err = tx_pool.UpdateBlacklist(tx_pool.InitialBlacklistRequestTimeout)
+	/*err = tx_pool.UpdateBlacklist(tx_pool.InitialBlacklistRequestTimeout)
 	if err != nil {
 		return nil, err
-	}
+	}*/
 	kai.logger.Info("Updated blacklisted addresses", "addresses", tx_pool.StringifyBlacklist())
 	kai.txPool = tx_pool.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
 	kai.txpoolR = tx_pool.NewReactor(config.TxPool, kai.txPool)
